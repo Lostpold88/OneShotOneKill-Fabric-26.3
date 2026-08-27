@@ -1,0 +1,14 @@
+{
+	"required": true,
+	"package": "com.oneshotonekill.client.mixin",
+	"compatibilityLevel": "JAVA_25",
+	"client": [
+		"MinecraftClientMixin"
+	],
+	"injectors": {
+		"defaultRequire": 1
+	},
+	"overwrites": {
+		"requireAnnotations": true
+	}
+}

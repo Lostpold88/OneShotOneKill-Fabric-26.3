@@ -1,0 +1,38 @@
+{
+	"schemaVersion": 1,
+	"id": "oneshotonekill",
+	"version": "${version}",
+	"name": "One Shot One Kill",
+	"description": "Arena-Minigame-Mod für Minecraft 26.2 auf Fabric.",
+	"authors": [
+		"Leopold"
+	],
+	"license": "MIT",
+	"icon": "assets/oneshotonekill/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.oneshotonekill.OneShotOneKill"
+		],
+		"client": [
+			"com.oneshotonekill.client.OneShotOneKillClient"
+		],
+		"fabric-datagen": [
+			"com.oneshotonekill.client.OneShotOneKillDataGenerator"
+		]
+	},
+	"mixins": [
+		"oneshotonekill.mixins.json",
+		{
+			"config": "oneshotonekill.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"accessWidener": "oneshotonekill.accesswidener",
+	"depends": {
+		"fabricloader": ">=0.19.3",
+		"minecraft": "~26.2",
+		"java": ">=25",
+		"fabric-api": "*"
+	}
+}
