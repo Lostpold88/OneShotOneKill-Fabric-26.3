@@ -10,6 +10,7 @@
 		"ClientPacketListenerTickRateMixin",
 		"FogRendererMixin",
 		"GameRendererTimeDistortionMixin",
+		"GuiRenderStateBlurMixin",
 		"ItemInHandRendererMixin",
 		"KeyboardInputMixin",
 		"LivingEntityRendererMixin",

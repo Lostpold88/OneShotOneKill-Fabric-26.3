@@ -17,12 +17,17 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Util;
 import net.minecraft.world.item.ItemStack;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import org.lwjgl.glfw.GLFW;
 
 /**
  * Modernes Admin-Arsenal: Kategorisierte Schnellausgabe aller Spezialitems und Fähigkeiten.
+ *
+ * <p>Alle Bewegungen laufen auf {@link Util#getMillis()} und der gemessenen Bildzeit, nicht auf
+ * Spielticks – ein Bildschirm soll auch dann flüssig bleiben, wenn der Zeitverzerrer den Takt
+ * auf acht Ticks je Sekunde drückt.</p>
  */
 public final class AdminItemScreen extends Screen {
    private static final int CARD_WIDTH = 580;
@@ -31,14 +36,24 @@ public final class AdminItemScreen extends Screen {
    private static final int CHROME_HEIGHT = 156;
    private static final int ROW_HEIGHT = 36;
    private static final int BTN_WIDTH = 42;
+   private static final int SCROLLBAR_INSET = 9;
+   private static final int EDGE_FADE = 10;
+   private static final long ENTRANCE_MILLIS = 150L;
 
-   private static int rememberedScroll;
+   private static float rememberedScroll;
    private static ItemCategory lastSelectedCategory = ItemCategory.ALL;
 
    private final List<Hotspot> hotspots = new ArrayList<>();
+   private final OsokWidgets.ScrollMotion scroll = new OsokWidgets.ScrollMotion();
+   private final long openedAt = Util.getMillis();
    private ItemCategory currentCategory = lastSelectedCategory;
    private String searchQuery = "";
    private boolean searchFocused = false;
+
+   private long lastFrameMillis = Long.MIN_VALUE;
+   private float indicatorX = Float.NaN;
+   private float indicatorWidth;
+   private long categoryChangedAt = Long.MIN_VALUE;
 
    private int cardLeft;
    private int cardTop;
@@ -46,7 +61,6 @@ public final class AdminItemScreen extends Screen {
    private int listTop;
    private int listHeight;
    private int contentLength;
-   private int scroll = rememberedScroll;
 
    public enum ItemCategory {
       ALL("Alle", OsokWidgets.COLOR_GOLD),
@@ -71,6 +85,7 @@ public final class AdminItemScreen extends Screen {
 
    public AdminItemScreen() {
       super(Component.literal("Spezialitems-Arsenal"));
+      this.scroll.set(rememberedScroll);
    }
 
    public static ItemCategory getCategoryFor(SpecialItem item) {
@@ -114,13 +129,11 @@ public final class AdminItemScreen extends Screen {
       listTop = cardTop + 84;
 
       updateContentLength();
-      int overflow = contentLength - listHeight;
-      scroll = overflow > 0 ? Math.max(0, Math.min(overflow, scroll)) : 0;
+      scroll.clampNow(contentLength - listHeight);
    }
 
    private void updateContentLength() {
-      List<SpecialItem> filtered = getFilteredItems();
-      contentLength = filtered.size() * (ROW_HEIGHT + 4);
+      contentLength = getFilteredItems().size() * (ROW_HEIGHT + 4);
    }
 
    private List<SpecialItem> getFilteredItems() {
@@ -143,13 +156,27 @@ public final class AdminItemScreen extends Screen {
       return false;
    }
 
+   /**
+    * Nur die Unschärfe, kein Vanilla-Hintergrund.
+    *
+    * <p>Der Aufruf gehört hierher und nicht in {@code extractRenderState}: Die Unschärfe trennt
+    * die bereits gezeichneten Ebenen von den folgenden, muss also feststehen, bevor der eigene
+    * Inhalt beginnt. Vanillas Menühintergrund entfällt ersatzlos – über der unscharfen Welt
+    * liegt allein der Schleier aus {@code OsokWidgets.COLOR_SCRIM}.</p>
+    */
+   @Override
+   public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
+      graphics.blurBeforeThisStratum();
+      this.minecraft.gui.hud.extractDeferredSubtitles();
+   }
+
    @Override
    public boolean keyPressed(KeyEvent event) {
       if (searchFocused) {
          if (event.key() == GLFW.GLFW_KEY_BACKSPACE) {
             if (!searchQuery.isEmpty()) {
                searchQuery = searchQuery.substring(0, searchQuery.length() - 1);
-               scroll = 0;
+               scroll.set(0.0F);
                updateContentLength();
             }
             return true;
@@ -170,7 +197,7 @@ public final class AdminItemScreen extends Screen {
    public boolean charTyped(CharacterEvent event) {
       if (searchFocused && event.isAllowedChatCharacter()) {
          searchQuery += event.codepointAsString();
-         scroll = 0;
+         scroll.set(0.0F);
          updateContentLength();
          return true;
       }
@@ -179,110 +206,61 @@ public final class AdminItemScreen extends Screen {
 
    @Override
    public void removed() {
-      rememberedScroll = scroll;
+      rememberedScroll = scroll.value();
       lastSelectedCategory = currentCategory;
       super.removed();
    }
 
+   /** Vergangene Echtzeit seit dem letzten Bild, gedeckelt gegen Sprünge nach einem Ruckler. */
+   private float advanceClock() {
+      long now = Util.getMillis();
+      float delta = lastFrameMillis == Long.MIN_VALUE
+         ? 1.0F / 60.0F
+         : Math.clamp((now - lastFrameMillis) / 1000.0F, 1.0F / 480.0F, 0.1F);
+      lastFrameMillis = now;
+      return delta;
+   }
+
    @Override
    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
+      float delta = advanceClock();
+      scroll.advance(delta, contentLength - listHeight);
+
       graphics.fill(0, 0, width, height, OsokWidgets.COLOR_SCRIM);
+
+      // Auftritt: die Karte federt aus 95 % auf ihre volle Größe. Der Scissor-Rahmen wird von
+      // GuiGraphicsExtractor mit derselben Matrix umgerechnet, der Inhalt bleibt also sauber
+      // beschnitten. Nur Mauskoordinaten laufen ungewandelt weiter - für 150 ms belanglos.
+      float entrance = entranceScale();
+      float centerX = cardLeft + CARD_WIDTH / 2.0F;
+      float centerY = cardTop + cardHeight / 2.0F;
+      graphics.pose().pushMatrix();
+      graphics.pose().translate(centerX, centerY);
+      graphics.pose().scale(entrance, entrance);
+      graphics.pose().translate(-centerX, -centerY);
+
       OsokWidgets.glassCard(graphics, cardLeft, cardTop, cardLeft + CARD_WIDTH, cardTop + cardHeight, false, 0);
 
       hotspots.clear();
 
-      // Header mit Brand-Logo
       graphics.text(font, "✦ OneShotOneKill", cardLeft + 16, cardTop + 14, OsokWidgets.COLOR_GOLD);
       graphics.text(font, "• Admin-Spezialitem-Arsenal", cardLeft + 16 + font.width("✦ OneShotOneKill ") + 4, cardTop + 14, OsokWidgets.COLOR_TEXT_MUTED);
 
-      // Status Badge: Anzahl gefilterter Items
       List<SpecialItem> filteredItems = getFilteredItems();
       String countText = filteredItems.size() + (filteredItems.size() == 1 ? " Item" : " Items");
       OsokWidgets.statusBadge(graphics, font, cardLeft + CARD_WIDTH - 16 - (font.width(countText) + 18), cardTop + 12, countText, currentCategory.accent, false);
 
-      // Kategorie-Tabs & Suchleiste (Zeile 2)
-      drawCategoryTabsAndSearch(graphics, mouseX, mouseY);
+      drawCategoryTabsAndSearch(graphics, mouseX, mouseY, delta);
       OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, listTop - 6, OsokWidgets.COLOR_CARD_BORDER);
 
-      // Item-Liste im Scissor-Bereich
-      int left = cardLeft + 16;
-      int right = cardLeft + CARD_WIDTH - 16;
+      SpecialItem hoveredItemForTooltip = drawItemList(graphics, mouseX, mouseY, filteredItems);
 
-      graphics.enableScissor(left, listTop, right, listTop + listHeight);
-      int y = listTop - scroll;
+      int trackX = cardLeft + CARD_WIDTH - SCROLLBAR_INSET;
+      boolean barHovered = mouseX >= trackX - 3 && mouseX <= trackX + 7
+         && mouseY >= listTop && mouseY < listTop + listHeight;
+      OsokWidgets.scrollbar(graphics, trackX, listTop, listHeight, contentLength, listHeight,
+         scroll.offset(), OsokWidgets.COLOR_GOLD, barHovered, scroll.isDragging());
 
-      SpecialItem hoveredItemForTooltip = null;
-
-      if (filteredItems.isEmpty()) {
-         graphics.centeredText(font, Component.literal("Keine Items gefunden für '" + searchQuery + "'"), (left + right) / 2, listTop + listHeight / 2 - 4, OsokWidgets.COLOR_TEXT_FAINT);
-      } else {
-         for (SpecialItem item : filteredItems) {
-            boolean rowHovered = OsokWidgets.isOver(mouseX, mouseY, left, y, right - left, ROW_HEIGHT)
-               && mouseY >= listTop && mouseY < listTop + listHeight;
-
-            ItemCategory cat = getCategoryFor(item);
-            int rowBg = rowHovered ? 0xFF222B3D : 0xFF141924;
-            int rowBorder = rowHovered ? cat.accent : OsokWidgets.COLOR_CARD_BORDER;
-
-            // Kartenkörper
-            graphics.fill(left, y, right, y + ROW_HEIGHT, rowBg);
-            graphics.horizontalLine(left, right - 1, y, rowBorder);
-            graphics.horizontalLine(left, right - 1, y + ROW_HEIGHT - 1, rowBorder);
-            graphics.verticalLine(left, y, y + ROW_HEIGHT - 1, rowBorder);
-            graphics.verticalLine(right - 1, y, y + ROW_HEIGHT - 1, rowBorder);
-
-            // Akzentleiste links
-            graphics.fill(left + 2, y + 2, left + 5, y + ROW_HEIGHT - 2, cat.accent);
-
-            // 3D Item Icon
-            ItemStack stack = item.createStack();
-            graphics.item(stack, left + 10, y + 10);
-
-            // Prüfen auf Icon-Hover für Tooltip
-            boolean iconHovered = OsokWidgets.isOver(mouseX, mouseY, left + 8, y + 8, 20, 20)
-               && mouseY >= listTop && mouseY < listTop + listHeight;
-            if (iconHovered) {
-               hoveredItemForTooltip = item;
-            }
-
-            // Name & Kategorie-Tag
-            graphics.text(font, item.getDisplayName(), left + 34, y + 8, OsokWidgets.COLOR_TEXT_WHITE);
-            int nameWidth = font.width(item.getDisplayName());
-            graphics.text(font, "• " + cat.label, left + 38 + nameWidth, y + 8, cat.accent);
-
-            // Subtext (Kurzbeschreibung)
-            graphics.text(font, getItemDescription(item), left + 34, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
-
-            // Knöpfe: "+1" und "+16"
-            int btnY = y + 8;
-            int btn16X = right - BTN_WIDTH - 8;
-            int btn1X = btn16X - BTN_WIDTH - 6;
-
-            boolean btn1Hover = OsokWidgets.isOver(mouseX, mouseY, btn1X, btnY, BTN_WIDTH, 20)
-               && mouseY >= listTop && mouseY < listTop + listHeight;
-            boolean btn16Hover = OsokWidgets.isOver(mouseX, mouseY, btn16X, btnY, BTN_WIDTH, 20)
-               && mouseY >= listTop && mouseY < listTop + listHeight;
-
-            OsokWidgets.cyberButton(graphics, font, btn1X, btnY, BTN_WIDTH, 20, "+1", true, btn1Hover, OsokWidgets.COLOR_GOLD);
-            OsokWidgets.cyberButton(graphics, font, btn16X, btnY, BTN_WIDTH, 20, "+16", true, btn16Hover, cat.accent);
-
-            hotspots.add(new Hotspot(btn1X, btnY, BTN_WIDTH, 20, true,
-               () -> ClientPlayNetworking.send(new GiveSpecialItemPayload(item.getId()))));
-            hotspots.add(new Hotspot(btn16X, btnY, BTN_WIDTH, 20, true, () -> {
-               for (int i = 0; i < 16; i++) {
-                  ClientPlayNetworking.send(new GiveSpecialItemPayload(item.getId()));
-               }
-            }));
-
-            y += ROW_HEIGHT + 4;
-         }
-      }
-      contentLength = y + scroll - listTop;
-      graphics.disableScissor();
-
-      drawScrollbar(graphics, right);
-
-      // Footer
       int footerY = listTop + listHeight + 8;
       OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, footerY, OsokWidgets.COLOR_CARD_BORDER);
 
@@ -295,7 +273,10 @@ public final class AdminItemScreen extends Screen {
       OsokWidgets.cyberButton(graphics, font, closeX, footerY + 6, closeWidth, 20, "Schließen", true, closeHover, OsokWidgets.COLOR_CARD_BORDER);
       hotspots.add(new Hotspot(closeX, footerY + 6, closeWidth, 20, false, this::onClose));
 
-      // Tooltip ganz oben zeichnen falls Icon gehovert
+      graphics.pose().popMatrix();
+
+      // Hinweisfenster und Vanilla-Nachlauf außerhalb der Auftrittsmatrix: Beide arbeiten mit
+      // rohen Mauskoordinaten und säßen sonst um den Skalierungsfehler versetzt.
       if (hoveredItemForTooltip != null) {
          ItemCategory cat = getCategoryFor(hoveredItemForTooltip);
          List<Component> tooltip = List.of(
@@ -313,26 +294,143 @@ public final class AdminItemScreen extends Screen {
       updateCursor(graphics, mouseX, mouseY);
    }
 
-   private void drawCategoryTabsAndSearch(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+   /** Federnder Auftritt von 0,95 auf 1,0 mit leichtem Überschwingen. */
+   private float entranceScale() {
+      float progress = Math.clamp((Util.getMillis() - openedAt) / (float) ENTRANCE_MILLIS, 0.0F, 1.0F);
+      if (progress >= 1.0F) {
+         return 1.0F;
+      }
+      float back = progress - 1.0F;
+      float eased = 1.0F + back * back * (2.0F * back + 1.0F);
+      return 0.95F + 0.05F * eased;
+   }
+
+   private SpecialItem drawItemList(GuiGraphicsExtractor graphics, int mouseX, int mouseY,
+                                    List<SpecialItem> filteredItems) {
+      int left = cardLeft + 16;
+      int right = cardLeft + CARD_WIDTH - 16;
+      int listBottom = listTop + listHeight;
+
+      graphics.enableScissor(left, listTop, right, listBottom);
+
+      // Kategoriewechsel: der neue Inhalt gleitet aus 12 px Versatz herein.
+      int slide = tabSlideOffset();
+      graphics.pose().pushMatrix();
+      graphics.pose().translate(slide, 0.0F);
+
+      int y = listTop - scroll.offset();
+      SpecialItem hoveredItemForTooltip = null;
+
+      if (filteredItems.isEmpty()) {
+         graphics.centeredText(font, Component.literal("Keine Items gefunden für '" + searchQuery + "'"), (left + right) / 2, listTop + listHeight / 2 - 4, OsokWidgets.COLOR_TEXT_FAINT);
+      } else {
+         for (SpecialItem item : filteredItems) {
+            boolean rowHovered = OsokWidgets.isOver(mouseX, mouseY, left, y, right - left, ROW_HEIGHT)
+               && mouseY >= listTop && mouseY < listBottom;
+
+            ItemCategory cat = getCategoryFor(item);
+            int rowBg = rowHovered ? 0xFF222B3D : 0xFF141924;
+            int rowBorder = rowHovered ? cat.accent : OsokWidgets.COLOR_CARD_BORDER;
+
+            graphics.fill(left, y, right, y + ROW_HEIGHT, rowBg);
+            graphics.horizontalLine(left, right - 1, y, rowBorder);
+            graphics.horizontalLine(left, right - 1, y + ROW_HEIGHT - 1, rowBorder);
+            graphics.verticalLine(left, y, y + ROW_HEIGHT - 1, rowBorder);
+            graphics.verticalLine(right - 1, y, y + ROW_HEIGHT - 1, rowBorder);
+
+            graphics.fill(left + 2, y + 2, left + 5, y + ROW_HEIGHT - 2, cat.accent);
+
+            ItemStack stack = item.createStack();
+            graphics.item(stack, left + 10, y + 10);
+
+            boolean iconHovered = OsokWidgets.isOver(mouseX, mouseY, left + 8, y + 8, 20, 20)
+               && mouseY >= listTop && mouseY < listBottom;
+            if (iconHovered) {
+               hoveredItemForTooltip = item;
+            }
+
+            graphics.text(font, item.getDisplayName(), left + 34, y + 8, OsokWidgets.COLOR_TEXT_WHITE);
+            int nameWidth = font.width(item.getDisplayName());
+            graphics.text(font, "• " + cat.label, left + 38 + nameWidth, y + 8, cat.accent);
+            graphics.text(font, getItemDescription(item), left + 34, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
+
+            int btnY = y + 8;
+            int btn16X = right - BTN_WIDTH - 8;
+            int btn1X = btn16X - BTN_WIDTH - 6;
+
+            boolean btn1Hover = OsokWidgets.isOver(mouseX, mouseY, btn1X, btnY, BTN_WIDTH, 20)
+               && mouseY >= listTop && mouseY < listBottom;
+            boolean btn16Hover = OsokWidgets.isOver(mouseX, mouseY, btn16X, btnY, BTN_WIDTH, 20)
+               && mouseY >= listTop && mouseY < listBottom;
+
+            OsokWidgets.cyberButton(graphics, font, btn1X, btnY, BTN_WIDTH, 20, "+1", true, btn1Hover, OsokWidgets.COLOR_GOLD);
+            OsokWidgets.cyberButton(graphics, font, btn16X, btnY, BTN_WIDTH, 20, "+16", true, btn16Hover, cat.accent);
+
+            hotspots.add(new Hotspot(btn1X, btnY, BTN_WIDTH, 20, true,
+               () -> ClientPlayNetworking.send(new GiveSpecialItemPayload(item.getId()))));
+            hotspots.add(new Hotspot(btn16X, btnY, BTN_WIDTH, 20, true, () -> {
+               for (int i = 0; i < 16; i++) {
+                  ClientPlayNetworking.send(new GiveSpecialItemPayload(item.getId()));
+               }
+            }));
+
+            y += ROW_HEIGHT + 4;
+         }
+      }
+      contentLength = y + scroll.offset() - listTop;
+
+      graphics.pose().popMatrix();
+      // Weiche Kanten noch innerhalb des Scissor-Bereichs, damit sie exakt darauf abschließen.
+      OsokWidgets.drawSoftScrollEdges(graphics, left, right, listTop, listBottom, EDGE_FADE,
+         OsokWidgets.COLOR_CARD_BG);
+      graphics.disableScissor();
+      return hoveredItemForTooltip;
+   }
+
+   /** Versatz des Inhalts direkt nach einem Kategoriewechsel. */
+   private int tabSlideOffset() {
+      if (categoryChangedAt == Long.MIN_VALUE) {
+         return 0;
+      }
+      float progress = Math.clamp((Util.getMillis() - categoryChangedAt) / 180.0F, 0.0F, 1.0F);
+      float eased = 1.0F - (1.0F - progress) * (1.0F - progress);
+      return Math.round((1.0F - eased) * 12.0F);
+   }
+
+   private void drawCategoryTabsAndSearch(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
       int x = cardLeft + 16;
       int y = cardTop + 36;
 
-      // Kategorie-Tabs
+      float activeX = x;
+      float activeWidth = 0.0F;
+
       for (ItemCategory cat : ItemCategory.values()) {
          int tabWidth = font.width(cat.label) + 14;
          boolean isActive = currentCategory == cat;
          boolean hovered = OsokWidgets.isOver(mouseX, mouseY, x, y, tabWidth, 20);
 
-         OsokWidgets.tabHeader(graphics, font, x, y, tabWidth, 20, cat.label, isActive, hovered, cat.accent);
-         hotspots.add(new Hotspot(x, y, tabWidth, 20, false, () -> {
-            currentCategory = cat;
-            scroll = 0;
-            updateContentLength();
-         }));
+         OsokWidgets.tabHeader(graphics, font, x, y, tabWidth, 20, cat.label, isActive, hovered, cat.accent, false);
+         if (isActive) {
+            activeX = x;
+            activeWidth = tabWidth;
+         }
+         int tabX = x;
+         hotspots.add(new Hotspot(tabX, y, tabWidth, 20, false, () -> selectCategory(cat)));
          x += tabWidth + 4;
       }
 
-      // Suchfeld rechts
+      // Der Unterstrich gleitet auf den gewählten Reiter, statt dorthin zu springen.
+      if (Float.isNaN(indicatorX)) {
+         indicatorX = activeX;
+         indicatorWidth = activeWidth;
+      } else {
+         float rate = 1.0F - (float) Math.exp(-delta * 24.0F);
+         indicatorX += (activeX - indicatorX) * rate;
+         indicatorWidth += (activeWidth - indicatorWidth) * rate;
+      }
+      OsokWidgets.floatingTabIndicator(graphics, indicatorX, y + 18.0F, indicatorWidth, 2.0F,
+         currentCategory.accent);
+
       int searchWidth = 140;
       int searchX = cardLeft + CARD_WIDTH - 16 - searchWidth;
       boolean searchHover = OsokWidgets.isOver(mouseX, mouseY, searchX, y, searchWidth, 20);
@@ -342,27 +440,39 @@ public final class AdminItemScreen extends Screen {
          () -> searchFocused = true));
    }
 
-   private void drawScrollbar(GuiGraphicsExtractor graphics, int right) {
-      int trackX = cardLeft + CARD_WIDTH - 9;
-      OsokWidgets.scrollbar(graphics, trackX, listTop, listHeight, contentLength, listHeight, scroll, OsokWidgets.COLOR_GOLD);
+   private void selectCategory(ItemCategory category) {
+      if (currentCategory == category) {
+         return;
+      }
+      currentCategory = category;
+      categoryChangedAt = Util.getMillis();
+      scroll.set(0.0F);
+      updateContentLength();
    }
 
    @Override
    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
       if (event.button() == 0) {
-         boolean hitSearch = false;
+         // Der Scrollbalken hat Vorrang: Er liegt rechts außerhalb der Zeilen und würde sonst
+         // von einem darunterliegenden Hotspot verdeckt.
+         if (scroll.beginDrag(event.x(), event.y(), cardLeft + CARD_WIDTH - SCROLLBAR_INSET,
+            listTop, listHeight, contentLength)) {
+            return true;
+         }
+
+         boolean hitSomething = false;
          for (Hotspot hotspot : hotspots) {
             if (OsokWidgets.isOver(event.x(), event.y(), hotspot.x, hotspot.y, hotspot.width, hotspot.height)) {
                if (hotspot.scrollable && (event.y() < listTop || event.y() >= listTop + listHeight)) {
                   continue;
                }
-               Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+               clickSound();
                hotspot.action.run();
-               hitSearch = true;
+               hitSomething = true;
                break;
             }
          }
-         if (!hitSearch) {
+         if (!hitSomething) {
             searchFocused = false;
          }
          return true;
@@ -371,17 +481,51 @@ public final class AdminItemScreen extends Screen {
    }
 
    @Override
+   public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
+      if (event.button() == 0 && scroll.isDragging()) {
+         scroll.drag(event.y(), listTop, listHeight, contentLength);
+         return true;
+      }
+      return super.mouseDragged(event, deltaX, deltaY);
+   }
+
+   @Override
+   public boolean mouseReleased(MouseButtonEvent event) {
+      if (event.button() == 0) {
+         scroll.endDrag();
+      }
+      return super.mouseReleased(event);
+   }
+
+   @Override
    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
       int overflow = contentLength - listHeight;
       if (overflow > 0) {
-         scroll = Math.max(0, Math.min(overflow, scroll - (int) (scrollY * 18)));
+         scroll.scrollBy((float) -scrollY * 26.0F, overflow);
          return true;
       }
       return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
    }
 
+   private void clickSound() {
+      Minecraft.getInstance().getSoundManager()
+         .play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+   }
+
    private void updateCursor(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
       graphics.requestCursor(CursorTypes.ARROW);
+
+      if (scroll.isDragging()) {
+         graphics.requestCursor(CursorTypes.RESIZE_NS);
+         return;
+      }
+      int trackX = cardLeft + CARD_WIDTH - SCROLLBAR_INSET;
+      if (contentLength > listHeight && mouseX >= trackX - 3 && mouseX <= trackX + 7
+         && mouseY >= listTop && mouseY < listTop + listHeight) {
+         graphics.requestCursor(CursorTypes.POINTING_HAND);
+         return;
+      }
+
       for (int i = hotspots.size() - 1; i >= 0; i--) {
          Hotspot hotspot = hotspots.get(i);
          if (!OsokWidgets.isOver(mouseX, mouseY, hotspot.x, hotspot.y, hotspot.width, hotspot.height)) {

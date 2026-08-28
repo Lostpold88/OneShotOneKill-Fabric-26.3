@@ -27,6 +27,7 @@ import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
+import net.minecraft.util.Util;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
@@ -44,9 +45,12 @@ public final class ArenaMenuScreen extends Screen {
    private static final int CONTROL_BUTTON_WIDTH = 110;
    private static final int WEIGHT_BUTTON_WIDTH = 34;
    private static final int ROW_HEIGHT = 34;
+   private static final int SCROLLBAR_INSET = 9;
+   private static final int EDGE_FADE = 10;
+   private static final long ENTRANCE_MILLIS = 150L;
 
    /** Jeder Reiter merkt sich seine eigene Scrollposition über das Schließen hinweg. */
-   private static final Map<Tab, Integer> SCROLL_MEMORY = new EnumMap<>(Tab.class);
+   private static final Map<Tab, Float> SCROLL_MEMORY = new EnumMap<>(Tab.class);
    private static Tab lastSelectedTab = Tab.ARENAS;
 
    private ArenaMenuStatePayload state;
@@ -63,13 +67,20 @@ public final class ArenaMenuScreen extends Screen {
    private int contentTop;
    private int contentHeight;
    private int contentLength;
-   private int scroll;
+
+   private final OsokWidgets.ScrollMotion scroll = new OsokWidgets.ScrollMotion();
+   private final long openedAt = Util.getMillis();
+   private long lastFrameMillis = Long.MIN_VALUE;
+   private float indicatorX = Float.NaN;
+   private float indicatorWidth;
+   private long tabChangedAt = Long.MIN_VALUE;
+   private double lastSliderValue = Double.NaN;
 
    public ArenaMenuScreen(ArenaMenuStatePayload state) {
       super(Component.literal("OneShotOneKill"));
       this.state = state;
       this.currentTab = lastSelectedTab;
-      this.scroll = SCROLL_MEMORY.getOrDefault(currentTab, 0);
+      this.scroll.set(SCROLL_MEMORY.getOrDefault(currentTab, 0.0F));
    }
 
    /** Aktualisiert ein offenes Menü oder öffnet es, wenn der Server darum bittet. */
@@ -110,38 +121,110 @@ public final class ArenaMenuScreen extends Screen {
 
    @Override
    public void removed() {
-      SCROLL_MEMORY.put(currentTab, scroll);
+      SCROLL_MEMORY.put(currentTab, scroll.value());
       super.removed();
    }
 
    // -- Zeichnen ------------------------------------------------------------
 
+   /**
+    * Nur die Unschärfe, kein Vanilla-Hintergrund.
+    *
+    * <p>Der Aufruf gehört hierher und nicht in {@code extractRenderState}: Die Unschärfe trennt
+    * die bereits gezeichneten Ebenen von den folgenden, muss also feststehen, bevor der eigene
+    * Inhalt beginnt. Vanillas Menühintergrund entfällt ersatzlos – über der unscharfen Welt
+    * liegt allein der Schleier aus {@code OsokWidgets.COLOR_SCRIM}.</p>
+    */
+   @Override
+   public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
+      graphics.blurBeforeThisStratum();
+      this.minecraft.gui.hud.extractDeferredSubtitles();
+   }
+
+   /** Vergangene Echtzeit seit dem letzten Bild, gedeckelt gegen Sprünge nach einem Ruckler. */
+   private float advanceClock() {
+      long now = Util.getMillis();
+      float delta = lastFrameMillis == Long.MIN_VALUE
+         ? 1.0F / 60.0F
+         : Math.clamp((now - lastFrameMillis) / 1000.0F, 1.0F / 480.0F, 0.1F);
+      lastFrameMillis = now;
+      return delta;
+   }
+
+   /** Federnder Auftritt von 0,95 auf 1,0 mit leichtem Überschwingen. */
+   private float entranceScale() {
+      float progress = Math.clamp((Util.getMillis() - openedAt) / (float) ENTRANCE_MILLIS, 0.0F, 1.0F);
+      if (progress >= 1.0F) {
+         return 1.0F;
+      }
+      float back = progress - 1.0F;
+      float eased = 1.0F + back * back * (2.0F * back + 1.0F);
+      return 0.95F + 0.05F * eased;
+   }
+
+   /** Versatz des Inhalts direkt nach einem Reiterwechsel. */
+   private int tabSlideOffset() {
+      if (tabChangedAt == Long.MIN_VALUE) {
+         return 0;
+      }
+      float progress = Math.clamp((Util.getMillis() - tabChangedAt) / 180.0F, 0.0F, 1.0F);
+      float eased = 1.0F - (1.0F - progress) * (1.0F - progress);
+      return Math.round((1.0F - eased) * 12.0F);
+   }
+
    @Override
    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
+      float delta = advanceClock();
+      scroll.advance(delta, contentLength - contentHeight);
+
       graphics.fill(0, 0, width, height, OsokWidgets.COLOR_SCRIM);
+
+      // Auftritt: die Karte federt aus 95 % auf ihre volle Größe. Der Scissor-Rahmen wird von
+      // GuiGraphicsExtractor mit derselben Matrix umgerechnet, der Inhalt bleibt also sauber
+      // beschnitten. Nur Mauskoordinaten laufen ungewandelt weiter - für 150 ms belanglos.
+      float entrance = entranceScale();
+      float centerX = cardLeft + CARD_WIDTH / 2.0F;
+      float centerY = cardTop + cardHeight / 2.0F;
+      graphics.pose().pushMatrix();
+      graphics.pose().translate(centerX, centerY);
+      graphics.pose().scale(entrance, entrance);
+      graphics.pose().translate(-centerX, -centerY);
+
       OsokWidgets.glassCard(graphics, cardLeft, cardTop, cardLeft + CARD_WIDTH, cardTop + cardHeight, false, 0);
 
       hotspots.clear();
       sliders.clear();
 
       drawHeader(graphics);
-      drawTabs(graphics, mouseX, mouseY);
+      drawTabs(graphics, mouseX, mouseY, delta);
       OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, contentTop - 6, OsokWidgets.COLOR_CARD_BORDER);
 
       // Inhalt liegt im Scissor-Bereich
-      graphics.enableScissor(cardLeft + 16, contentTop, cardLeft + CARD_WIDTH - 16, contentTop + contentHeight);
+      int contentLeft = cardLeft + 16;
+      int contentRight = cardLeft + CARD_WIDTH - 16;
+      int contentBottom = contentTop + contentHeight;
+      graphics.enableScissor(contentLeft, contentTop, contentRight, contentBottom);
+      graphics.pose().pushMatrix();
+      graphics.pose().translate(tabSlideOffset(), 0.0F);
       switch (currentTab) {
          case ARENAS -> drawArenasTab(graphics, mouseX, mouseY);
          case MATCH_CONTROL -> drawMatchControlTab(graphics, mouseX, mouseY);
          case MATCH_TARGET -> drawMatchTargetTab(graphics, mouseX, mouseY);
          case ITEM_WEIGHTS -> drawItemWeightsTab(graphics, mouseX, mouseY);
       }
+      graphics.pose().popMatrix();
+      // Weiche Kanten noch innerhalb des Scissor-Bereichs, damit sie exakt darauf abschließen.
+      OsokWidgets.drawSoftScrollEdges(graphics, contentLeft, contentRight, contentTop, contentBottom,
+         EDGE_FADE, OsokWidgets.COLOR_CARD_BG);
       graphics.disableScissor();
-      drawScrollbar(graphics);
+      drawScrollbar(graphics, mouseX, mouseY);
 
       int footerY = contentTop + contentHeight + 8;
       OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, footerY, OsokWidgets.COLOR_CARD_BORDER);
       drawFooter(graphics, mouseX, mouseY, footerY + 10);
+
+      graphics.pose().popMatrix();
+
       super.extractRenderState(graphics, mouseX, mouseY, partial);
       updateCursor(graphics, mouseX, mouseY);
    }
@@ -154,27 +237,48 @@ public final class ArenaMenuScreen extends Screen {
       drawMatchStateBadge(graphics, cardLeft + CARD_WIDTH - 16, cardTop + 12);
    }
 
-   private void drawTabs(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+   private void drawTabs(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
       int x = cardLeft + 16;
       int y = cardTop + 36;
+      float activeX = x;
+      float activeWidth = 0.0F;
+
       for (Tab tab : Tab.values()) {
          String label = tab.label;
          int tabWidth = font.width(label) + 18;
          boolean isActive = currentTab == tab;
          boolean hovered = OsokWidgets.isOver(mouseX, mouseY, x, y, tabWidth, 22);
 
-         OsokWidgets.tabHeader(graphics, font, x, y, tabWidth, 22, label, isActive, hovered, OsokWidgets.COLOR_GOLD);
+         // Ohne festen Unterstrich: den übernimmt der gleitende Indikator weiter unten.
+         OsokWidgets.tabHeader(graphics, font, x, y, tabWidth, 22, label, isActive, hovered,
+            OsokWidgets.COLOR_GOLD, false);
+         if (isActive) {
+            activeX = x;
+            activeWidth = tabWidth;
+         }
 
          Tab target = tab;
          hotspots.add(new Hotspot(x, y, tabWidth, 22, true, false, () -> selectTab(target)));
          x += tabWidth + 6;
       }
+
+      // Der Unterstrich gleitet auf den gewählten Reiter, statt dorthin zu springen.
+      if (Float.isNaN(indicatorX)) {
+         indicatorX = activeX;
+         indicatorWidth = activeWidth;
+      } else {
+         float rate = 1.0F - (float) Math.exp(-delta * 24.0F);
+         indicatorX += (activeX - indicatorX) * rate;
+         indicatorWidth += (activeWidth - indicatorWidth) * rate;
+      }
+      OsokWidgets.floatingTabIndicator(graphics, indicatorX, y + 20.0F, indicatorWidth, 2.0F,
+         OsokWidgets.COLOR_GOLD);
    }
 
    private void drawArenasTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
       int left = cardLeft + 16;
       int right = cardLeft + CARD_WIDTH - 16;
-      int y = contentTop - scroll;
+      int y = contentTop - scroll.offset();
 
       if (!isMatchState(MatchState.STOPPED)) {
          graphics.fill(left, y, right, y + 24, 0x33FF3366);
@@ -192,7 +296,7 @@ public final class ArenaMenuScreen extends Screen {
          drawArenaRow(graphics, arena, left, right, y, mouseX, mouseY);
          y += ROW_HEIGHT + 6;
       }
-      contentLength = y + scroll - contentTop;
+      contentLength = y + scroll.offset() - contentTop;
    }
 
    private void drawArenaRow(GuiGraphicsExtractor graphics, Arena arena, int left, int right, int y, int mouseX, int mouseY) {
@@ -215,6 +319,25 @@ public final class ArenaMenuScreen extends Screen {
       // Status-Streifen links
       int statusCol = stateColor(isActive, isOpen, isResetting);
       graphics.fill(left + 2, y + 2, left + 5, y + ROW_HEIGHT - 2, statusCol);
+
+      // Läuft ein Reset, wandert ein Lichtimpuls über die Zeile. Er liegt auf Echtzeit, weil der
+      // Server während des Resets ohnehin beschäftigt ist und die Tickrate einbrechen kann.
+      if (isResetting) {
+         float phase = (Util.getMillis() % 1400L) / 1400.0F;
+         int sweepX = left + Math.round(phase * (right - left));
+         int rgb = OsokWidgets.COLOR_CYAN & 0x00FFFFFF;
+         for (int offset = -14; offset <= 14; offset++) {
+            int px = sweepX + offset;
+            if (px < left + 1 || px >= right - 1) {
+               continue;
+            }
+            int alpha = Math.round(72.0F * (1.0F - Math.abs(offset) / 14.0F));
+            if (alpha <= 0) {
+               continue;
+            }
+            graphics.fill(px, y + 1, px + 1, y + ROW_HEIGHT - 1, rgb | (alpha << 24));
+         }
+      }
 
       // Arena-Icon
       graphics.item(new ItemStack(itemFor(arena)), left + 10, y + 9);
@@ -254,7 +377,7 @@ public final class ArenaMenuScreen extends Screen {
    private void drawMatchControlTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
       int left = cardLeft + 16;
       int right = cardLeft + CARD_WIDTH - 16;
-      int y = contentTop - scroll;
+      int y = contentTop - scroll.offset();
 
       // Dashboard Info Card
       graphics.fill(left, y, right, y + 50, 0xFF141A27);
@@ -333,7 +456,7 @@ public final class ArenaMenuScreen extends Screen {
          y += 96;
       }
 
-      contentLength = y + 10 + scroll - contentTop;
+      contentLength = y + 10 + scroll.offset() - contentTop;
    }
 
    private void drawModeSelectionCard(GuiGraphicsExtractor graphics, int x, int y, int w, int h,
@@ -374,7 +497,7 @@ public final class ArenaMenuScreen extends Screen {
    private void drawMatchTargetTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
       int left = cardLeft + 16;
       int right = cardLeft + CARD_WIDTH - 16;
-      int y = contentTop - scroll;
+      int y = contentTop - scroll.offset();
       boolean stopped = isMatchState(MatchState.STOPPED);
       boolean isGunGame = "GUN_GAME".equalsIgnoreCase(state.getGameMode());
 
@@ -585,7 +708,7 @@ public final class ArenaMenuScreen extends Screen {
          }
       }
 
-      contentLength = y + scroll - contentTop;
+      contentLength = y + scroll.offset() - contentTop;
    }
 
    private void drawSlider(GuiGraphicsExtractor graphics, Slider slider, String label, String displayValue, int mouseX, int mouseY) {
@@ -602,7 +725,7 @@ public final class ArenaMenuScreen extends Screen {
    private void drawItemWeightsTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
       int left = cardLeft + 16;
       int right = cardLeft + CARD_WIDTH - 16;
-      int y = contentTop - scroll;
+      int y = contentTop - scroll.offset();
 
       // Item-Modus Card
       graphics.fill(left, y, right, y + 54, 0xFF141A27);
@@ -632,7 +755,7 @@ public final class ArenaMenuScreen extends Screen {
          drawWeightRow(graphics, item, left, right, y, mouseX, mouseY);
          y += 32;
       }
-      contentLength = y + scroll - contentTop;
+      contentLength = y + scroll.offset() - contentTop;
    }
 
    private void drawWeightRow(GuiGraphicsExtractor graphics, SpecialItem item, int left, int right, int y, int mouseX, int mouseY) {
@@ -696,9 +819,16 @@ public final class ArenaMenuScreen extends Screen {
       hotspots.add(new Hotspot(closeX, y - 6, BUTTON_WIDTH, 20, true, false, this::onClose));
    }
 
-   private void drawScrollbar(GuiGraphicsExtractor graphics) {
-      int trackX = cardLeft + CARD_WIDTH - 9;
-      OsokWidgets.scrollbar(graphics, trackX, contentTop, contentHeight, contentLength, contentHeight, scroll, OsokWidgets.COLOR_GOLD);
+   private void drawScrollbar(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+      int trackX = scrollbarTrackX();
+      boolean hovered = mouseX >= trackX - 3 && mouseX <= trackX + 7
+         && mouseY >= contentTop && mouseY < contentTop + contentHeight;
+      OsokWidgets.scrollbar(graphics, trackX, contentTop, contentHeight, contentLength, contentHeight,
+         scroll.offset(), OsokWidgets.COLOR_GOLD, hovered, scroll.isDragging());
+   }
+
+   private int scrollbarTrackX() {
+      return cardLeft + CARD_WIDTH - SCROLLBAR_INSET;
    }
 
    // -- Eingabe -------------------------------------------------------------
@@ -706,6 +836,13 @@ public final class ArenaMenuScreen extends Screen {
    @Override
    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
       if (event.button() == 0) {
+         // Der Scrollbalken hat Vorrang: Er liegt rechts außerhalb des Inhalts und würde sonst
+         // von einem darunterliegenden Hotspot verdeckt.
+         if (scroll.beginDrag(event.x(), event.y(), scrollbarTrackX(), contentTop,
+            contentHeight, contentLength)) {
+            return true;
+         }
+
          // Sliders first (mit großzügigem Klickbereich)
          for (Slider slider : sliders) {
             if (slider.enabled && OsokWidgets.isOver(event.x(), event.y(), slider.x - 8, slider.y - 6, slider.width + 16, slider.height + 12)) {
@@ -738,15 +875,31 @@ public final class ArenaMenuScreen extends Screen {
    public boolean mouseReleased(MouseButtonEvent event) {
       if (event.button() == 0) {
          activeSlider = null;
+         lastSliderValue = Double.NaN;
+         scroll.endDrag();
       }
       return super.mouseReleased(event);
    }
 
    @Override
    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
-      if (activeSlider != null && activeSlider.enabled && event.button() == 0) {
+      if (event.button() != 0) {
+         return super.mouseDragged(event, deltaX, deltaY);
+      }
+      if (scroll.isDragging()) {
+         scroll.drag(event.y(), contentTop, contentHeight, contentLength);
+         return true;
+      }
+      if (activeSlider != null && activeSlider.enabled) {
          double val = activeSlider.getValueFromMouse(event.x());
          activeSlider.onValueChange.accept(val);
+         // Feines Tickern nur bei einem echten Rastschritt, nicht bei jeder Mausbewegung.
+         if (Double.isNaN(lastSliderValue) || Math.abs(val - lastSliderValue) > 1.0e-6) {
+            double span = activeSlider.max - activeSlider.min;
+            float ratio = span > 0.0 ? (float) ((val - activeSlider.min) / span) : 0.0F;
+            tickSound(ratio);
+            lastSliderValue = val;
+         }
          return true;
       }
       return super.mouseDragged(event, deltaX, deltaY);
@@ -756,7 +909,7 @@ public final class ArenaMenuScreen extends Screen {
    public boolean mouseScrolled(double mouseX, double mouseY, double scrollX, double scrollY) {
       int overflow = contentLength - contentHeight;
       if (overflow > 0) {
-         scroll = Math.max(0, Math.min(overflow, scroll - (int) (scrollY * 18)));
+         scroll.scrollBy((float) -scrollY * 26.0F, overflow);
          return true;
       }
       return super.mouseScrolled(mouseX, mouseY, scrollX, scrollY);
@@ -767,6 +920,17 @@ public final class ArenaMenuScreen extends Screen {
 
       if (activeSlider != null) {
          graphics.requestCursor(CursorTypes.RESIZE_EW);
+         return;
+      }
+
+      if (scroll.isDragging()) {
+         graphics.requestCursor(CursorTypes.RESIZE_NS);
+         return;
+      }
+      int trackX = scrollbarTrackX();
+      if (contentLength > contentHeight && mouseX >= trackX - 3 && mouseX <= trackX + 7
+         && mouseY >= contentTop && mouseY < contentTop + contentHeight) {
+         graphics.requestCursor(CursorTypes.POINTING_HAND);
          return;
       }
 
@@ -797,14 +961,21 @@ public final class ArenaMenuScreen extends Screen {
       if (currentTab == tab) {
          return;
       }
-      SCROLL_MEMORY.put(currentTab, scroll);
+      SCROLL_MEMORY.put(currentTab, scroll.value());
       currentTab = tab;
       lastSelectedTab = tab;
-      scroll = SCROLL_MEMORY.getOrDefault(tab, 0);
+      tabChangedAt = Util.getMillis();
+      scroll.set(SCROLL_MEMORY.getOrDefault(tab, 0.0F));
    }
 
    private void clickSound() {
       Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+   }
+
+   /** Leises Rastern beim Ziehen eines Reglers; die Tonhöhe folgt dem eingestellten Anteil. */
+   private void tickSound(float ratio) {
+      Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(
+         SoundEvents.NOTE_BLOCK_HAT.value(), 1.35F + Math.clamp(ratio, 0.0F, 1.0F) * 0.55F, 0.16F));
    }
 
    // -- Zustand -------------------------------------------------------------

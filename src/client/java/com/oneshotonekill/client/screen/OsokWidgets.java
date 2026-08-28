@@ -21,7 +21,8 @@ import org.joml.Vector3fc;
  */
 public final class OsokWidgets {
    // Farbpaletten-Konstanten für einheitliches Design
-   public static final int COLOR_SCRIM = 0x77000000;
+   /** Kühler, durchscheinender Schleier – die Unschärfe dahinter soll sichtbar bleiben. */
+   public static final int COLOR_SCRIM = 0x55090D16;
    public static final int COLOR_CARD_BG_TOP = 0xF6131722;
    public static final int COLOR_CARD_BG_BOTTOM = 0xFB0B0D14;
    public static final int COLOR_CARD_BORDER = 0xFF283042;
@@ -105,7 +106,7 @@ public final class OsokWidgets {
       return mouseX >= x && mouseX < x + width && mouseY >= y && mouseY < y + height;
    }
 
-   public static final int COLOR_CARD_BG = 0xF4111520;
+   public static final int COLOR_CARD_BG = 0xF2111520;
 
    // =========================================================================
    // 2. Modernes Cyber-Tactical UI-Designsystem
@@ -181,6 +182,18 @@ public final class OsokWidgets {
     */
    public static void tabHeader(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
                                 String label, boolean active, boolean hovered, int accent) {
+      tabHeader(graphics, font, x, y, width, height, label, active, hovered, accent, true);
+   }
+
+   /**
+    * Wie oben, aber der feste Unterstrich lässt sich abschalten.
+    *
+    * <p>Nötig, sobald ein gleitender Indikator die Markierung übernimmt: Sonst stünde der starre
+    * Balken bereits am Ziel, während der gleitende noch unterwegs ist.</p>
+    */
+   public static void tabHeader(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
+                                String label, boolean active, boolean hovered, int accent,
+                                boolean drawUnderline) {
       int bg = active
          ? 0xDD1F273A
          : (hovered ? 0x99181F2E : 0x55111520);
@@ -197,10 +210,10 @@ public final class OsokWidgets {
       graphics.verticalLine(x + width - 1, y, y + height - 1, border);
 
       // Aktive Glühleiste unten
-      if (active) {
+      if (active && drawUnderline) {
          graphics.fill(x, y + height - 2, x + width, y + height, accent);
          graphics.fill(x + 1, y + height - 3, x + width - 1, y + height - 2, (accent & 0x00FFFFFF) | 0x88000000);
-      } else {
+      } else if (!active) {
          graphics.horizontalLine(x, x + width - 1, y + height - 1, border);
       }
 
@@ -286,6 +299,19 @@ public final class OsokWidgets {
          int thumbX = x + Math.max(0, Math.min(width - thumbWidth, (int) (ratio * (width - thumbWidth))));
          int thumbY = y + (height - thumbHeight) / 2;
 
+         // Weicher Schein rund um den Daumen. Drei nach außen ausdünnende Ringe genügen; ein
+         // echter Weichzeichner wäre für ein Bedienelement dieser Größe nicht zu rechtfertigen.
+         if (hovered || active) {
+            int rgb = accent & 0x00FFFFFF;
+            int strength = active ? 3 : 2;
+            for (int ring = strength; ring >= 1; ring--) {
+               int alpha = (active ? 46 : 30) / ring;
+               graphics.fill(thumbX - ring, thumbY - ring,
+                  thumbX + thumbWidth + ring, thumbY + thumbHeight + ring,
+                  rgb | (alpha << 24));
+            }
+         }
+
          int thumbBg = active ? 0xFFFFFFFF : (hovered ? 0xFFE2E8F0 : 0xFF94A3B8);
          int thumbBorder = active ? accent : (hovered ? accent : 0xFF475569);
 
@@ -297,6 +323,25 @@ public final class OsokWidgets {
 
          // Mittelrille auf dem Thumb
          graphics.fill(thumbX + thumbWidth / 2 - 1, thumbY + 3, thumbX + thumbWidth / 2 + 1, thumbY + thumbHeight - 3, 0x44000000);
+
+         // Schwebende Wertanzeige über dem Daumen. Sie erscheint nur beim Ziehen, weil der Wert
+         // dann unter dem Mauszeiger gebraucht wird und nicht oben in der Zeile.
+         if (active) {
+            int badgeWidth = font.width(valueText) + 10;
+            int badgeX = Math.clamp(thumbX + thumbWidth / 2 - badgeWidth / 2,
+               x - 6, x + width + 6 - badgeWidth);
+            int badgeY = thumbY - 17;
+            graphics.fill(badgeX, badgeY, badgeX + badgeWidth, badgeY + 13, 0xF00B0E16);
+            graphics.horizontalLine(badgeX, badgeX + badgeWidth - 1, badgeY, accent);
+            graphics.horizontalLine(badgeX, badgeX + badgeWidth - 1, badgeY + 12, accent);
+            graphics.verticalLine(badgeX, badgeY, badgeY + 12, accent);
+            graphics.verticalLine(badgeX + badgeWidth - 1, badgeY, badgeY + 12, accent);
+            // Kleiner Zeiger zum Daumen hinunter
+            int tipX = Math.clamp(thumbX + thumbWidth / 2, badgeX + 2, badgeX + badgeWidth - 3);
+            graphics.fill(tipX - 1, badgeY + 13, tipX + 2, badgeY + 15, accent);
+            graphics.centeredText(font, Component.literal(valueText),
+               badgeX + badgeWidth / 2, badgeY + 3, COLOR_TEXT_WHITE);
+         }
       }
    }
 
@@ -340,8 +385,9 @@ public final class OsokWidgets {
       if (overflow <= 0) {
          return;
       }
-      int barHeight = Math.max(22, visibleHeight * visibleHeight / Math.max(1, contentLength));
-      int barY = trackY + (visibleHeight - barHeight) * scroll / overflow;
+      // Dieselben Formeln wie beim Ziehen; sonst säße der Schieber nicht dort, wo er gegriffen wird.
+      int barHeight = scrollThumbHeight(contentLength, visibleHeight);
+      int barY = scrollThumbY(trackY, visibleHeight, contentLength, scroll);
 
       // Track-Hintergrund (halbtransparent dunkel mit zarter Kante)
       graphics.fill(trackX, trackY, trackX + 4, trackY + trackHeight, 0x440B0E14);
@@ -351,6 +397,195 @@ public final class OsokWidgets {
       // Thumb (Schieber)
       graphics.fill(trackX, barY, trackX + 4, barY + barHeight, thumbColor);
       graphics.fill(trackX + 1, barY + 1, trackX + 3, barY + barHeight - 1, (thumbColor & 0x00FFFFFF) | 0xDD000000);
+   }
+
+   /** Wie {@link #scrollbar}, aber mit hervorgehobenem Schieber, solange daran gezogen wird. */
+   public static void scrollbar(GuiGraphicsExtractor graphics, int trackX, int trackY, int trackHeight,
+                                int contentLength, int visibleHeight, int scroll, int thumbColor,
+                                boolean hovered, boolean dragging) {
+      scrollbar(graphics, trackX, trackY, trackHeight, contentLength, visibleHeight, scroll, thumbColor);
+      if (contentLength - visibleHeight <= 0 || !(hovered || dragging)) {
+         return;
+      }
+      int barHeight = scrollThumbHeight(contentLength, visibleHeight);
+      int barY = scrollThumbY(trackY, visibleHeight, contentLength, scroll);
+      int rgb = thumbColor & 0x00FFFFFF;
+      graphics.fill(trackX - 1, barY - 1, trackX + 5, barY + barHeight + 1,
+         rgb | (dragging ? 0x55000000 : 0x33000000));
+      graphics.fill(trackX, barY, trackX + 4, barY + barHeight, thumbColor);
+   }
+
+   /**
+    * Weiche Ein- und Ausblendkanten am Rand eines Scroll-Bereichs.
+    *
+    * <p>Der Scissor-Rahmen schneidet Text und Karten hart ab, was am Rand wie ein Fehler
+    * aussieht. Zwei Verläufe in der Kartenfarbe lassen den Inhalt stattdessen aus dem Rand
+    * herauslaufen und wieder hinein. Der Aufruf gehört hinter den Inhalt, aber noch vor
+    * {@code disableScissor}.</p>
+    */
+   public static void drawSoftScrollEdges(GuiGraphicsExtractor graphics, int left, int right,
+                                          int top, int bottom, int fadeHeight, int bgColor) {
+      if (fadeHeight <= 0 || right <= left || bottom - top <= fadeHeight * 2) {
+         return;
+      }
+      int transparent = bgColor & 0x00FFFFFF;
+      graphics.fillGradient(left, top, right, top + fadeHeight, bgColor, transparent);
+      graphics.fillGradient(left, bottom - fadeHeight, right, bottom, transparent, bgColor);
+   }
+
+   /**
+    * Frei gleitender Unterstrich für Reiter.
+    *
+    * <p>Anders als die feste Leiste in {@link #tabHeader} nimmt diese Fassung Bruchteile von
+    * Pixeln entgegen, damit der Balken beim Wechsel weich von einem Reiter zum nächsten läuft,
+    * statt zu springen.</p>
+    */
+   public static void floatingTabIndicator(GuiGraphicsExtractor graphics, float x, float y,
+                                           float width, float height, int accent) {
+      int x0 = Math.round(x);
+      int x1 = Math.round(x + width);
+      int y0 = Math.round(y);
+      int y1 = Math.round(y + height);
+      if (x1 - x0 < 2 || y1 <= y0) {
+         return;
+      }
+
+      int rgb = accent & 0x00FFFFFF;
+      graphics.fill(x0 + 1, y0, x1 - 1, y1, accent);
+      // Verjüngte Enden, damit der Balken nicht wie ein Klotz wirkt
+      graphics.fill(x0, y0 + 1, x0 + 1, y1, rgb | 0x99000000);
+      graphics.fill(x1 - 1, y0 + 1, x1, y1, rgb | 0x99000000);
+      // Abstrahlung nach unten und ein feiner Schein darüber
+      graphics.fill(x0 + 2, y1, x1 - 2, y1 + 1, rgb | 0x55000000);
+      graphics.fill(x0 + 4, y1 + 1, x1 - 4, y1 + 2, rgb | 0x22000000);
+      graphics.fill(x0 + 2, y0 - 1, x1 - 2, y0, rgb | 0x33000000);
+   }
+
+   /** Höhe des Scrollbalken-Schiebers; Zeichnen und Ziehen müssen dieselbe Formel benutzen. */
+   public static int scrollThumbHeight(int contentLength, int visibleHeight) {
+      return Math.max(22, visibleHeight * visibleHeight / Math.max(1, contentLength));
+   }
+
+   /** Obere Kante des Schiebers zur gegebenen Scrollposition. */
+   public static int scrollThumbY(int trackY, int visibleHeight, int contentLength, int scroll) {
+      int overflow = contentLength - visibleHeight;
+      if (overflow <= 0) {
+         return trackY;
+      }
+      int barHeight = scrollThumbHeight(contentLength, visibleHeight);
+      return trackY + (visibleHeight - barHeight) * Math.clamp(scroll, 0, overflow) / overflow;
+   }
+
+   /**
+    * Trägheitsbehaftete Scrollposition mit elastischen Rändern und Schieber-Ziehen.
+    *
+    * <p>Liegt im Designsystem statt in den Bildschirmen, weil beide dieselbe Physik und dieselbe
+    * Schiebergeometrie brauchen; zwei getrennte Fassungen liefen unweigerlich auseinander und
+    * fielen sofort als ungleiches Bedienverhalten auf.</p>
+    */
+   public static final class ScrollMotion {
+      /** So weit darf über den Rand hinausgezogen werden, bevor es zurückfedert. */
+      private static final float ELASTIC = 26.0F;
+
+      private float scroll;
+      private float target;
+      private boolean dragging;
+      private float grabOffset;
+
+      public void set(float value) {
+         this.scroll = value;
+         this.target = value;
+      }
+
+      public float value() {
+         return this.scroll;
+      }
+
+      public int offset() {
+         return Math.round(this.scroll);
+      }
+
+      public boolean isDragging() {
+         return this.dragging;
+      }
+
+      public void scrollBy(float amount, int overflow) {
+         float max = Math.max(0.0F, overflow);
+         this.target = Math.clamp(this.target + amount, -ELASTIC, max + ELASTIC);
+      }
+
+      /** Einmal je Bild: federt an den Rändern zurück und zieht die Anzeige nach. */
+      public void advance(float delta, int overflow) {
+         float max = Math.max(0.0F, overflow);
+         if (!this.dragging) {
+            float settle = 1.0F - (float) Math.exp(-delta * 16.0F);
+            if (this.target < 0.0F) {
+               this.target += -this.target * settle;
+               if (this.target > -0.05F) {
+                  this.target = 0.0F;
+               }
+            } else if (this.target > max) {
+               this.target += (max - this.target) * settle;
+               if (this.target - max < 0.05F) {
+                  this.target = max;
+               }
+            }
+         }
+         this.scroll += (this.target - this.scroll) * (1.0F - (float) Math.exp(-delta * 18.0F));
+         if (Math.abs(this.target - this.scroll) < 0.05F) {
+            this.scroll = this.target;
+         }
+      }
+
+      /** Klemmt beide Werte in den gültigen Bereich, etwa nach einem Reiterwechsel. */
+      public void clampNow(int overflow) {
+         float max = Math.max(0.0F, overflow);
+         this.target = Math.clamp(this.target, 0.0F, max);
+         this.scroll = Math.clamp(this.scroll, 0.0F, max);
+      }
+
+      /**
+       * Beginnt das Ziehen, wenn der Zeiger auf Spur oder Schieber liegt.
+       *
+       * <p>Ein Griff mitten auf den Schieber behält seinen Versatz, damit dieser nicht unter der
+       * Maus wegspringt. Ein Klick daneben setzt ihn mittig unter den Zeiger.</p>
+       */
+      public boolean beginDrag(double mouseX, double mouseY, int trackX, int trackY,
+                               int visibleHeight, int contentLength) {
+         int overflow = contentLength - visibleHeight;
+         if (overflow <= 0 || mouseX < trackX - 3 || mouseX > trackX + 7
+            || mouseY < trackY || mouseY >= trackY + visibleHeight) {
+            return false;
+         }
+
+         int barHeight = scrollThumbHeight(contentLength, visibleHeight);
+         int barY = scrollThumbY(trackY, visibleHeight, contentLength, Math.round(this.scroll));
+         this.dragging = true;
+         if (mouseY >= barY && mouseY < barY + barHeight) {
+            this.grabOffset = (float) (mouseY - barY);
+         } else {
+            this.grabOffset = barHeight / 2.0F;
+            drag(mouseY, trackY, visibleHeight, contentLength);
+         }
+         return true;
+      }
+
+      public void drag(double mouseY, int trackY, int visibleHeight, int contentLength) {
+         int overflow = contentLength - visibleHeight;
+         if (!this.dragging || overflow <= 0) {
+            return;
+         }
+         int barHeight = scrollThumbHeight(contentLength, visibleHeight);
+         float travel = Math.max(1.0F, visibleHeight - barHeight);
+         float ratio = Math.clamp((float) (mouseY - this.grabOffset - trackY) / travel, 0.0F, 1.0F);
+         // Beim Ziehen folgt die Anzeige unmittelbar; ein Nachlauf fühlte sich hier zäh an.
+         this.target = ratio * overflow;
+         this.scroll = this.target;
+      }
+
+      public void endDrag() {
+         this.dragging = false;
+      }
    }
 
    // =========================================================================
