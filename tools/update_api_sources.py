@@ -69,6 +69,34 @@ class Candidate:
     coordinate: str | None = None
 
 
+@dataclasses.dataclass(frozen=True)
+class Rejection:
+    """A source JAR that was offered but does not end up in ``APIS``."""
+
+    path: Path
+    origin: str
+    reason: str
+
+
+# Origins the build itself announced.  Everything else is a broad cache sweep:
+# those directories are full of unrelated source JARs, and reporting each one
+# that carries no Minecraft, Fabric or Mixin packages would drown the output.
+ANNOUNCED_ORIGINS: frozenset[str] = frozenset({"explicit", "decompile-task", "dependency-sources"})
+
+# Maven groups that ought to end up in one of the four areas.  A build declares
+# plenty of other dependencies -- annotation libraries, logging, JOML -- and
+# those carry no Minecraft or Fabric packages by design.  Only an artifact from
+# one of these groups that still cannot be placed is worth a warning.
+PLATFORM_GROUPS: tuple[str, ...] = (
+    "net.fabricmc",
+    "net.minecraft",
+    "com.mojang",
+    "org.spongepowered",
+    "io.github.llamalad7",
+    "com.llamalad7",
+)
+
+
 GRADLE_INIT_SCRIPT = r"""
 import groovy.json.JsonOutput
 import java.util.Locale
@@ -535,8 +563,14 @@ def discover_fallback_jars(project_root: Path, project_dirs: Iterable[Path]) -> 
     return found
 
 
-def jar_kinds(path: Path) -> set[str]:
-    """Classify a source JAR by the Java packages it contains."""
+def jar_classification(path: Path) -> tuple[set[str], bool]:
+    """Classify a source JAR and report whether it carries Java sources at all.
+
+    The second value separates two very different cases that both yield no
+    area: an artifact without a single ``.java`` entry -- an aggregate POM shell
+    or a module that only ships an access widener -- and one full of Java
+    sources whose packages simply match nothing we know.
+    """
 
     try:
         with zipfile.ZipFile(path) as archive:
@@ -544,6 +578,7 @@ def jar_kinds(path: Path) -> set[str]:
     except (OSError, zipfile.BadZipFile) as failure:
         raise ApiSourceError(f"Ungültiges Source-JAR {path}: {failure}") from failure
 
+    has_java = any(name.endswith(".java") for name in names)
     kinds: set[str] = set()
     for kind, prefixes in KIND_PACKAGES.items():
         if any(name.startswith(prefixes) and name.endswith(".java") for name in names):
@@ -552,8 +587,31 @@ def jar_kinds(path: Path) -> set[str]:
     lower_name = path.name.casefold()
     for kind in kinds:
         if lower_name.startswith(f"{kind}-"):
-            return {kind}
-    return kinds
+            return {kind}, has_java
+    return kinds, has_java
+
+
+def jar_kinds(path: Path) -> set[str]:
+    """Classify a source JAR by the Java packages it contains."""
+
+    return jar_classification(path)[0]
+
+
+def _looks_misplaced(candidate: Candidate, has_java: bool) -> bool:
+    """Whether an unclassified JAR is worth a warning.
+
+    Only two things are: something Loom produced itself -- a decompile task that
+    yielded no Minecraft packages is a real failure -- and an artifact from a
+    group that belongs to one of the four areas.  A JAR without Java sources is
+    never suspicious; there was nothing to classify in the first place.
+    """
+
+    if not has_java:
+        return False
+    if candidate.coordinate is None:
+        return True
+    group = candidate.coordinate.split(":", 1)[0].casefold()
+    return group.startswith(PLATFORM_GROUPS)
 
 
 def _version_text(path: Path, coordinate: str | None = None) -> str:
@@ -598,19 +656,47 @@ def choose_jars(
     candidates: Iterable[Candidate],
     explicit: dict[str, Sequence[Path]] | None = None,
     minecraft_version: str | None = None,
-) -> dict[str, list[Candidate]]:
-    """Pick the source JARs per kind, keeping split Minecraft JARs together."""
+) -> tuple[dict[str, list[Candidate]], list[Rejection]]:
+    """Pick the source JARs per kind, keeping split Minecraft JARs together.
+
+    Returns the selection and every JAR that was offered but dropped: one that
+    could not be read at all, and one whose packages match none of the known
+    areas.  Both used to vanish silently -- an unreadable JAR even aborted the
+    whole run -- which made a half-filled ``APIS`` hard to explain.
+    """
 
     explicit = explicit or {}
     kinds_by_path: dict[Path, set[str]] = {}
+    java_by_path: dict[Path, bool] = {}
     by_kind: dict[str, dict[Path, Candidate]] = {kind: {} for kind in KINDS}
+    rejected: dict[Path, Rejection] = {}
 
     for candidate in candidates:
         path = candidate.path.expanduser().resolve()
         if not path.is_file() or not path.name.casefold().endswith("-sources.jar"):
             continue
         if path not in kinds_by_path:
-            kinds_by_path[path] = jar_kinds(path)
+            try:
+                kinds_by_path[path], java_by_path[path] = jar_classification(path)
+            except ApiSourceError as failure:
+                # Ein kaputtes JAR im Cache darf den Lauf nicht beenden, aber es
+                # muss sichtbar sein: es kann genau das fehlende Stück sein.
+                kinds_by_path[path] = set()
+                java_by_path[path] = False
+                rejected.setdefault(path, Rejection(path, candidate.origin, str(failure)))
+        if not kinds_by_path[path]:
+            if (
+                path not in rejected
+                and candidate.origin in ANNOUNCED_ORIGINS
+                and _looks_misplaced(candidate, java_by_path[path])
+            ):
+                rejected[path] = Rejection(
+                    path,
+                    candidate.origin,
+                    "gehört zur Plattform, enthält aber keine Java-Quellen von Minecraft, "
+                    "Fabric API, Fabric Loader oder Mixin",
+                )
+            continue
         for kind in kinds_by_path[path]:
             if explicit.get(kind):
                 continue
@@ -665,7 +751,7 @@ def choose_jars(
                 f"Kein {kind}-Source-JAR gefunden. Prüfe die Loom-Konfiguration, führe das Skript "
                 "ohne --no-gradle aus oder gib das JAR explizit an."
             )
-    return selected
+    return selected, sorted(rejected.values(), key=lambda entry: str(entry.path))
 
 
 def sha256(path: Path) -> str:
@@ -784,6 +870,136 @@ def _manifest_matches(
         return False
 
 
+def _area_version(kind: str, entries: Sequence[dict[str, str]], versions: dict[str, str]) -> str | None:
+    """Version eines Bereichs -- nur, wenn sie eindeutig ist."""
+
+    declared = versions.get(kind)
+    if declared:
+        return declared
+    own = {entry["version"] for entry in entries}
+    return own.pop() if len(own) == 1 else None
+
+
+def _manifest_jar_index(entries: object) -> dict[str, dict[str, str]]:
+    """Source-JAR-Einträge eines Bereichs, geschlüsselt nach Artefakt ohne Version."""
+
+    index: dict[str, dict[str, str]] = {}
+    if not isinstance(entries, list):
+        return index
+    for entry in entries:
+        if isinstance(entry, dict) and isinstance(entry.get("path"), str):
+            index[_module_key(Path(entry["path"]), None)] = entry
+    return index
+
+
+def _load_previous_manifest(manifest: Path) -> dict[str, Any] | None:
+    """Der zuletzt geschriebene Stand, oder ``None``, wenn es keinen lesbaren gibt."""
+
+    if not manifest.is_file():
+        return None
+    try:
+        data = json.loads(manifest.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as failure:
+        print(
+            f"Hinweis: {MANIFEST_NAME} ist nicht lesbar und wird wie ein Neuanfang behandelt: {failure}",
+            file=sys.stderr,
+        )
+        return None
+    if not isinstance(data, dict) or not isinstance(data.get("artifacts"), dict):
+        print(
+            f"Hinweis: {MANIFEST_NAME} hat kein bekanntes Format und wird wie ein Neuanfang behandelt.",
+            file=sys.stderr,
+        )
+        return None
+    return data
+
+
+def _describe_changes(
+    previous: dict[str, Any] | None,
+    jars: dict[str, list[Candidate]],
+    hashes: dict[Path, str],
+    project_root: Path,
+    versions: dict[str, str],
+) -> list[str]:
+    """Was sich gegenüber dem letzten Stand an den Source-JARs geändert hat.
+
+    Verglichen wird gegen ``tools/SOURCES.json``, also gegen genau das, was beim
+    letzten Lauf entpackt wurde.  Geschlüsselt wird nach Artefakt ohne Version,
+    damit ein Versionssprung als Aktualisierung erscheint und nicht als
+    Entfernen plus Neuzugang.
+    """
+
+    old_artifacts = previous.get("artifacts", {}) if previous else {}
+    lines: list[str] = []
+    for kind in KINDS:
+        new_entries = _manifest_jars(jars.get(kind) or (), hashes, project_root)
+        old_artifact = old_artifacts.get(kind)
+        new_index = _manifest_jar_index(new_entries)
+        old_index = _manifest_jar_index(
+            old_artifact.get("sourceJars") if isinstance(old_artifact, dict) else None
+        )
+        if not new_index and not old_index:
+            continue
+
+        new_version = _area_version(kind, new_entries, versions)
+        old_version = old_artifact.get("version") if isinstance(old_artifact, dict) else None
+        if not isinstance(old_version, str):
+            old_version = None
+
+        if not old_index:
+            suffix = f", Version {new_version}" if new_version else ""
+            lines.append(f"  {kind}: neu, {len(new_index)} Source-JAR(s){suffix}")
+            continue
+        if not new_index:
+            lines.append(f"  {kind}: entfällt")
+            continue
+
+        details: list[str] = []
+        for key in sorted(set(new_index) | set(old_index)):
+            new_entry = new_index.get(key)
+            old_entry = old_index.get(key)
+            if new_entry is None:
+                details.append(f"    - {key} {old_entry['version']}")
+            elif old_entry is None:
+                details.append(f"    + {key} {new_entry['version']}")
+            elif new_entry["version"] != old_entry.get("version"):
+                details.append(f"    ~ {key} {old_entry.get('version')} -> {new_entry['version']}")
+            elif new_entry["sha256"] != old_entry.get("sha256"):
+                details.append(f"    ! {key} {new_entry['version']} (gleiche Version, anderer Inhalt)")
+
+        if old_version != new_version:
+            lines.append(f"  {kind}: {old_version or '?'} -> {new_version or '?'}")
+        elif details:
+            lines.append(f"  {kind}: {new_version or 'Version nicht eindeutig'}")
+        else:
+            continue
+        lines.extend(details)
+    return lines
+
+
+def _describe_file_counts(
+    previous: dict[str, Any] | None, artifacts: dict[str, dict[str, Any]]
+) -> list[str]:
+    """Wie viele Dateien je Bereich entpackt wurden, im Vergleich zum letzten Stand."""
+
+    old_artifacts = previous.get("artifacts", {}) if previous else {}
+    lines: list[str] = []
+    for kind in KINDS:
+        artifact = artifacts.get(kind)
+        if not isinstance(artifact, dict) or not isinstance(artifact.get("files"), int):
+            continue
+        new_count = artifact["files"]
+        old_artifact = old_artifacts.get(kind)
+        old_count = old_artifact.get("files") if isinstance(old_artifact, dict) else None
+        if isinstance(old_count, int) and old_count != new_count:
+            lines.append(f"  {kind}: {old_count} -> {new_count} Dateien ({new_count - old_count:+d})")
+        elif isinstance(old_count, int):
+            lines.append(f"  {kind}: {new_count} Dateien (unverändert)")
+        else:
+            lines.append(f"  {kind}: {new_count} Dateien")
+    return lines
+
+
 def install_apis(
     project_root: Path,
     jars: dict[str, list[Candidate]],
@@ -818,9 +1034,18 @@ def install_apis(
         for candidates in jars.values()
         for candidate in candidates
     }
+    previous = _load_previous_manifest(manifest)
     if not force and _manifest_matches(output, manifest, jars, hashes, project_root):
         print(f"APIS ist bereits aktuell: {output}")
         return False
+
+    changes = _describe_changes(previous, jars, hashes, project_root, versions)
+    if changes:
+        print("Änderungen gegenüber dem letzten Stand:")
+        for line in changes:
+            print(line)
+    elif previous is not None:
+        print("Die Source-JARs sind unverändert; APIS wird neu aufgebaut.")
 
     manifest_directory.mkdir(parents=True, exist_ok=True)
     temporary = Path(tempfile.mkdtemp(prefix=".APIS-new-", dir=project_root))
@@ -847,14 +1072,13 @@ def install_apis(
                 count += files
                 size += uncompressed
             manifest_jars = _manifest_jars(candidates, hashes, project_root)
-            own_versions = {entry["version"] for entry in manifest_jars}
             artifact: dict[str, Any] = {
                 "sourceJars": manifest_jars,
                 "files": count,
                 "uncompressedBytes": size,
             }
             # Ein Bereich bekommt nur dann eine eigene Version, wenn sie eindeutig ist.
-            version = versions.get(kind) or (own_versions.pop() if len(own_versions) == 1 else None)
+            version = _area_version(kind, manifest_jars, versions)
             if version is not None:
                 artifact = {"version": version, **artifact}
             manifest_artifacts[kind] = artifact
@@ -891,6 +1115,11 @@ def install_apis(
                 print(f"Warnung: Altes Source-Manifest konnte nicht entfernt werden: {failure}", file=sys.stderr)
         print(f"APIS wurde atomar aktualisiert: {output}")
         print(f"Source-Manifest wurde aktualisiert: {manifest}")
+        counts = _describe_file_counts(previous, manifest_artifacts)
+        if counts:
+            print("Umfang je Bereich:")
+            for line in counts:
+                print(line)
         return True
     except BaseException:
         if temporary.exists():
@@ -1033,7 +1262,7 @@ def main(argv: list[str] | None = None) -> int:
                 _print_report_errors(report)
 
     candidates.extend(discover_fallback_jars(project_root, project_dirs))
-    jars = choose_jars(candidates, explicit, minecraft_version)
+    jars, rejected = choose_jars(candidates, explicit, minecraft_version)
 
     versions: dict[str, str] = {}
     if minecraft_version:
@@ -1047,6 +1276,11 @@ def main(argv: list[str] | None = None) -> int:
             print(f"{kind}: {candidate.path}")
         if not jars.get(kind):
             print(f"Hinweis: Kein {kind}-Source-JAR gefunden; APIS/{kind} entfällt.", file=sys.stderr)
+
+    if rejected:
+        print("Nicht zugeordnete Source-JARs:", file=sys.stderr)
+        for entry in rejected:
+            print(f"  [{entry.origin}] {entry.path}: {entry.reason}", file=sys.stderr)
 
     install_apis(project_root, jars, versions, force=args.force)
     return 0

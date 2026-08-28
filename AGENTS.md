@@ -56,6 +56,17 @@ Das Ergebnis wird atomar aufgebaut:
 - `tools/SOURCES.json` nennt je Bereich Ursprungs-JARs mit Version und SHA-256 sowie die
   Dateianzahl. Eine Bereichsversion steht nur dort, wo sie eindeutig ist.
 
+Gegen genau diese Datei vergleicht jeder Lauf und meldet, was sich geändert hat: neue,
+entfallene und aktualisierte Module (`+`, `-`, `~`), gleiche Version bei anderem Inhalt (`!`)
+und am Ende die Dateizahl je Bereich. Ändert sich nichts, steht dort nur, dass `APIS/` bereits
+aktuell ist.
+
+Ebenfalls gemeldet wird, was der Build angeboten hat, aber nicht in `APIS/` landet: ein
+Source-JAR, das sich nicht lesen lässt, und eines, dessen Java-Pakete zu keinem der vier
+Bereiche gehören. Ein unlesbares JAR bricht den Lauf nicht mehr ab, sondern erscheint unter
+„Nicht zugeordnete Source-JARs“. Die breite Cache-Suche bleibt dabei stumm – dort liegen
+zahllose fremde Source-JARs, gemeldet wird nur, was der Build selbst benannt hat.
+
 Weitere Schalter: `--decompile` erzwingt `genSources`, `--no-decompile` verbietet es,
 `--offline` verwendet ausschließlich den Gradle-Cache, `--no-gradle` sucht nur in bereits
 vorhandenen Caches, `--project` akzeptiert eine fremde Projektwurzel oder einen Unterordner
