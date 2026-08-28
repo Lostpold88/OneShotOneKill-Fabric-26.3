@@ -27,6 +27,7 @@ import com.oneshotonekill.client.renderer.ReflectorShieldRenderer;
 import com.oneshotonekill.client.screen.AdminItemScreen;
 import com.oneshotonekill.client.sound.MinigunSoundController;
 import com.oneshotonekill.client.sound.NukeSoundController;
+import com.oneshotonekill.client.sound.TimeDistortionSoundController;
 import com.oneshotonekill.client.state.ClientStates.AbilityStatusState;
 import com.oneshotonekill.client.state.ClientStates.AirstrikeAlarmState;
 import com.oneshotonekill.client.state.ClientStates.BomberCameraState;
@@ -198,6 +199,7 @@ public final class OsokClient implements ClientModInitializer {
       MinigunSoundController.INSTANCE.tickClient(client);
       NukeState.INSTANCE.tick();
       NukeSoundController.INSTANCE.tick(client);
+      TimeDistortionSoundController.INSTANCE.tick(client);
 
       if (detonateC4Key != null && detonateC4Key.consumeClick() && client.player != null && client.gui.screen() == null) {
          ClientPlayNetworking.send(DetonateC4Payload.EMPTY);
@@ -266,6 +268,7 @@ public final class OsokClient implements ClientModInitializer {
       MinigunSoundController.INSTANCE.stopAll();
       NukeState.INSTANCE.clear();
       NukeSoundController.INSTANCE.stopAll();
+      TimeDistortionSoundController.INSTANCE.stopAll();
       TimeDistortionEffects.INSTANCE.clear();
    }
 

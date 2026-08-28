@@ -15,7 +15,9 @@
 		"LivingEntityRendererMixin",
 		"LocalPlayerDropMixin",
 		"MinecraftInteractionMixin",
-		"MouseHandlerMixin"
+		"MouseHandlerMixin",
+		"PostPassTimeDistortionMixin",
+		"SoundEngineTimeDistortionMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

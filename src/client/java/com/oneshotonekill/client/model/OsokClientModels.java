@@ -6,6 +6,7 @@ import com.mojang.serialization.MapCodec;
 import com.mojang.serialization.codecs.RecordCodecBuilder;
 import static com.oneshotonekill.client.state.ClientStates.*;
 import com.oneshotonekill.client.state.ClientStates.*;
+import com.oneshotonekill.client.effect.TimeDistortionEffects;
 import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.registry.ModDataComponents;
 import java.util.List;
@@ -196,25 +197,39 @@ public final class OsokClientModels {
          output.appendModelIdentityElement(this);
          double seconds = Util.getNanos() / 1_000_000_000.0;
          float surge = surge(seconds);
+         TimeDistortionEffects chrono = TimeDistortionEffects.INSTANCE;
+         float field = chrono.modelActivePower();
+         float urgency = chrono.modelUrgency();
+         float restoreFlash = chrono.modelRestoreFlash();
+         float ignition = chrono.activationProgress();
+         float urgentStrobe = urgency * Math.max(0.0F,
+            (float) Math.sin(seconds * Math.PI * (5.0 + urgency * 7.0)));
 
          addLayer(output, this.base, displayContext, this.baseTransform, null);
 
          // Die Ringe stehen geometrisch fest. Je zwei dicht aufeinanderfolgende Lichtfronten
          // laufen in entgegengesetzter Richtung darüber; der periodische Vollimpuls verbindet
          // anschließend alle Segmente für einen Moment zu einem weißglühenden Zeitfeld.
-         float ringCycle = (float) (seconds / 1.18);
+         float ringSpeed = 1.0F + field * 1.35F + urgency * 2.8F;
+         float ringCycle = (float) (seconds / 1.18 * ringSpeed);
          for (int index = 0; index < this.innerRing.size(); index++) {
             float wave = doubleWave(ringCycle, index, this.innerRing.size(), false);
-            float power = Math.clamp(0.07F + wave * 0.93F + surge * 0.78F, 0.0F, 1.0F);
+            float ignitionFlash = ignitionFlash(ignition, 0.34F + index / (float) this.innerRing.size() * 0.28F) * field;
+            float power = Math.clamp(0.07F + wave * 0.93F + surge * 0.78F
+               + field * 0.25F + ignitionFlash + urgentStrobe * 0.85F + restoreFlash, 0.0F, 1.0F);
             int colour = mixColour(0xFF10051F, 0xFFB45DFF, power);
-            colour = mixColour(colour, 0xFFFFFFFF, wave * 0.48F + surge * 0.52F);
+            colour = mixColour(colour, 0xFFFFFFFF, Math.clamp(wave * 0.48F + surge * 0.52F
+               + ignitionFlash * 0.75F + urgentStrobe * 0.55F + restoreFlash, 0.0F, 1.0F));
             addLayer(output, this.innerRing.get(index), displayContext, this.baseTransform, colour);
          }
          for (int index = 0; index < this.outerRing.size(); index++) {
             float wave = doubleWave(ringCycle * 0.82F + 0.19F, index, this.outerRing.size(), true);
-            float power = Math.clamp(0.06F + wave * 0.94F + surge * 0.82F, 0.0F, 1.0F);
+            float ignitionFlash = ignitionFlash(ignition, 0.04F + index / (float) this.outerRing.size() * 0.28F) * field;
+            float power = Math.clamp(0.06F + wave * 0.94F + surge * 0.82F
+               + field * 0.28F + ignitionFlash + urgentStrobe * 0.92F + restoreFlash, 0.0F, 1.0F);
             int colour = mixColour(0xFF03101D, 0xFF35DFFF, power);
-            colour = mixColour(colour, 0xFFFFFFFF, wave * 0.55F + surge * 0.45F);
+            colour = mixColour(colour, 0xFFFFFFFF, Math.clamp(wave * 0.55F + surge * 0.45F
+               + ignitionFlash * 0.78F + urgentStrobe * 0.62F + restoreFlash, 0.0F, 1.0F));
             addLayer(output, this.outerRing.get(index), displayContext, this.baseTransform, colour);
          }
 
@@ -222,13 +237,16 @@ public final class OsokClientModels {
          // markanten Doppelblitz auf jeden Kernschlag.
          addLayer(output, this.minuteHand, displayContext, this.baseTransform, null);
          float handFlash = doubleBeat(seconds, 0.92F);
-         float handPower = Math.clamp(0.16F + handFlash * 0.84F + surge * 0.72F, 0.0F, 1.0F);
+         float handPower = Math.clamp(0.16F + handFlash * 0.84F + surge * 0.72F
+            + field * 0.30F + urgentStrobe + restoreFlash, 0.0F, 1.0F);
          addLayer(output, this.secondHand, displayContext, this.baseTransform,
             mixColour(0xFF122653, 0xFFFFFFFF, handPower));
 
          float breath = 0.5F + 0.5F * (float) Math.sin(seconds * Math.PI * 2.0 / 1.8);
          float heartbeat = doubleBeat(seconds, 1.15F);
-         float corePower = Math.clamp(0.22F + breath * 0.24F + heartbeat * 0.72F + surge * 0.72F, 0.0F, 1.0F);
+         float coreIgnition = ignitionFlash(ignition, 0.86F) * field;
+         float corePower = Math.clamp(0.22F + breath * 0.24F + heartbeat * 0.72F + surge * 0.72F
+            + field * 0.34F + coreIgnition + urgentStrobe + restoreFlash, 0.0F, 1.0F);
          addLayer(output, this.core, displayContext, this.baseTransform,
             mixColour(0xFF241044, 0xFFFFFFFF, corePower));
 
@@ -238,9 +256,12 @@ public final class OsokClientModels {
             float distance = Math.min(phase, 1.0F - phase);
             float wave = Math.clamp(1.0F - distance * 7.0F, 0.0F, 1.0F);
             wave *= wave;
-            float power = Math.clamp(0.08F + wave * 0.92F + surge * 0.72F, 0.0F, 1.0F);
+            float ignitionFlash = ignitionFlash(ignition, 0.64F + index / (float) this.lenses.size() * 0.20F) * field;
+            float power = Math.clamp(0.08F + wave * 0.92F + surge * 0.72F
+               + field * 0.30F + ignitionFlash + urgentStrobe + restoreFlash, 0.0F, 1.0F);
             int coldToViolet = mixColour(0xFF080E28, 0xFF9E56FF, power);
-            int colour = mixColour(coldToViolet, 0xFFFFFFFF, wave * 0.58F + surge * 0.42F);
+            int colour = mixColour(coldToViolet, 0xFFFFFFFF, Math.clamp(wave * 0.58F + surge * 0.42F
+               + ignitionFlash * 0.76F + urgentStrobe * 0.65F + restoreFlash, 0.0F, 1.0F));
             addLayer(output, this.lenses.get(index), displayContext, this.baseTransform, colour);
          }
 
@@ -275,6 +296,12 @@ public final class OsokClientModels {
          distance = Math.min(distance, 1.0F - distance);
          float value = Math.clamp(1.0F - distance / width, 0.0F, 1.0F);
          return value * value;
+      }
+
+      /** Kurzer Lichtstoß, wenn die Aktivierungsfront dieses unbewegte Bauteil erreicht. */
+      private static float ignitionFlash(float progress, float centre) {
+         float distance = (progress - centre) / 0.075F;
+         return (float) Math.exp(-distance * distance);
       }
 
       private static void addLayer(ItemStackRenderState output, Part part, ItemDisplayContext context,

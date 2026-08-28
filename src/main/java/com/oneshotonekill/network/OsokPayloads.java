@@ -54,6 +54,7 @@ public final class OsokPayloads {
       registry.register(AirstrikeSystem.RadarPayload.TYPE, AirstrikeSystem.RadarPayload.STREAM_CODEC);
       registry.register(AirstrikeAlarmPayload.TYPE, AirstrikeAlarmPayload.STREAM_CODEC);
       registry.register(AbilityStatusPayload.TYPE, AbilityStatusPayload.STREAM_CODEC);
+      registry.register(TimeDistortionPayload.TYPE, TimeDistortionPayload.STREAM_CODEC);
       registry.register(DeployableMarkersPayload.TYPE, DeployableMarkersPayload.STREAM_CODEC);
       registry.register(GlidingPlayersPayload.TYPE, GlidingPlayersPayload.STREAM_CODEC);
       registry.register(MagnetFieldsPayload.TYPE, MagnetFieldsPayload.STREAM_CODEC);
@@ -502,6 +503,57 @@ public final class OsokPayloads {
 
       @Override
       public Type<BomberCameraPayload> type() {
+         return TYPE;
+      }
+   }
+
+   // --- TimeDistortionPayload.java ---
+   /**
+    * Exakter Echtzeitzustand des Zeitverzerrers für den großen Client-Effekt.
+    *
+    * <p>Vanillas Tickratenpaket sagt nur, dass acht TPS gelten. Dieses Paket ergänzt den
+    * räumlichen Ursprung der Druckwelle, die verbleibende Echtzeit und ob ein später
+    * beigetretener Spieler den Startimpuls noch sehen soll.</p>
+    */
+   public static record TimeDistortionPayload(boolean active, boolean burst, double x, double y,
+                                               double z, int remainingMillis)
+      implements CustomPacketPayload {
+      public static final Type<TimeDistortionPayload> TYPE =
+         new Type<>(OneShotOneKill.INSTANCE.id("time_distortion"));
+      public static final TimeDistortionPayload STOP =
+         new TimeDistortionPayload(false, false, 0.0, 0.0, 0.0, 0);
+
+      public static final StreamCodec<ByteBuf, TimeDistortionPayload> STREAM_CODEC = new StreamCodec<>() {
+         @Override
+         public TimeDistortionPayload decode(ByteBuf buffer) {
+            boolean active = ByteBufCodecs.BOOL.decode(buffer);
+            if (!active) {
+               return STOP;
+            }
+            return new TimeDistortionPayload(
+               true,
+               ByteBufCodecs.BOOL.decode(buffer),
+               ByteBufCodecs.DOUBLE.decode(buffer),
+               ByteBufCodecs.DOUBLE.decode(buffer),
+               ByteBufCodecs.DOUBLE.decode(buffer),
+               ByteBufCodecs.VAR_INT.decode(buffer));
+         }
+
+         @Override
+         public void encode(ByteBuf buffer, TimeDistortionPayload payload) {
+            ByteBufCodecs.BOOL.encode(buffer, payload.active);
+            if (payload.active) {
+               ByteBufCodecs.BOOL.encode(buffer, payload.burst);
+               ByteBufCodecs.DOUBLE.encode(buffer, payload.x);
+               ByteBufCodecs.DOUBLE.encode(buffer, payload.y);
+               ByteBufCodecs.DOUBLE.encode(buffer, payload.z);
+               ByteBufCodecs.VAR_INT.encode(buffer, payload.remainingMillis);
+            }
+         }
+      };
+
+      @Override
+      public Type<TimeDistortionPayload> type() {
          return TYPE;
       }
    }

@@ -2,7 +2,9 @@ package com.oneshotonekill.item.runtime;
 
 import com.oneshotonekill.shared.Feedback;
 import com.oneshotonekill.shared.OsokEffects;
+import com.oneshotonekill.network.OsokPayloads.TimeDistortionPayload;
 import java.util.concurrent.TimeUnit;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
@@ -26,6 +28,9 @@ public final class SlowMotionSystem {
    private long activeUntilNanos;
    private float restoreTickRate = 20.0F;
    private String activatorName = "";
+   private double originX;
+   private double originY;
+   private double originZ;
 
    private SlowMotionSystem() {
    }
@@ -45,9 +50,13 @@ public final class SlowMotionSystem {
       activeUntilNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(DURATION_SECONDS);
       restoreTickRate = server.tickRateManager().tickrate();
       activatorName = activator.getScoreboardName();
+      originX = activator.getX();
+      originY = activator.getY() + 1.0;
+      originZ = activator.getZ();
       server.tickRateManager().setTickRate(SLOW_TICK_RATE);
 
       for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+         ServerPlayNetworking.send(player, statePayload(true, DURATION_SECONDS * 1000));
          sendSlowNotice(player, DURATION_SECONDS);
          OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.BEACON_DEACTIVATE, 0.85F, 0.55F);
       }
@@ -76,6 +85,8 @@ public final class SlowMotionSystem {
       long remainingNanos = Math.max(0L, activeUntilNanos - System.nanoTime());
       int remainingSeconds = Math.max(1,
          (int) Math.ceil(remainingNanos / 1_000_000_000.0));
+      int remainingMillis = Math.max(1, (int) TimeUnit.NANOSECONDS.toMillis(remainingNanos));
+      ServerPlayNetworking.send(player, statePayload(false, remainingMillis));
       sendSlowNotice(player, remainingSeconds);
    }
 
@@ -96,6 +107,9 @@ public final class SlowMotionSystem {
       activeUntilNanos = 0L;
       if (server != null) {
          server.tickRateManager().setTickRate(restoreTickRate);
+         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            ServerPlayNetworking.send(player, TimeDistortionPayload.STOP);
+         }
          if (announce) {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                Feedback.actionBar(player, "§b◇ Zeitfluss wieder normal");
@@ -112,6 +126,13 @@ public final class SlowMotionSystem {
       }
       restoreTickRate = 20.0F;
       activatorName = "";
+      originX = 0.0;
+      originY = 0.0;
+      originZ = 0.0;
+   }
+
+   private TimeDistortionPayload statePayload(boolean burst, int remainingMillis) {
+      return new TimeDistortionPayload(true, burst, originX, originY, originZ, remainingMillis);
    }
 
    private void sendSlowNotice(ServerPlayer player, int remainingSeconds) {

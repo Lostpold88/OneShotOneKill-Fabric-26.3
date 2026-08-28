@@ -4,6 +4,7 @@ import com.oneshotonekill.client.screen.AirstrikeTargetScreen;
 import com.oneshotonekill.client.screen.ArenaMenuScreen;
 import com.oneshotonekill.client.screen.BomberTargetScreen;
 import com.oneshotonekill.client.sound.MinigunSoundController;
+import com.oneshotonekill.client.effect.TimeDistortionEffects;
 import com.oneshotonekill.client.state.ClientStates.AbilityStatusState;
 import com.oneshotonekill.client.state.ClientStates.AirstrikeAlarmState;
 import com.oneshotonekill.client.state.ClientStates.BomberCameraState;
@@ -32,6 +33,7 @@ import com.oneshotonekill.network.OsokPayloads.MatchNotificationPayload;
 import com.oneshotonekill.network.OsokPayloads.MinigunHudPayload;
 import com.oneshotonekill.network.OsokPayloads.NukeStatePayload;
 import com.oneshotonekill.network.OsokPayloads.NukeVictoryPayload;
+import com.oneshotonekill.network.OsokPayloads.TimeDistortionPayload;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 
@@ -63,6 +65,8 @@ public final class OsokClientHandlers {
          (payload, context) -> AirstrikeAlarmState.INSTANCE.handle(payload));
       ClientPlayNetworking.registerGlobalReceiver(AbilityStatusPayload.TYPE,
          (payload, context) -> AbilityStatusState.INSTANCE.handle(payload));
+      ClientPlayNetworking.registerGlobalReceiver(TimeDistortionPayload.TYPE,
+         (payload, context) -> TimeDistortionEffects.INSTANCE.handle(payload));
       ClientPlayNetworking.registerGlobalReceiver(DeployableMarkersPayload.TYPE,
          (payload, context) -> DeployableMarkerState.INSTANCE.handle(payload));
       ClientPlayNetworking.registerGlobalReceiver(GlidingPlayersPayload.TYPE,
