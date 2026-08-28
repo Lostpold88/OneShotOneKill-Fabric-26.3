@@ -277,6 +277,19 @@ public final class TimeDistortionEffects {
       return restore < 1.0F ? 0.48F + 0.52F * smooth(restore) : 1.0F;
    }
 
+   /** Faktor für die Frequenzabsenkung (Pitch-Drop / Zeitlupen-Dumpfklang) in SoundEngine. */
+   public float soundPitchFactor(SoundSource source) {
+      if (source == SoundSource.MASTER || source == SoundSource.UI || source == SoundSource.VOICE) {
+         return 1.0F;
+      }
+      refreshDeadline();
+      if (this.active) {
+         return 1.0F + (0.55F - 1.0F) * modelActivePower();
+      }
+      float restore = restoreProgress(Util.getMillis());
+      return restore < 1.0F ? 0.55F + 0.45F * smooth(restore) : 1.0F;
+   }
+
    public boolean isActive() {
       refreshDeadline();
       return this.active;

@@ -163,8 +163,6 @@ public final class Deployables {
    private static final double MUZZLE_FORWARD = 0.4625;
    private static final double MUZZLE_SIDE = 0.1187;
    private static final double MUZZLE_UP = 0.0250;
-   /** Suchneigung an der Wand: fast senkrecht hinaus, aber mit einem sichtbaren Suchkegel. */
-   private static final float TURRET_WALL_HOME_PITCH = -1.15F;
    /**
     * Schwenkgeschwindigkeit des Kopfes im Bogenmaß je Tick.
     *
@@ -346,10 +344,12 @@ public final class Deployables {
       Quaternionf mount = new Quaternionf().rotationTo(0.0F, 1.0F, 0.0F,
          face.getStepX(), face.getStepY(), face.getStepZ());
       Turret turret = new Turret(at, owner.getUUID(), TURRET_DURATION_TICKS, mount);
-      // Er blickt zunächst dorthin, wohin der Aufsteller schaut – die Richtung, aus der Ärger
-      // erwartet wird. Der halbe Umlauf gleicht die Drehung des Renderers aus.
-      turret.home = face == Direction.UP ? (float) Math.toRadians(180.0F - owner.getYRot()) : 0.0F;
-      turret.homePitch = face.getAxis().isHorizontal() ? TURRET_WALL_HOME_PITCH : 0.0F;
+      // Auf dem Boden blickt der Turm dorthin, wohin der Aufsteller schaut; an der Wand
+      // zeigt er senkrecht von der Wandfläche weg in den Raum hinein.
+      turret.home = face == Direction.UP
+         ? (float) Math.toRadians(-owner.getYRot())
+         : (float) Math.atan2(face.getStepX(), face.getStepZ());
+      turret.homePitch = 0.0F;
       turret.yaw = turret.home;
       turret.pitch = turret.homePitch;
 
@@ -922,7 +922,7 @@ public final class Deployables {
          return;
       }
 
-      Vec3 delta = turret.toLocal(aimAt.subtract(pivot).normalize());
+      Vec3 delta = aimAt.subtract(pivot).normalize();
       float wantYaw = (float) Math.atan2(delta.x, delta.z);
       float wantPitch = (float) -Math.asin(Math.clamp(delta.y, -1.0, 1.0));
       turret.yaw = approachAngle(turret.yaw, wantYaw, TURRET_TURN_PER_TICK);
@@ -960,7 +960,7 @@ public final class Deployables {
             new Vector3f(scale, scale, scale), 2);
       }
       Hologram.setPose(turret.headDisplay, new Vector3f(),
-         new Quaternionf(turret.mount).rotateY(turret.yaw).rotateX(pitch),
+         new Quaternionf().rotationY(turret.yaw).rotateX(pitch),
          new Vector3f(scale, scale, scale), 2);
       setLens(turret, turret.dying > 0 ? LENS_DEAD : turret.lens);
    }
@@ -1593,13 +1593,6 @@ public final class Deployables {
          return new Vec3(transformed.x, transformed.y, transformed.z);
       }
 
-      /** Wandelt eine Weltrichtung in das lokale Koordinatensystem des Turms um. */
-      private Vec3 toLocal(Vec3 world) {
-         Vector3f transformed = new Vector3f((float) world.x, (float) world.y, (float) world.z);
-         new Quaternionf(mount).conjugate().transform(transformed);
-         return new Vec3(transformed.x, transformed.y, transformed.z);
-      }
-
       /**
        * Mündung eines der beiden Läufe, aus der Ausrichtung des Kopfes gerechnet.
        *
@@ -1616,7 +1609,7 @@ public final class Deployables {
          Vec3 localMuzzle = forward.scale(MUZZLE_FORWARD)
             .add(right.scale(side * MUZZLE_SIDE))
             .add(0.0, MUZZLE_UP, 0.0);
-         return pivot().add(toWorld(localMuzzle));
+         return pivot().add(localMuzzle);
       }
 
       /** Trefferbox für Pfeilbeschuss – grob der Umriss von Unterbau und Kopf. */
