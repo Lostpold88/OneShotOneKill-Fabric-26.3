@@ -17,7 +17,9 @@
 		"MinecraftInteractionMixin",
 		"MouseHandlerMixin",
 		"PostPassTimeDistortionMixin",
-		"SoundEngineTimeDistortionMixin"
+		"SoundEngineAccessor",
+		"SoundEngineTimeDistortionMixin",
+		"SoundManagerAccessor"
 	],
 	"injectors": {
 		"defaultRequire": 1

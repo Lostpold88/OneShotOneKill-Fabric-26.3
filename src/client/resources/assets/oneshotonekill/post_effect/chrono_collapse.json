@@ -1,10 +1,8 @@
 {
   "targets": {
     "swap": {},
-    "history_near": {
-      "persistent": true
-    },
-    "history_far": {
+    "history_next": {},
+    "history": {
       "persistent": true
     }
   },
@@ -19,13 +17,14 @@
           "bilinear": true
         },
         {
-          "sampler_name": "HistoryNear",
-          "target": "history_near",
-          "bilinear": true
+          "sampler_name": "InDepth",
+          "target": "minecraft:main",
+          "use_depth_buffer": true,
+          "bilinear": false
         },
         {
-          "sampler_name": "HistoryFar",
-          "target": "history_far",
+          "sampler_name": "History",
+          "target": "history",
           "bilinear": true
         }
       ],
@@ -33,47 +32,82 @@
       "uniforms": {
         "TemporalConfig": [
           { "name": "Strength", "type": "float", "value": 0.0 },
-          { "name": "ChromaticOffset", "type": "float", "value": 0.0 },
+          { "name": "Chroma", "type": "float", "value": 0.0 },
           { "name": "WarpDirection", "type": "float", "value": -1.0 },
-          { "name": "WaveCenter", "type": "float", "value": 0.0 },
           { "name": "Warmth", "type": "float", "value": 0.0 },
           { "name": "Atmosphere", "type": "float", "value": 0.0 },
           { "name": "HistoryMix", "type": "float", "value": 0.0 },
           { "name": "Pulse", "type": "float", "value": 0.0 },
+          { "name": "Restoring", "type": "float", "value": 0.0 },
           { "name": "Origin", "type": "vec2", "value": [0.5, 0.5] },
+          { "name": "OriginFocus", "type": "float", "value": 0.0 },
           { "name": "Elapsed", "type": "float", "value": 0.0 },
-          { "name": "Restoring", "type": "float", "value": 0.0 }
+          { "name": "RingRadius", "type": "vec2", "value": [0.0, 0.0] },
+          { "name": "RingEnergy", "type": "vec2", "value": [0.0, 0.0] },
+          { "name": "HistoryAlpha", "type": "float", "value": 1.0 },
+          { "name": "RadialBlur", "type": "float", "value": 0.0 },
+          { "name": "Pinch", "type": "float", "value": 0.0 },
+          { "name": "SweepAngle", "type": "float", "value": 0.0 },
+          { "name": "SweepEnergy", "type": "float", "value": 0.0 },
+          { "name": "TrailLength", "type": "float", "value": 1.0 },
+          { "name": "Grain", "type": "float", "value": 0.0 },
+          { "name": "RimGain", "type": "float", "value": 0.0 }
         ]
       }
     },
     {
       "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "minecraft:post/blit",
-      "inputs": [
-        {
-          "sampler_name": "In",
-          "target": "history_near",
-          "bilinear": true
-        }
-      ],
-      "output": "history_far",
-      "uniforms": {
-        "BlitConfig": [
-          { "name": "ColorModulate", "type": "vec4", "value": [1.0, 1.0, 1.0, 1.0] }
-        ]
-      }
-    },
-    {
-      "vertex_shader": "minecraft:core/screenquad",
-      "fragment_shader": "minecraft:post/blit",
+      "fragment_shader": "oneshotonekill:post/temporal_accumulate",
       "inputs": [
         {
           "sampler_name": "In",
           "target": "minecraft:main",
           "bilinear": true
+        },
+        {
+          "sampler_name": "History",
+          "target": "history",
+          "bilinear": true
         }
       ],
-      "output": "history_near",
+      "output": "history_next",
+      "uniforms": {
+        "TemporalConfig": [
+          { "name": "Strength", "type": "float", "value": 0.0 },
+          { "name": "Chroma", "type": "float", "value": 0.0 },
+          { "name": "WarpDirection", "type": "float", "value": -1.0 },
+          { "name": "Warmth", "type": "float", "value": 0.0 },
+          { "name": "Atmosphere", "type": "float", "value": 0.0 },
+          { "name": "HistoryMix", "type": "float", "value": 0.0 },
+          { "name": "Pulse", "type": "float", "value": 0.0 },
+          { "name": "Restoring", "type": "float", "value": 0.0 },
+          { "name": "Origin", "type": "vec2", "value": [0.5, 0.5] },
+          { "name": "OriginFocus", "type": "float", "value": 0.0 },
+          { "name": "Elapsed", "type": "float", "value": 0.0 },
+          { "name": "RingRadius", "type": "vec2", "value": [0.0, 0.0] },
+          { "name": "RingEnergy", "type": "vec2", "value": [0.0, 0.0] },
+          { "name": "HistoryAlpha", "type": "float", "value": 1.0 },
+          { "name": "RadialBlur", "type": "float", "value": 0.0 },
+          { "name": "Pinch", "type": "float", "value": 0.0 },
+          { "name": "SweepAngle", "type": "float", "value": 0.0 },
+          { "name": "SweepEnergy", "type": "float", "value": 0.0 },
+          { "name": "TrailLength", "type": "float", "value": 1.0 },
+          { "name": "Grain", "type": "float", "value": 0.0 },
+          { "name": "RimGain", "type": "float", "value": 0.0 }
+        ]
+      }
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "minecraft:post/blit",
+      "inputs": [
+        {
+          "sampler_name": "In",
+          "target": "history_next",
+          "bilinear": false
+        }
+      ],
+      "output": "history",
       "uniforms": {
         "BlitConfig": [
           { "name": "ColorModulate", "type": "vec4", "value": [1.0, 1.0, 1.0, 1.0] }
@@ -87,7 +121,7 @@
         {
           "sampler_name": "In",
           "target": "swap",
-          "bilinear": true
+          "bilinear": false
         }
       ],
       "output": "minecraft:main",

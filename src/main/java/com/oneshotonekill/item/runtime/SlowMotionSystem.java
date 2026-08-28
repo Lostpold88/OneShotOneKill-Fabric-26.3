@@ -24,8 +24,18 @@ public final class SlowMotionSystem {
    public static final int DURATION_SECONDS = 7;
    public static final float SLOW_TICK_RATE = 8.0F;
 
+   /**
+    * Abstand der Zustandswiederholungen.
+    *
+    * <p>Ohne sie erfährt der Client die Restzeit genau zweimal – beim Start und beim Beitritt –
+    * und zählt danach allein weiter. Ein regelmäßiger Abgleich hält beide Uhren zusammen, ohne
+    * dass der Client auf seine Notfrist zurückfallen muss.</p>
+    */
+   private static final long SYNC_INTERVAL_NANOS = TimeUnit.SECONDS.toNanos(2L);
+
    private boolean active;
    private long activeUntilNanos;
+   private long nextSyncNanos;
    private float restoreTickRate = 20.0F;
    private String activatorName = "";
    private double originX;
@@ -48,6 +58,7 @@ public final class SlowMotionSystem {
 
       active = true;
       activeUntilNanos = System.nanoTime() + TimeUnit.SECONDS.toNanos(DURATION_SECONDS);
+      nextSyncNanos = System.nanoTime() + SYNC_INTERVAL_NANOS;
       restoreTickRate = server.tickRateManager().tickrate();
       activatorName = activator.getScoreboardName();
       originX = activator.getX();
@@ -72,8 +83,21 @@ public final class SlowMotionSystem {
 
    /** Stellt nach sieben echten Sekunden den vorherigen Server-Zeittakt wieder her. */
    public void tick(MinecraftServer server) {
-      if (active && System.nanoTime() >= activeUntilNanos) {
+      if (!active) {
+         return;
+      }
+      long now = System.nanoTime();
+      if (now >= activeUntilNanos) {
          finish(server, true);
+         return;
+      }
+      if (now >= nextSyncNanos) {
+         nextSyncNanos = now + SYNC_INTERVAL_NANOS;
+         int remainingMillis = Math.max(1,
+            (int) TimeUnit.NANOSECONDS.toMillis(activeUntilNanos - now));
+         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            ServerPlayNetworking.send(player, statePayload(false, remainingMillis));
+         }
       }
    }
 
@@ -105,6 +129,7 @@ public final class SlowMotionSystem {
       }
       active = false;
       activeUntilNanos = 0L;
+      nextSyncNanos = 0L;
       if (server != null) {
          server.tickRateManager().setTickRate(restoreTickRate);
          for (ServerPlayer player : server.getPlayerList().getPlayers()) {

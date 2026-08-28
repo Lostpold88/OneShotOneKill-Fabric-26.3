@@ -3,6 +3,7 @@ package com.oneshotonekill.client;
 import com.mojang.blaze3d.platform.InputConstants;
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.client.effect.TimeDistortionEffects;
+import com.oneshotonekill.client.hud.ChronoHudLayers.TimeDistortionLayer;
 import com.oneshotonekill.client.hud.CombatHudLayers;
 import com.oneshotonekill.client.hud.CombatHudLayers.AbilityStatusLayer;
 import com.oneshotonekill.client.hud.CombatHudLayers.AirstrikeAlarmLayer;
@@ -126,6 +127,7 @@ public final class OsokClient implements ClientModInitializer {
       HudElementRegistry.addLast(id("item_box_marker"), new ItemBoxLayer());
       HudElementRegistry.addLast(id("deployable_markers"), new DeployableMarkerLayer());
       HudElementRegistry.addLast(id("ability_status"), new AbilityStatusLayer());
+      HudElementRegistry.addLast(id("time_distortion"), new TimeDistortionLayer());
       HudElementRegistry.addLast(id("match_start_overlay"), new MatchStartOverlayLayer());
       HudElementRegistry.addLast(id("match_countdown"), new MatchCountdownLayer());
       HudElementRegistry.addLast(id("match_banner"), new MatchBannerLayer());
@@ -199,7 +201,9 @@ public final class OsokClient implements ClientModInitializer {
       MinigunSoundController.INSTANCE.tickClient(client);
       NukeState.INSTANCE.tick();
       NukeSoundController.INSTANCE.tick(client);
-      TimeDistortionSoundController.INSTANCE.tick(client);
+      // Der Zeitverzerrer läuft je Bild: Während der Zeitlupe tickt auch der Client nur achtmal
+      // je Sekunde, hier bleibt nur das Ablaufen der Frist übrig.
+      TimeDistortionEffects.INSTANCE.clientTick();
 
       if (detonateC4Key != null && detonateC4Key.consumeClick() && client.player != null && client.gui.screen() == null) {
          ClientPlayNetworking.send(DetonateC4Payload.EMPTY);
