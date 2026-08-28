@@ -1,0 +1,35 @@
+{
+  "targets": { "swap": {} },
+  "passes": [
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "oneshotonekill:post/temporal_distortion",
+      "inputs": [
+        { "sampler_name": "In", "target": "minecraft:main", "bilinear": true }
+      ],
+      "output": "swap",
+      "uniforms": {
+        "TemporalConfig": [
+          { "name": "Strength", "type": "float", "value": 0.28 },
+          { "name": "ChromaticOffset", "type": "float", "value": 0.003 },
+          { "name": "WarpDirection", "type": "float", "value": 1.0 },
+          { "name": "WaveCenter", "type": "float", "value": 0.69 },
+          { "name": "Warmth", "type": "float", "value": 1.0 }
+        ]
+      }
+    },
+    {
+      "vertex_shader": "minecraft:core/screenquad",
+      "fragment_shader": "minecraft:post/blit",
+      "inputs": [
+        { "sampler_name": "In", "target": "swap", "bilinear": true }
+      ],
+      "output": "minecraft:main",
+      "uniforms": {
+        "BlitConfig": [
+          { "name": "ColorModulate", "type": "vec4", "value": [1.0, 1.0, 1.0, 1.0] }
+        ]
+      }
+    }
+  ]
+}

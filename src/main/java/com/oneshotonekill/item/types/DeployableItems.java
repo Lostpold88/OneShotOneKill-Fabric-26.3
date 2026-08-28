@@ -20,6 +20,7 @@ import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.context.UseOnContext;
 import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Klassensammlung aller platzierbaren und geworfenen Spezial-Items.
@@ -48,11 +49,12 @@ public final class DeployableItems {
             return InteractionResult.FAIL;
          }
    
-         BlockPos target = context.getClickedPos().relative(context.getClickedFace());
-         if (!level.getBlockState(target).isAir() || context.getClickedFace() == Direction.DOWN) {
+         Direction face = context.getClickedFace();
+         BlockPos target = context.getClickedPos().relative(face);
+         if (!level.getBlockState(target).isAir() || face == Direction.DOWN) {
             return InteractionResult.FAIL;
          }
-         if (!place(level, player, target)) {
+         if (!place(level, player, target, face, context.getClickLocation())) {
             return InteractionResult.FAIL;
          }
    
@@ -61,7 +63,8 @@ public final class DeployableItems {
       }
    
       /** @return true, wenn tatsächlich etwas platziert wurde. */
-      protected abstract boolean place(ServerLevel level, ServerPlayer player, BlockPos pos);
+      protected abstract boolean place(ServerLevel level, ServerPlayer player, BlockPos pos,
+         Direction face, Vec3 clickLocation);
    }
 
    // --- SentryTurretItem.java ---
@@ -77,8 +80,9 @@ public final class DeployableItems {
       }
    
       @Override
-      protected boolean place(ServerLevel level, ServerPlayer player, BlockPos pos) {
-         return Deployables.INSTANCE.placeSentryTurret(level, player, pos);
+      protected boolean place(ServerLevel level, ServerPlayer player, BlockPos pos,
+         Direction face, Vec3 clickLocation) {
+         return Deployables.INSTANCE.placeSentryTurret(level, player, pos, face, clickLocation);
       }
    }
 
@@ -96,7 +100,8 @@ public final class DeployableItems {
       }
    
       @Override
-      protected boolean place(ServerLevel level, ServerPlayer player, BlockPos pos) {
+      protected boolean place(ServerLevel level, ServerPlayer player, BlockPos pos,
+         Direction face, Vec3 clickLocation) {
          return Deployables.INSTANCE.placeFrostTrap(level, player, pos);
       }
    }

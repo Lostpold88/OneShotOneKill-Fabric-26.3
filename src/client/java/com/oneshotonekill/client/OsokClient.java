@@ -2,6 +2,7 @@ package com.oneshotonekill.client;
 
 import com.mojang.blaze3d.platform.InputConstants;
 import com.oneshotonekill.OneShotOneKill;
+import com.oneshotonekill.client.effect.TimeDistortionEffects;
 import com.oneshotonekill.client.hud.CombatHudLayers;
 import com.oneshotonekill.client.hud.CombatHudLayers.AbilityStatusLayer;
 import com.oneshotonekill.client.hud.CombatHudLayers.AirstrikeAlarmLayer;
@@ -148,7 +149,7 @@ public final class OsokClient implements ClientModInitializer {
    }
 
    /**
-    * Die drei eigenen Modellbausteine.
+    * Die eigenen Modellbausteine.
     *
     * <p>Ein Item-Modell ist von Haus aus starr, und eine Modell-Bedingung kennt nur, was Vanilla
     * mitbringt. Beides lässt sich ohne Mixin erweitern: {@code ItemModels},
@@ -160,6 +161,8 @@ public final class OsokClient implements ClientModInitializer {
    private static void registerModels() {
       ItemModels.ID_MAPPER.put(id("spinning_rotor"),
          OsokClientModels.SpinningRotorModel.Unbaked.MAP_CODEC);
+      ItemModels.ID_MAPPER.put(id("chrono_distorter"),
+         OsokClientModels.ChronoDistorterModel.Unbaked.MAP_CODEC);
       ConditionalItemModelProperties.ID_MAPPER.put(id("has_placed_c4"),
          OsokClientModels.HasPlacedC4Property.MAP_CODEC);
       SpecialModelRenderers.ID_MAPPER.put(id("chain_lightning"),
@@ -263,6 +266,7 @@ public final class OsokClient implements ClientModInitializer {
       MinigunSoundController.INSTANCE.stopAll();
       NukeState.INSTANCE.clear();
       NukeSoundController.INSTANCE.stopAll();
+      TimeDistortionEffects.INSTANCE.clear();
    }
 
    public static boolean isDetonateC4Key(KeyEvent event) {

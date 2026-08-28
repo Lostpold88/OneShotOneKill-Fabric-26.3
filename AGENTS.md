@@ -2,7 +2,7 @@
 
 ## Kurzfassung
 
-- **Fabric-API vor Access Widener vor Mixin.**
+- **Fabric-API vor Access Widener vor Mixin.** Mixins sind jedoch ein vollwertiges Werkzeug und dürfen jederzeit gerne und gezielt genutzt werden (z. B. für Rendering, tiefere Logik-Eingriffe oder wenn kein passendes Event existiert).
 - Externe Minecraft-, Fabric-API-, Fabric-Loader- und Mixin-Quellen liegen entpackt unter `APIS/`.
 - `APIS/` wird zur Recherche zuerst mit `rg` oder `ast-grep` eingegrenzt; anschließend
   werden nur die relevanten Trefferdateien angesehen.
@@ -110,24 +110,26 @@ ist ast-grep ausschließlich zur Suche erlaubt, nie mit `--rewrite`. Wenn eine S
 ist, Pattern, API-Unterordner oder `--glob` verengen. Erst danach Trefferdateien öffnen.
 Annahmen aus älteren Minecraft-, Fabric- oder NeoForge-Versionen zählen nicht als Nachweis.
 
-## Fabric-API hat Vorrang
+## Fabric-API und Mixins
 
 Wenn Fabric API einen passenden Callback, ein Event oder eine Registry anbietet, wird sie
-benutzt. Vor jedem neuen Mixin gilt:
+bevorzugt benutzt. **Mixins sind jedoch ausdrücklich erlaubt und dürfen gerne verwendet werden**,
+sobald Eingriffe in Rendering, Animationen, Vanilla-Logik oder Methodenflüsse erforderlich oder
+sauberer sind.
+
+Vor der Umsetzung gilt:
 
 1. `APIS/` aktualisieren, falls es fehlt oder die Gradle-Versionen geändert wurden.
 2. Mit `rg` oder `ast-grep` unter `APIS/fabric-api/` nach passenden Events, Callbacks und
-   Registries suchen und die relevanten Deklarationen ansehen.
-3. Prüfen, ob ein Eintrag in `src/main/resources/oneshotonekill.accesswidener` ausreicht.
-4. Nur wenn beides nicht trägt, ein Mixin einsetzen. Annotation, Injection-Point und
+   Registries suchen.
+3. Prüfen, ob ein Eintrag in `src/main/resources/oneshotonekill.accesswidener` oder ein Mixin
+   der sauberere Weg ist.
+4. Mixins dürfen gerne und gezielt eingesetzt werden. Annotation, Injection-Point und
    Callback-Typ dabei an den Quellen unter `APIS/mixin/` belegen, nicht aus dem Gedächtnis.
+   MixinExtras (`@WrapOperation`, `@ModifyExpressionValue`, etc.) stehen direkt zur Verfügung.
 
-Ein neues Mixin braucht im Klassenkommentar die konkrete Begründung, warum Event und
-Access Widener nicht ausreichen.
-
-Aktuell sind nur die beiden wirkungslosen Vorlagen-Mixins `MinecraftServerMixin` und
-`MinecraftClientMixin` registriert. Sie werden beim ersten echten Bedarf ersetzt oder
-gelöscht; sie zählen nicht als Beleg dafür, dass ein Mixin zulässig ist.
+Aktuell sind die beiden Vorlagen-Mixins `MinecraftServerMixin` und `MinecraftClientMixin`
+registriert und können bei Bedarf angepasst, erweitert oder durch neue Mixins ergänzt werden.
 
 Anders als bei NeoForge gibt es in Fabric keine Access Transformer. Das Gegenstück ist der
 Access Widener. Er liegt in `src/main/resources/oneshotonekill.accesswidener`, ist in

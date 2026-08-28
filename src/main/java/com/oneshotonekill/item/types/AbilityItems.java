@@ -217,27 +217,10 @@ public final class AbilityItems {
    }
 
    // --- SlowMotionItem.java ---
-   /** Verlangsamt den gesamten Zeitfluss für exakt zehn reale Sekunden. */
+   /** Verlangsamt den gesamten Zeitfluss für exakt sieben reale Sekunden. */
    public static final class SlowMotionItem extends SpecialAbilityItem {
-      private static final int LIGHT_ON = 0x008CFF;
-      private static final int LIGHT_OFF = 0x001229;
-
       public SlowMotionItem(Properties properties) {
          super(properties);
-      }
-
-      @Override
-      public void inventoryTick(ItemStack stack, ServerLevel level, Entity owner, EquipmentSlot slot) {
-         if (slot == EquipmentSlot.MAINHAND) {
-            // Gut sichtbarer Chrono-Puls: alle Energielinsen und der Sekundenzeiger schalten
-            // gemeinsam um, ohne das Gerät beim Farbwechsel in der Hand nachgreifen zu lassen.
-            DeviceLights.strobe(stack, level.getGameTime(), 8, LIGHT_ON, LIGHT_OFF);
-         }
-      }
-
-      @Override
-      public boolean allowComponentsUpdateAnimation(Player player, InteractionHand hand, ItemStack oldStack, ItemStack newStack) {
-         return DeviceLights.allowsReequipAnimation();
       }
 
       @Override

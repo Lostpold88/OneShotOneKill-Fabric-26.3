@@ -13,13 +13,13 @@ import net.minecraft.sounds.SoundEvents;
  *
  * <p>Vanillas {@code ServerTickRateManager} ist die zentrale Zeitquelle des Servers und
  * synchronisiert Änderungen selbst an alle Clients. Die Dauer darf deshalb nicht in
- * Spielticks gezählt werden: Bei acht TPS würden 200 Ticks fünfundzwanzig echte Sekunden
- * dauern. Eine monotone Echtzeitfrist hält die zugesagten zehn Sekunden exakt ein.</p>
+ * Spielticks gezählt werden: Bei acht TPS würde eine Tickfrist weit länger als vorgesehen
+ * dauern. Eine monotone Echtzeitfrist hält die zugesagten sieben Sekunden exakt ein.</p>
  */
 public final class SlowMotionSystem {
    public static final SlowMotionSystem INSTANCE = new SlowMotionSystem();
 
-   public static final int DURATION_SECONDS = 10;
+   public static final int DURATION_SECONDS = 7;
    public static final float SLOW_TICK_RATE = 8.0F;
 
    private boolean active;
@@ -61,7 +61,7 @@ public final class SlowMotionSystem {
       return true;
    }
 
-   /** Stellt nach zehn echten Sekunden den vorherigen Server-Zeittakt wieder her. */
+   /** Stellt nach sieben echten Sekunden den vorherigen Server-Zeittakt wieder her. */
    public void tick(MinecraftServer server) {
       if (active && System.nanoTime() >= activeUntilNanos) {
          finish(server, true);
@@ -100,6 +100,13 @@ public final class SlowMotionSystem {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
                Feedback.actionBar(player, "§b◇ Zeitfluss wieder normal");
                OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.BEACON_ACTIVATE, 0.75F, 1.35F);
+               OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.AMETHYST_BLOCK_RESONATE, 0.65F, 0.72F);
+               player.level().sendParticles(ParticleTypes.PORTAL,
+                  player.getX(), player.getY() + 1.0, player.getZ(),
+                  55, 0.7, 1.0, 0.7, 0.24);
+               player.level().sendParticles(ParticleTypes.ELECTRIC_SPARK,
+                  player.getX(), player.getY() + 1.0, player.getZ(),
+                  22, 0.55, 0.85, 0.55, 0.08);
             }
          }
       }

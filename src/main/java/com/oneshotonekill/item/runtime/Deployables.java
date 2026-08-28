@@ -163,6 +163,8 @@ public final class Deployables {
    private static final double MUZZLE_FORWARD = 0.4625;
    private static final double MUZZLE_SIDE = 0.1187;
    private static final double MUZZLE_UP = 0.0250;
+   /** Suchneigung an der Wand: fast senkrecht hinaus, aber mit einem sichtbaren Suchkegel. */
+   private static final float TURRET_WALL_HOME_PITCH = -1.15F;
    /**
     * Schwenkgeschwindigkeit des Kopfes im Bogenmaß je Tick.
     *
@@ -335,17 +337,25 @@ public final class Deployables {
     * Vorher war es eines, und dann drehte sich das ganze Gerät samt Beinen zum Ziel – es sah
     * aus, als rutschte es über den Boden.
     */
-   public boolean placeSentryTurret(ServerLevel level, ServerPlayer owner, BlockPos pos) {
-      Vec3 at = Vec3.atBottomCenterOf(pos);
-      Turret turret = new Turret(at, owner.getUUID(), TURRET_DURATION_TICKS);
+   public boolean placeSentryTurret(ServerLevel level, ServerPlayer owner, BlockPos pos,
+      Direction face, Vec3 clickLocation) {
+      // Auf dem Boden bleibt der Turm sauber im Blockraster zentriert. An einer Wand sitzt sein
+      // Fuß dagegen genau dort, wo der Spieler hingeklickt hat – sonst hinge er stets am unteren
+      // Rand des Blocks und nicht wirklich an der gewählten Stelle.
+      Vec3 at = face == Direction.UP ? Vec3.atBottomCenterOf(pos) : clickLocation;
+      Quaternionf mount = new Quaternionf().rotationTo(0.0F, 1.0F, 0.0F,
+         face.getStepX(), face.getStepY(), face.getStepZ());
+      Turret turret = new Turret(at, owner.getUUID(), TURRET_DURATION_TICKS, mount);
       // Er blickt zunächst dorthin, wohin der Aufsteller schaut – die Richtung, aus der Ärger
       // erwartet wird. Der halbe Umlauf gleicht die Drehung des Renderers aus.
-      turret.home = (float) Math.toRadians(180.0F - owner.getYRot());
+      turret.home = face == Direction.UP ? (float) Math.toRadians(180.0F - owner.getYRot()) : 0.0F;
+      turret.homePitch = face.getAxis().isHorizontal() ? TURRET_WALL_HOME_PITCH : 0.0F;
       turret.yaw = turret.home;
+      turret.pitch = turret.homePitch;
 
-      turret.baseDisplay = Hologram.spawnEffect(level, at.add(0.0, TURRET_BASE_LIFT, 0.0),
+      turret.baseDisplay = Hologram.spawnEffect(level, turret.baseCenter(),
          new ItemStack(ModItems.SENTRY_BASE), 4.0F);
-      turret.headDisplay = Hologram.spawnEffect(level, at.add(0.0, TURRET_HEAD_LIFT, 0.0),
+      turret.headDisplay = Hologram.spawnEffect(level, turret.pivot(),
          lensStack(LENS_SCAN), 4.0F);
       if (turret.baseDisplay == null || turret.headDisplay == null) {
          Hologram.remove(turret.baseDisplay);
@@ -837,7 +847,7 @@ public final class Deployables {
    private void deploy(ServerLevel level, Turret turret) {
       turret.deploy++;
       turret.yaw = turret.home + (float) (Math.PI * 2.0) * (1.0F - turret.deploy / (float) TURRET_DEPLOY_TICKS);
-      turret.pitch = -0.5F * (1.0F - turret.deploy / (float) TURRET_DEPLOY_TICKS);
+      turret.pitch = turret.homePitch - 0.5F * (1.0F - turret.deploy / (float) TURRET_DEPLOY_TICKS);
       turret.lens = turret.deploy % 6 < 3 ? LENS_LOCK : LENS_DEAD;
       if (turret.deploy % 6 == 0) {
          level.playSound(null, turret.position.x, turret.position.y, turret.position.z,
@@ -900,7 +910,7 @@ public final class Deployables {
          turret.scan += TURRET_SCAN_SPEED;
          turret.yaw = approachAngle(turret.yaw, turret.home + TURRET_SCAN_ARC * (float) Math.sin(turret.scan),
             TURRET_TURN_PER_TICK * 0.5F);
-         turret.pitch = approach(turret.pitch, 0.0F, TURRET_TURN_PER_TICK * 0.5F);
+         turret.pitch = approach(turret.pitch, turret.homePitch, TURRET_TURN_PER_TICK * 0.5F);
          // Langsames Atmen: der Turm sucht, aber niemand ist gemeint.
          int scanPhase = Math.floorMod(turret.ticksLeft, LENS_SCAN_CYCLE);
          turret.lens = scanPhase < 5 ? LENS_SCAN : LENS_SCAN_DIM;
@@ -912,9 +922,9 @@ public final class Deployables {
          return;
       }
 
-      Vec3 delta = aimAt.subtract(pivot);
+      Vec3 delta = turret.toLocal(aimAt.subtract(pivot).normalize());
       float wantYaw = (float) Math.atan2(delta.x, delta.z);
-      float wantPitch = (float) -Math.asin(Math.clamp(delta.normalize().y, -1.0, 1.0));
+      float wantPitch = (float) -Math.asin(Math.clamp(delta.y, -1.0, 1.0));
       turret.yaw = approachAngle(turret.yaw, wantYaw, TURRET_TURN_PER_TICK);
       turret.pitch = approach(turret.pitch, wantPitch, TURRET_TURN_PER_TICK);
 
@@ -946,11 +956,11 @@ public final class Deployables {
       // das sich nicht bewegt.
       if (scale != turret.baseScale) {
          turret.baseScale = scale;
-         Hologram.setPose(turret.baseDisplay, new Vector3f(), new Quaternionf(),
+         Hologram.setPose(turret.baseDisplay, new Vector3f(), new Quaternionf(turret.mount),
             new Vector3f(scale, scale, scale), 2);
       }
       Hologram.setPose(turret.headDisplay, new Vector3f(),
-         new Quaternionf().rotationY(turret.yaw).rotateX(pitch),
+         new Quaternionf(turret.mount).rotateY(turret.yaw).rotateX(pitch),
          new Vector3f(scale, scale, scale), 2);
       setLens(turret, turret.dying > 0 ? LENS_DEAD : turret.lens);
    }
@@ -1405,9 +1415,10 @@ public final class Deployables {
       }
       for (Turret turret : turrets) {
          if (turret.owner.equals(id)) {
+            Vec3 pivot = turret.pivot();
             markers.add(new DeployableMarkersPayload.Marker(
                DeployableMarkersPayload.Kind.TURRET,
-               turret.position.x, turret.position.y + TURRET_HEAD_LIFT, turret.position.z,
+               pivot.x, pivot.y, pivot.z,
                turret.target != null || turret.targetTurret != null));
          }
       }
@@ -1525,9 +1536,11 @@ public final class Deployables {
    }
 
    private static final class Turret {
-      /** Standfläche des Turms; beide Displays sitzen um feste Beträge darüber. */
+      /** Mittelpunkt der Fläche, an der der Turm befestigt ist. */
       private final Vec3 position;
       private final UUID owner;
+      /** Dreht die lokale Hochachse des Modells auf die Normale seiner Befestigungsfläche. */
+      private final Quaternionf mount;
       private Display.ItemDisplay baseDisplay;
       private Display.ItemDisplay headDisplay;
       private int ticksLeft;
@@ -1545,6 +1558,8 @@ public final class Deployables {
       private Turret targetTurret;
       /** Blickrichtung beim Aufstellen – Mitte des Suchlaufs. */
       private float home;
+      /** Mittlere Neigung des Suchlaufs; an der Wand zeigt sie den Kopf nach außen. */
+      private float homePitch;
       private float yaw;
       private float pitch;
       private float scan;
@@ -1554,15 +1569,35 @@ public final class Deployables {
       private int lensShown = -1;
       private float baseScale = -1.0F;
 
-      private Turret(Vec3 position, UUID owner, int ticksLeft) {
+      private Turret(Vec3 position, UUID owner, int ticksLeft, Quaternionf mount) {
          this.position = position;
          this.owner = owner;
          this.ticksLeft = ticksLeft;
+         this.mount = mount;
+      }
+
+      /** Mittelpunkt des feststehenden Unterbaus. */
+      private Vec3 baseCenter() {
+         return position.add(toWorld(new Vec3(0.0, TURRET_BASE_LIFT, 0.0)));
       }
 
       /** Lagerung des Kopfes – der Punkt, um den er schwenkt. */
       private Vec3 pivot() {
-         return position.add(0.0, TURRET_HEAD_LIFT, 0.0);
+         return position.add(toWorld(new Vec3(0.0, TURRET_HEAD_LIFT, 0.0)));
+      }
+
+      /** Wandelt eine lokale Modellrichtung in die Weltkoordinaten der Montagefläche um. */
+      private Vec3 toWorld(Vec3 local) {
+         Vector3f transformed = new Vector3f((float) local.x, (float) local.y, (float) local.z);
+         mount.transform(transformed);
+         return new Vec3(transformed.x, transformed.y, transformed.z);
+      }
+
+      /** Wandelt eine Weltrichtung in das lokale Koordinatensystem des Turms um. */
+      private Vec3 toLocal(Vec3 world) {
+         Vector3f transformed = new Vector3f((float) world.x, (float) world.y, (float) world.z);
+         new Quaternionf(mount).conjugate().transform(transformed);
+         return new Vec3(transformed.x, transformed.y, transformed.z);
       }
 
       /**
@@ -1578,16 +1613,19 @@ public final class Deployables {
          double cosPitch = Math.cos(pitch);
          Vec3 forward = new Vec3(sinYaw * cosPitch, -Math.sin(pitch), cosYaw * cosPitch);
          Vec3 right = new Vec3(cosYaw, 0.0, -sinYaw);
-         return pivot()
-            .add(forward.scale(MUZZLE_FORWARD))
+         Vec3 localMuzzle = forward.scale(MUZZLE_FORWARD)
             .add(right.scale(side * MUZZLE_SIDE))
             .add(0.0, MUZZLE_UP, 0.0);
+         return pivot().add(toWorld(localMuzzle));
       }
 
       /** Trefferbox für Pfeilbeschuss – grob der Umriss von Unterbau und Kopf. */
       private AABB hitbox() {
-         return new AABB(position.x - 0.5, position.y, position.z - 0.5,
-            position.x + 0.5, position.y + 1.2, position.z + 0.5);
+         Vec3 pivot = pivot();
+         return new AABB(
+            Math.min(position.x, pivot.x) - 0.5, Math.min(position.y, pivot.y) - 0.5,
+            Math.min(position.z, pivot.z) - 0.5, Math.max(position.x, pivot.x) + 0.5,
+            Math.max(position.y, pivot.y) + 0.5, Math.max(position.z, pivot.z) + 0.5);
       }
    }
 

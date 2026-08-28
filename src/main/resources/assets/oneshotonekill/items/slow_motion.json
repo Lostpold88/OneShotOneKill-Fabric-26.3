@@ -1,12 +1,47 @@
 {
   "model": {
-    "type": "minecraft:model",
-    "model": "oneshotonekill:item/slow_motion",
-    "tints": [
-      {
-        "type": "minecraft:dye",
-        "default": -9897985
-      }
+    "type": "oneshotonekill:chrono_distorter",
+    "base": "oneshotonekill:item/slow_motion_base",
+    "inner_ring": [
+      "oneshotonekill:item/slow_motion_inner_ring_0",
+      "oneshotonekill:item/slow_motion_inner_ring_1",
+      "oneshotonekill:item/slow_motion_inner_ring_2",
+      "oneshotonekill:item/slow_motion_inner_ring_3",
+      "oneshotonekill:item/slow_motion_inner_ring_4",
+      "oneshotonekill:item/slow_motion_inner_ring_5",
+      "oneshotonekill:item/slow_motion_inner_ring_6",
+      "oneshotonekill:item/slow_motion_inner_ring_7",
+      "oneshotonekill:item/slow_motion_inner_ring_8",
+      "oneshotonekill:item/slow_motion_inner_ring_9",
+      "oneshotonekill:item/slow_motion_inner_ring_10",
+      "oneshotonekill:item/slow_motion_inner_ring_11"
+    ],
+    "outer_ring": [
+      "oneshotonekill:item/slow_motion_outer_ring_0",
+      "oneshotonekill:item/slow_motion_outer_ring_1",
+      "oneshotonekill:item/slow_motion_outer_ring_2",
+      "oneshotonekill:item/slow_motion_outer_ring_3",
+      "oneshotonekill:item/slow_motion_outer_ring_4",
+      "oneshotonekill:item/slow_motion_outer_ring_5",
+      "oneshotonekill:item/slow_motion_outer_ring_6",
+      "oneshotonekill:item/slow_motion_outer_ring_7",
+      "oneshotonekill:item/slow_motion_outer_ring_8",
+      "oneshotonekill:item/slow_motion_outer_ring_9",
+      "oneshotonekill:item/slow_motion_outer_ring_10",
+      "oneshotonekill:item/slow_motion_outer_ring_11"
+    ],
+    "minute_hand": "oneshotonekill:item/slow_motion_minute_hand",
+    "second_hand": "oneshotonekill:item/slow_motion_second_hand",
+    "core": "oneshotonekill:item/slow_motion_core",
+    "lenses": [
+      "oneshotonekill:item/slow_motion_lens_0",
+      "oneshotonekill:item/slow_motion_lens_1",
+      "oneshotonekill:item/slow_motion_lens_2",
+      "oneshotonekill:item/slow_motion_lens_3",
+      "oneshotonekill:item/slow_motion_lens_4",
+      "oneshotonekill:item/slow_motion_lens_5",
+      "oneshotonekill:item/slow_motion_lens_6",
+      "oneshotonekill:item/slow_motion_lens_7"
     ]
   }
 }

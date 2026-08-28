@@ -1,6 +1,7 @@
 package com.oneshotonekill.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.oneshotonekill.client.effect.TimeDistortionEffects;
 import com.oneshotonekill.client.screen.AirstrikeTargetScreen;
 import com.oneshotonekill.client.state.ClientStates.AbilityStatusState;
 import com.oneshotonekill.client.state.ClientStates.GlideState;
@@ -84,8 +85,14 @@ public final class ClientInputEvents {
     */
    private static InteractionResult onUseItem(net.minecraft.world.entity.player.Player player,
                                               net.minecraft.world.level.Level level, InteractionHand hand) {
-      if (!level.isClientSide() || AbilityStatusState.INSTANCE.isFrozen()
-         || !player.getItemInHand(hand).is(ModItems.AIRSTRIKE)) {
+      if (!level.isClientSide() || AbilityStatusState.INSTANCE.isFrozen()) {
+         return InteractionResult.PASS;
+      }
+      ItemStack held = player.getItemInHand(hand);
+      if (held.is(ModItems.SLOW_MOTION)) {
+         TimeDistortionEffects.INSTANCE.beginUse();
+      }
+      if (!held.is(ModItems.AIRSTRIKE)) {
          return InteractionResult.PASS;
       }
       Minecraft client = Minecraft.getInstance();
@@ -103,6 +110,7 @@ public final class ClientInputEvents {
    public static float modifyFovModifier(float modifier) {
       Minecraft client = Minecraft.getInstance();
       MatchStartState state = MatchStartState.INSTANCE;
+      modifier += TimeDistortionEffects.INSTANCE.fovOffset();
 
       if (state.isCountdownActive() && client.options.getCameraType() != CameraType.THIRD_PERSON_FRONT) {
          client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
@@ -171,6 +179,11 @@ public final class ClientInputEvents {
          float rumble = (float) Math.sin(useTicks * 2.4) * 0.004F * spin;
          poseStack.translate(rumble, -rumble * 0.5F, 0.0F);
       }
+   }
+
+   /** Schwebende Uhr und kurzer mechanischer Rücklauf beim Aktivieren. */
+   public static void applyTimeDistorterHandPose(ItemStack itemStack, PoseStack poseStack) {
+      TimeDistortionEffects.INSTANCE.applyHandPose(itemStack, poseStack);
    }
 
    /**

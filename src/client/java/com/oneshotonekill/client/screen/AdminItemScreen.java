@@ -101,7 +101,7 @@ public final class AdminItemScreen extends Screen {
          case SINGULARITY -> "Erzeugt ein Schwarzes Loch, das Feinde und Schüsse anzieht.";
          case GLIDER -> "Taktischer Hängegleiter für hohe Mobilität in der Luft.";
          case SENTRY_TURRET -> "Automatischer Geschützturm mit Zielerfassung.";
-         case SLOW_MOTION -> "Verlangsamt den gesamten Zeitfluss für zehn Sekunden.";
+         case SLOW_MOTION -> "Verlangsamt den gesamten Zeitfluss für sieben Sekunden.";
       };
    }
 
