@@ -3,7 +3,17 @@
 	"package": "com.oneshotonekill.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"mixins": [
-		"MinecraftServerMixin"
+		"AbstractContainerMenuClickMixin",
+		"BowItemMixin",
+		"EntitySprintParticleMixin",
+		"LivingEntityStopUsingMixin",
+		"LivingEntityUseItemMixin",
+		"PlayerAdvancementsMixin",
+		"PlayerProjectileMixin",
+		"ServerGamePacketListenerMixin",
+		"ServerPlayerDropMixin",
+		"ServerPlayerInvulnerabilityMixin",
+		"ServerPlayerTabListMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -1,3 +1,10 @@
 accessWidener	v2	official
 
-# Zugriffserweiterungen. Vor jedem Mixin prüfen, ob hier ein Eintrag reicht.
+# Die Bildschirmeffekte beim Match-Start (Portalwirbel, Verzerrung) sind private Methoden der
+# Hud-Klasse, die in 26.2 aus Gui herausgeloest wurde. MatchHudLayers ruft sie unveraendert auf,
+# statt sie nachzubauen - dafuer reicht der Zugriff, ein Mixin waere hier zu viel.
+accessible	method	net/minecraft/client/gui/Hud	extractPortalOverlay	(Lnet/minecraft/client/gui/GuiGraphicsExtractor;F)V
+accessible	method	net/minecraft/client/gui/Hud	extractConfusionOverlay	(Lnet/minecraft/client/gui/GuiGraphicsExtractor;F)V
+
+# Die Setter von Display (Transformation, Drehung, Leuchtfarbe, Helligkeit, Sichtweite) sind
+# bereits durch fabric-transitive-access-wideners-v1 geoeffnet und brauchen hier keinen Eintrag.

@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/chain_lightning_bolt",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -10179
+      }
+    ]
+  }
+}

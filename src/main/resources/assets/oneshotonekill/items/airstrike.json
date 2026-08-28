@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/airstrike",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -13248917
+      }
+    ]
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/sentry_head",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -10164614
+      }
+    ]
+  }
+}

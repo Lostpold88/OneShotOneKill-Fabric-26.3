@@ -3,7 +3,17 @@
 	"package": "com.oneshotonekill.client.mixin",
 	"compatibilityLevel": "JAVA_25",
 	"client": [
-		"MinecraftClientMixin"
+		"AbstractClientPlayerFovMixin",
+		"AvatarRendererMixin",
+		"CameraShakeMixin",
+		"CameraZoomMixin",
+		"FogRendererMixin",
+		"ItemInHandRendererMixin",
+		"KeyboardInputMixin",
+		"LivingEntityRendererMixin",
+		"LocalPlayerDropMixin",
+		"MinecraftInteractionMixin",
+		"MouseHandlerMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

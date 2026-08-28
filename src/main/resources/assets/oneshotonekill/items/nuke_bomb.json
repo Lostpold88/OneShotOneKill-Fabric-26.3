@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/nuke_bomb",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -865972
+      }
+    ]
+  }
+}

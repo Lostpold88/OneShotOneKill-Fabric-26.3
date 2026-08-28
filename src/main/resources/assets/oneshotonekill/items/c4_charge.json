@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/c4_charge",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -46542
+      }
+    ]
+  }
+}

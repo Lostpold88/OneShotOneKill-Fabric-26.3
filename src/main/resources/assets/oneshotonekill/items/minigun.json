@@ -1,0 +1,17 @@
+{
+  "model": {
+    "type": "minecraft:composite",
+    "models": [
+      {
+        "type": "minecraft:model",
+        "model": "oneshotonekill:item/minigun_frame"
+      },
+      {
+        "type": "oneshotonekill:spinning_rotor",
+        "model": "oneshotonekill:item/minigun_rotor",
+        "pivot_x": 8.0,
+        "pivot_y": 8.0
+      }
+    ]
+  }
+}

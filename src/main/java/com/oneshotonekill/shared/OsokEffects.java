@@ -1,0 +1,155 @@
+package com.oneshotonekill.shared;
+
+import com.oneshotonekill.arena.Arena;
+
+import net.minecraft.ChatFormatting;
+import net.minecraft.core.Holder;
+import net.minecraft.core.particles.BlockParticleOption;
+import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.core.registries.BuiltInRegistries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
+import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
+import net.minecraft.network.protocol.game.ClientboundSoundEntityPacket;
+import net.minecraft.network.protocol.game.ClientboundSoundPacket;
+import net.minecraft.server.level.ServerLevel;
+import net.minecraft.server.level.ServerPlayer;
+import net.minecraft.sounds.SoundEvent;
+import net.minecraft.sounds.SoundEvents;
+import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.phys.Vec3;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import com.oneshotonekill.network.OsokPayloads.MatchNotificationPayload;
+
+/** Bündelt die Ton-, Partikel- und Actionbar-Rückmeldungen des Minigames. */
+public final class OsokEffects {
+   public static final OsokEffects INSTANCE = new OsokEffects();
+
+   private static final int START_RING_POINTS = 16;
+   private static final double START_RING_RADIUS = 1.8;
+
+   private OsokEffects() {
+   }
+
+   public void playStartMatchEffect(ServerPlayer player) {
+      ServerLevel level = player.level();
+      Vec3 pos = player.position();
+      announce(player, "🎯 ONESHOT ONEKILL — MATCH GESTARTET ⚡", ChatFormatting.GOLD);
+      level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 0.6F, 1.6F);
+      level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.ENDER_DRAGON_GROWL, SoundSource.PLAYERS, 0.4F, 1.3F);
+      level.sendParticles(ParticleTypes.EXPLOSION, pos.x, pos.y + 1.0, pos.z, 2, 0.2, 0.2, 0.2, 0.0);
+      level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, pos.x, pos.y + 1.0, pos.z, 1, 0.0, 0.0, 0.0, 0.0);
+      level.sendParticles(ParticleTypes.TOTEM_OF_UNDYING, pos.x, pos.y + 1.0, pos.z, 60, 0.8, 1.5, 0.8, 0.2);
+      level.sendParticles(ParticleTypes.END_ROD, pos.x, pos.y + 0.2, pos.z, 45, 0.5, 1.8, 0.5, 0.12);
+      level.sendParticles(ParticleTypes.REVERSE_PORTAL, pos.x, pos.y + 1.0, pos.z, 40, 0.6, 1.2, 0.6, 0.08);
+
+      for (int point = 0; point < START_RING_POINTS; point++) {
+         double angle = point * Math.PI / (START_RING_POINTS / 2.0);
+         double offsetX = Math.cos(angle) * START_RING_RADIUS;
+         double offsetZ = Math.sin(angle) * START_RING_RADIUS;
+         level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, pos.x + offsetX, pos.y + 0.1, pos.z + offsetZ, 3, 0.0, 0.2, 0.0, 0.03);
+      }
+   }
+
+   public void playResumeMatchEffect(ServerPlayer player) {
+      ServerLevel level = player.level();
+      Vec3 pos = player.position();
+      ServerPlayNetworking.send(player, new MatchNotificationPayload("RESUME", "▶ MATCH FORTGESETZT", "ALLE SYSTEME WIEDER SCHARF", 42, OsokColors.EMERALD));
+      level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 0.8F, 1.2F);
+   }
+
+   public void playPauseMatchEffect(ServerPlayer player) {
+      ServerLevel level = player.level();
+      Vec3 pos = player.position();
+      ServerPlayNetworking.send(player, new MatchNotificationPayload("PAUSE", "⏸ MATCH PAUSIERT", "WAFFEN EINGEZOGEN · WARTEN AUF WEITERFÜHRUNG", 60, OsokColors.GOLD));
+      level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.7F, 1.1F);
+      level.sendParticles(ParticleTypes.WITCH, pos.x, pos.y + 1.0, pos.z, 20, 0.4, 0.8, 0.4, 0.05);
+   }
+
+   public void playStopMatchEffect(ServerPlayer player) {
+      ServerLevel level = player.level();
+      Vec3 pos = player.position();
+      ServerPlayNetworking.send(player, new MatchNotificationPayload("STOP", "⏹ MATCH BEENDET", "RUNDE ZU ENDE · RÜCKKEHR ZUR LOBBY", 50, OsokColors.CRIMSON));
+      level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.8F, 0.9F);
+      level.sendParticles(ParticleTypes.WITCH, pos.x, pos.y + 1.0, pos.z, 25, 0.4, 0.8, 0.4, 0.05);
+   }
+
+   public void playMapSwitchEffect(ServerPlayer player, String arenaName) {
+      ServerLevel level = player.level();
+      Vec3 pos = player.position();
+      ServerPlayNetworking.send(player, new MatchNotificationPayload("ARENA_SWITCH", "🗺 ARENA GEWECHSELT", "Aktive Arena: " + arenaName, 45, OsokColors.CYAN));
+      level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 0.6F, 1.2F);
+      level.sendParticles(ParticleTypes.PORTAL, pos.x, pos.y + 1.0, pos.z, 20, 0.3, 0.8, 0.3, 0.1);
+   }
+
+   public void playMapResetEffect(ServerPlayer player, String arenaName) {
+      ServerLevel level = player.level();
+      Vec3 pos = player.position();
+      ServerPlayNetworking.send(player, new MatchNotificationPayload("ARENA_RESET", "🔄 ARENA ZURÜCKGESETZT", "Arena " + arenaName + " wiederhergestellt", 45, OsokColors.GOLD));
+      level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.ANVIL_USE, SoundSource.PLAYERS, 0.4F, 1.4F);
+   }
+
+   public void playEliminationEffect(ServerLevel level, Vec3 deathPos) {
+      level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, deathPos.x, deathPos.y + 1.0, deathPos.z, 12, 0.3, 0.5, 0.3, 0.1);
+      level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.REDSTONE_BLOCK.defaultBlockState()),
+         deathPos.x, deathPos.y + 1.0, deathPos.z, 35, 0.3, 0.6, 0.3, 0.15);
+   }
+
+   /**
+    * Großer Text in Bildschirmmitte, wie ihn Vanilla für Titel benutzt.
+    *
+    * Die Actionbar reicht für Beiläufiges; ein anrollender Bombenangriff soll den Blick
+    * unterbrechen. Ohne Untertitel bleibt die zweite Zeile leer.
+    */
+   public void sendTitle(ServerPlayer player, Component title, Component subtitle,
+                         int fadeInTicks, int stayTicks, int fadeOutTicks) {
+      player.connection.send(new ClientboundSetTitlesAnimationPacket(fadeInTicks, stayTicks, fadeOutTicks));
+      player.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
+      player.connection.send(new ClientboundSetTitleTextPacket(title));
+   }
+
+   /**
+    * Spielt einen Ton nur für diesen Spieler ab, ohne ihn an die Umgebung zu senden.
+    *
+    * Der Ton hängt an einer festen Weltposition. Für alles, was einen Spieler überdauert, der
+    * sich gleich bewegt oder teleportiert wird, ist {@link #playOwnSound} die richtige Wahl.
+    */
+   public void sendPrivateSound(ServerPlayer player, SoundEvent sound, float volume, float pitch) {
+      Holder<SoundEvent> holder = BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound);
+      player.connection.send(new ClientboundSoundPacket(holder, SoundSource.PLAYERS,
+         player.getX(), player.getY(), player.getZ(), volume, pitch, player.level().getRandom().nextLong()));
+   }
+
+   public void sendPrivateSound(ServerPlayer player, Holder<SoundEvent> sound, float volume, float pitch) {
+      sendPrivateSound(player, sound.value(), volume, pitch);
+   }
+
+   /**
+    * Spielt einen Ton am Spieler selbst – er wandert mit ihm mit.
+    *
+    * Ein an eine Weltposition geheftetes Geräusch bleibt liegen, wo es angestoßen wurde. Beim
+    * Tod fällt das sofort auf: der Sofort-Respawn setzt den Spieler bewusst weit vom Sterbeort
+    * weg, und der Todes-Ton verhallte dort ungehört. An die Entity gebunden bleibt er dort, wo
+    * der Spieler ist, und damit auf voller Lautstärke.
+    */
+   public void playOwnSound(ServerPlayer player, SoundEvent sound, float volume, float pitch) {
+      Holder<SoundEvent> holder = BuiltInRegistries.SOUND_EVENT.wrapAsHolder(sound);
+      player.connection.send(new ClientboundSoundEntityPacket(holder, SoundSource.PLAYERS, player,
+         volume, pitch, player.level().getRandom().nextLong()));
+   }
+
+   public void playOwnSound(ServerPlayer player, Holder<SoundEvent> sound, float volume, float pitch) {
+      playOwnSound(player, sound.value(), volume, pitch);
+   }
+
+   /** Der eigene Tod – nur für den Gestorbenen, an ihm selbst. */
+   public void playDeathSound(ServerPlayer player) {
+      playOwnSound(player, SoundEvents.PLAYER_DEATH, 1.0F, 1.0F);
+   }
+
+   private void announce(ServerPlayer player, String text, ChatFormatting color) {
+      player.sendSystemMessage(Component.literal(text).withStyle(color, ChatFormatting.BOLD), true);
+   }
+}

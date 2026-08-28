@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/radar_pulse",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -12590849
+      }
+    ]
+  }
+}

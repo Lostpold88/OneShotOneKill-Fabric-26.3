@@ -1,0 +1,26 @@
+{
+  "model": {
+    "type": "minecraft:condition",
+    "property": "oneshotonekill:has_placed_c4",
+    "on_true": {
+      "type": "minecraft:model",
+      "model": "oneshotonekill:item/c4",
+      "tints": [
+        {
+          "type": "minecraft:dye",
+          "default": -50390
+        }
+      ]
+    },
+    "on_false": {
+      "type": "minecraft:model",
+      "model": "oneshotonekill:item/c4_charge",
+      "tints": [
+        {
+          "type": "minecraft:dye",
+          "default": -46542
+        }
+      ]
+    }
+  }
+}

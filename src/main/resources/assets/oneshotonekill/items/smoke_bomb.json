@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/smoke_bomb",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -12965342
+      }
+    ]
+  }
+}

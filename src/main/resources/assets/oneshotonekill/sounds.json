@@ -1,0 +1,12 @@
+{
+  "endgame.tactical_nuke_incoming": {
+    "sounds": [
+      { "name": "oneshotonekill:endgame/tactical_nuke_incoming", "stream": true }
+    ]
+  },
+  "items.minigun": {
+    "sounds": [
+      { "name": "oneshotonekill:items/minigun", "stream": true }
+    ]
+  }
+}

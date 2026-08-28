@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/glider",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -13996386
+      }
+    ]
+  }
+}

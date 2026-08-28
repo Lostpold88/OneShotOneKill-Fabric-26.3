@@ -1,0 +1,69 @@
+package com.oneshotonekill.arena;
+import com.oneshotonekill.shared.ArenaShape;
+import com.oneshotonekill.shared.ArenaDemolition;
+
+import com.oneshotonekill.OneShotOneKill;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
+import java.util.stream.Collectors;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.network.chat.Component;
+import net.minecraft.resources.Identifier;
+import net.minecraft.resources.ResourceKey;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.phys.Vec3;
+
+/** The mod's available arena dimensions and their measured combat boundaries. */
+public enum Arena {
+    STANDARD("standard", "Standard", "Standard.zip", new Vec3(223.5, 48.0, 55.5),
+        List.of(ArenaShape.polygon(58.0, 64.0, ArenaShape.Outlines.STANDARD)), 69.0, true, false),
+    DUSTPVP("dustpvp", "DustPvP", "DustPvP.zip", new Vec3(0.5, 90.0, 0.5),
+        List.of(ArenaShape.polygon(70.0, 70.0, ArenaShape.Outlines.DUSTPVP)), null, true, false),
+    BO2("bo2", "BO2", "BO2.zip", new Vec3(-1045.5, 63.0, 352.5),
+        List.of(ArenaShape.polygon(63.0, 81.0, ArenaShape.Outlines.BO2)), null, false, true);
+
+    private static final Arena DEFAULT = STANDARD;
+    private static final Map<String, Arena> BY_ID = java.util.Arrays.stream(values())
+        .collect(Collectors.toUnmodifiableMap(Arena::getId, arena -> arena));
+
+    private final String id, displayName, archive;
+    private final Vec3 lobby;
+    private final List<ArenaShape> regions;
+    private final Double ceilingY;
+    private final boolean scoredRespawn, spawnOnAllLevels;
+    private final Identifier dimensionId;
+    private final ResourceKey<Level> dimension;
+
+    Arena(String id, String displayName, String archive, Vec3 lobby, List<ArenaShape> regions,
+          Double ceilingY, boolean scoredRespawn, boolean spawnOnAllLevels) {
+        this.id = id;
+        this.displayName = displayName;
+        this.archive = archive;
+        this.lobby = lobby;
+        this.regions = regions;
+        this.ceilingY = ceilingY;
+        this.scoredRespawn = scoredRespawn;
+        this.spawnOnAllLevels = spawnOnAllLevels;
+        this.dimensionId = OneShotOneKill.INSTANCE.id(id);
+        this.dimension = ResourceKey.create(Registries.DIMENSION, dimensionId);
+    }
+
+    public String getId() { return id; }
+    public String getDisplayName() { return displayName; }
+    public String getArchive() { return archive; }
+    public Vec3 getLobby() { return lobby; }
+    public List<ArenaShape> getRegions() { return regions; }
+    public Double getCeilingY() { return ceilingY; }
+    public boolean getScoredRespawn() { return scoredRespawn; }
+    public boolean getSpawnOnAllLevels() { return spawnOnAllLevels; }
+    public Identifier getDimensionId() { return dimensionId; }
+    public ResourceKey<Level> getDimension() { return dimension; }
+    public Component getTitle() { return Component.literal(displayName); }
+    public boolean getHasCeiling() { return ceilingY != null; }
+    public double getVoidRescueY() { return Math.min(regions.stream().mapToDouble(ArenaShape::getMinY).min().orElseThrow(), lobby.y) - 20.0; }
+    public boolean isInArenaColumn(double x, double z) { return regions.stream().anyMatch(region -> region.containsColumn(x, z)); }
+    public boolean isInArena(double x, double y, double z) { return regions.stream().anyMatch(region -> region.contains(x, y, z)); }
+    public static Arena getDefault() { return DEFAULT; }
+    public static Arena byId(String id) { return BY_ID.get(id.toLowerCase(Locale.ROOT)); }
+}

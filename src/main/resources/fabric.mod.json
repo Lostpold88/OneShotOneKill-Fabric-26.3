@@ -15,7 +15,7 @@
 			"com.oneshotonekill.OneShotOneKill"
 		],
 		"client": [
-			"com.oneshotonekill.client.OneShotOneKillClient"
+			"com.oneshotonekill.client.OsokClient"
 		],
 		"fabric-datagen": [
 			"com.oneshotonekill.client.OneShotOneKillDataGenerator"

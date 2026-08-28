@@ -1,0 +1,9 @@
+{
+  "model": {
+    "type": "minecraft:special",
+    "base": "oneshotonekill:item/chain_lightning",
+    "model": {
+      "type": "oneshotonekill:chain_lightning"
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/frost_trap",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -6301458
+      }
+    ]
+  }
+}

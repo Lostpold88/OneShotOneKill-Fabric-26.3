@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/invisibility_cloak",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -5210881
+      }
+    ]
+  }
+}

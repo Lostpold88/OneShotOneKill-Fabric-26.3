@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/teleport_grenade",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -7709441
+      }
+    ]
+  }
+}

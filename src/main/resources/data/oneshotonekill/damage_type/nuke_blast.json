@@ -1,0 +1,7 @@
+{
+  "message_id": "oneshotonekill.nuke_blast",
+  "scaling": "always",
+  "exhaustion": 0.0,
+  "effects": "hurt",
+  "death_message_type": "default"
+}

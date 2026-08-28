@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/railgun_bolt",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -6297345
+      }
+    ]
+  }
+}
