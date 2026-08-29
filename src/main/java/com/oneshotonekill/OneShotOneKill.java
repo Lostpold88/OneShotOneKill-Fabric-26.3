@@ -7,6 +7,7 @@ import com.oneshotonekill.event.PlayerEvents;
 import com.oneshotonekill.event.ServerEvents;
 import com.oneshotonekill.item.runtime.ArmedShots;
 import com.oneshotonekill.item.runtime.Deployables;
+import com.oneshotonekill.item.runtime.GrapplingHookSystem;
 import com.oneshotonekill.item.runtime.RailgunSystem;
 import com.oneshotonekill.item.runtime.SlowMotionSystem;
 import com.oneshotonekill.item.runtime.StatusAbilities;
@@ -98,6 +99,7 @@ public final class OneShotOneKill implements ModInitializer {
       StatusAbilities.INSTANCE.reset(targetServer);
       ThrownDevices.INSTANCE.reset();
       Deployables.INSTANCE.reset();
+      GrapplingHookSystem.INSTANCE.reset();
       BlastEffect.INSTANCE.reset();
       RailgunSystem.INSTANCE.reset();
       StealthBomberSystem.INSTANCE.reset();

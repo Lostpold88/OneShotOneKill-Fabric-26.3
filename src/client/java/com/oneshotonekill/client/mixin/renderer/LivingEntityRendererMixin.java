@@ -1,0 +1,96 @@
+package com.oneshotonekill.client.mixin.renderer;
+
+import com.mojang.blaze3d.vertex.PoseStack;
+import com.mojang.math.Axis;
+import com.oneshotonekill.client.state.ClientStates.GrapplePullState;
+import com.oneshotonekill.client.state.ClientStates.GrapplePullState.RenderPose;
+import net.minecraft.client.Minecraft;
+import net.minecraft.client.renderer.SubmitNodeCollector;
+import net.minecraft.client.renderer.entity.LivingEntityRenderer;
+import net.minecraft.client.renderer.entity.state.AvatarRenderState;
+import net.minecraft.client.renderer.entity.state.LivingEntityRenderState;
+import net.minecraft.client.renderer.state.level.CameraRenderState;
+import net.minecraft.util.Mth;
+import net.minecraft.world.entity.Entity;
+import net.minecraft.world.entity.LivingEntity;
+import org.spongepowered.asm.mixin.Mixin;
+import org.spongepowered.asm.mixin.injection.At;
+import org.spongepowered.asm.mixin.injection.Inject;
+import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
+
+/**
+ * Unterdrückt das Zeichnen unsichtbarer Spielerfiguren vollständig.
+ *
+ * <p>Ersetzt NeoForges {@code RenderPlayerEvent.Pre}; Fabric API hat dazu kein Gegenstück.
+ * Vanilla zeichnet einen unsichtbaren Spieler nicht als Körper, wohl aber weiter dessen
+ * Ausrüstung und gehaltene Gegenstände – ein Tarnmantel liefe damit als schwebender Bogen
+ * durch die Arena.</p>
+ *
+ * <p>Der Einstieg sitzt auf {@code LivingEntityRenderer#submit}, weil {@code AvatarRenderer}
+ * diese Methode nicht selbst überschreibt; die Abfrage auf {@link AvatarRenderState} grenzt ihn
+ * wieder auf Spielerfiguren ein.</p>
+ *
+ * <p>Die Signatur steht ausgeschrieben, weil {@code javap} neben der eigentlichen Methode noch
+ * eine Brücke {@code submit(EntityRenderState, …)} zeigt: Ohne den Deskriptor träfe der
+ * Einstieg beide, und das Bild liefe zweimal durch dieselbe Prüfung.</p>
+ */
+@Mixin(LivingEntityRenderer.class)
+public abstract class LivingEntityRendererMixin {
+   /** Richtet Rumpf, Kopf und damit den ausgestreckten Waffenarm zum Grappler-Anker aus. */
+   @Inject(
+      method = "extractRenderState(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;F)V",
+      at = @At("RETURN"))
+   private void osok$faceGrappleAnchor(LivingEntity entity, LivingEntityRenderState state,
+                                       float partialTicks, CallbackInfo ci) {
+      if (!(state instanceof AvatarRenderState)) {
+         return;
+      }
+      RenderPose pull = GrapplePullState.INSTANCE.pose(entity, partialTicks);
+      if (pull == null) {
+         return;
+      }
+
+      state.bodyRot = Mth.rotLerp(pull.blend(), state.bodyRot, pull.yaw());
+      // BOW_AND_ARROW richtet die ausgestreckten Arme nach Kopf-Yaw und -Pitch. Da der gesamte
+      // Körper weiter unten bereits entlang der Zugrichtung gekippt wird, müssen beide lokalen
+      // Kopfwinkel gegen null laufen; sonst würde die Waffenachse doppelt gedreht.
+      state.yRot = Mth.rotLerp(pull.blend(), state.yRot, 0.0F);
+      state.xRot = Mth.lerp(pull.blend(), state.xRot, 0.0F);
+   }
+
+   /**
+    * Neigt die vollständige Spielerfigur entlang des vertikalen Zugwinkels. Bei einem Anker
+    * direkt über dem Spieler sind das 90 Grad – die Figur liegt dann sichtbar in der Luft.
+    */
+   @Inject(
+      method = "setupRotations(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;FF)V",
+      at = @At("RETURN"))
+   private void osok$tiltAlongGrapple(LivingEntityRenderState state, PoseStack poseStack,
+                                      float bodyRot, float entityScale, CallbackInfo ci) {
+      if (!(state instanceof AvatarRenderState avatar) || Minecraft.getInstance().level == null) {
+         return;
+      }
+      Entity entity = Minecraft.getInstance().level.getEntity(avatar.id);
+      if (!(entity instanceof LivingEntity living)) {
+         return;
+      }
+      float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+      RenderPose pull = GrapplePullState.INSTANCE.pose(living, partialTick);
+      if (pull != null) {
+         // Dasselbe Vorzeichen wie Vanillas Fluglage: -90 Grad legt die Figur nach vorn.
+         poseStack.mulPose(Axis.XP.rotationDegrees(-pull.elevation() * pull.blend()));
+      }
+   }
+
+   @Inject(
+      method = "submit(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;Lnet/minecraft/client/renderer/SubmitNodeCollector;Lnet/minecraft/client/renderer/state/level/CameraRenderState;)V",
+      at = @At("HEAD"),
+      cancellable = true)
+   private void osok$hideInvisibleAvatar(LivingEntityRenderState state, PoseStack poseStack,
+                                         SubmitNodeCollector submitNodeCollector, CameraRenderState camera,
+                                         CallbackInfo ci) {
+      if (state instanceof AvatarRenderState && state.isInvisible) {
+         ci.cancel();
+      }
+   }
+}

@@ -1,8 +1,8 @@
 package com.oneshotonekill.client.sound;
 
 import com.oneshotonekill.client.effect.TimeDistortionEffects;
-import com.oneshotonekill.client.mixin.SoundEngineAccessor;
-import com.oneshotonekill.client.mixin.SoundManagerAccessor;
+import com.oneshotonekill.client.mixin.sound.SoundEngineAccessor;
+import com.oneshotonekill.client.mixin.sound.SoundManagerAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;

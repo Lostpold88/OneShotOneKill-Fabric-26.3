@@ -11,6 +11,7 @@ import com.oneshotonekill.client.state.ClientStates.BomberCameraState;
 import com.oneshotonekill.client.state.ClientStates.CameraShakeState;
 import com.oneshotonekill.client.state.ClientStates.DeployableMarkerState;
 import com.oneshotonekill.client.state.ClientStates.GlideState;
+import com.oneshotonekill.client.state.ClientStates.GrapplePullState;
 import com.oneshotonekill.client.state.ClientStates.GunGameHudState;
 import com.oneshotonekill.client.state.ClientStates.MagnetFieldState;
 import com.oneshotonekill.client.state.ClientStates.MatchBannerState;
@@ -26,6 +27,7 @@ import com.oneshotonekill.network.OsokPayloads.BomberTargetsPayload;
 import com.oneshotonekill.network.OsokPayloads.DeployableMarkersPayload;
 import com.oneshotonekill.network.OsokPayloads.ExplosionShakePayload;
 import com.oneshotonekill.network.OsokPayloads.GlidingPlayersPayload;
+import com.oneshotonekill.network.OsokPayloads.GrapplePullPayload;
 import com.oneshotonekill.network.OsokPayloads.GunGameStatusPayload;
 import com.oneshotonekill.network.OsokPayloads.MagnetFieldsPayload;
 import com.oneshotonekill.network.OsokPayloads.MatchCountdownPayload;
@@ -71,6 +73,8 @@ public final class OsokClientHandlers {
          (payload, context) -> DeployableMarkerState.INSTANCE.handle(payload));
       ClientPlayNetworking.registerGlobalReceiver(GlidingPlayersPayload.TYPE,
          (payload, context) -> GlideState.INSTANCE.handle(payload));
+      ClientPlayNetworking.registerGlobalReceiver(GrapplePullPayload.TYPE,
+         (payload, context) -> GrapplePullState.INSTANCE.handle(payload));
       ClientPlayNetworking.registerGlobalReceiver(MagnetFieldsPayload.TYPE,
          (payload, context) -> MagnetFieldState.INSTANCE.handle(payload));
       ClientPlayNetworking.registerGlobalReceiver(BomberTargetsPayload.TYPE,

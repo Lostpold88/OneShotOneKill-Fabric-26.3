@@ -12,6 +12,7 @@ import com.oneshotonekill.item.runtime.SlowMotionSystem;
 import com.oneshotonekill.item.runtime.StatusAbilities;
 import com.oneshotonekill.item.runtime.StealthBomberSystem;
 import com.oneshotonekill.item.runtime.ThrownDevices;
+import com.oneshotonekill.item.runtime.GrapplingHookSystem;
 import com.oneshotonekill.match.MatchManager;
 import com.oneshotonekill.match.ScoreboardManager;
 import com.oneshotonekill.nuke.NukeSequenceManager;
@@ -101,6 +102,7 @@ public final class ServerEvents {
       ArmedShots.INSTANCE.tick(server);
       StatusAbilities.INSTANCE.tick(server);
       ThrownDevices.INSTANCE.tick(server);
+      GrapplingHookSystem.INSTANCE.tick(server);
       Deployables.INSTANCE.tick(server);
       BlastEffect.INSTANCE.tick();
       RailgunSystem.INSTANCE.tick();

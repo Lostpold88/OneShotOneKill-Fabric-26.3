@@ -393,6 +393,128 @@ public final class ClientStates {
    }
 
    // =========================================================================
+   // GrapplePullState.java
+   // =========================================================================
+   /**
+    * Clientkopie des einen Grappler-Hakens pro Spieler.
+    *
+    * <p>Seil und leeres Handmodell hängen am gesamten Grapple-Zustand. Nur die Neigung von
+    * Körper und Kamera wird mit der eigentlichen Zugphase weich ein- und ausgeblendet.</p>
+    */
+   public static final class GrapplePullState {
+      public static final GrapplePullState INSTANCE = new GrapplePullState();
+
+      private static final float ENTER_STEP = 0.20F;
+      private static final float EXIT_STEP = 0.28F;
+      private final Map<UUID, Pull> pulls = new HashMap<>();
+
+      private GrapplePullState() {
+      }
+
+      public void handle(GrapplePullPayload payload) {
+         Pull pull = pulls.get(payload.player());
+         if (payload.active()) {
+            Vec3 hook = new Vec3(payload.hookX(), payload.hookY(), payload.hookZ());
+            if (pull == null) {
+               pulls.put(payload.player(), new Pull(hook, payload.pulling()));
+            } else {
+               pull.previousHook = pull.grappleActive ? pull.hook : hook;
+               pull.hook = hook;
+               pull.grappleActive = true;
+               pull.pulling = payload.pulling();
+            }
+         } else if (pull != null) {
+            pull.grappleActive = false;
+            pull.pulling = false;
+         }
+      }
+
+      public void tick() {
+         var iterator = pulls.entrySet().iterator();
+         while (iterator.hasNext()) {
+            Pull pull = iterator.next().getValue();
+            pull.previousBlend = pull.blend;
+            float target = pull.pulling ? 1.0F : 0.0F;
+            float step = pull.pulling ? ENTER_STEP : EXIT_STEP;
+            pull.blend += Math.clamp(target - pull.blend, -step, step);
+            if (!pull.grappleActive && pull.blend <= 0.001F) {
+               iterator.remove();
+            }
+         }
+      }
+
+      /** Solange dies wahr ist, befindet sich der einzige Pömpel außerhalb der Handwaffe. */
+      public boolean isGrappleActive(UUID player) {
+         Pull pull = pulls.get(player);
+         return pull != null && pull.grappleActive;
+      }
+
+      /** Pro Bild interpolierter Endpunkt für das Seil; {@code null} nach vollständigem Einzug. */
+      public @Nullable Vec3 hookPosition(UUID player, float partialTick) {
+         Pull pull = pulls.get(player);
+         if (pull == null || !pull.grappleActive) {
+            return null;
+         }
+         return pull.previousHook.lerp(pull.hook, Math.clamp(partialTick, 0.0F, 1.0F));
+      }
+
+      /** Winkel zur Ankerposition an der interpolierten Augenposition der Figur. */
+      public @Nullable RenderPose pose(LivingEntity entity, float partialTick) {
+         Pull pull = pulls.get(entity.getUUID());
+         if (pull == null) {
+            return null;
+         }
+         float blend = Mth.lerp(partialTick, pull.previousBlend, pull.blend);
+         if (blend <= 0.001F) {
+            return null;
+         }
+
+         Vec3 anchor = pull.previousHook.lerp(pull.hook, Math.clamp(partialTick, 0.0F, 1.0F));
+         Vec3 delta = anchor.subtract(entity.getEyePosition(partialTick));
+         double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
+         if (delta.lengthSqr() < 1.0E-6) {
+            return null;
+         }
+         float yaw = Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-delta.x, delta.z)));
+         float elevation = (float) Math.toDegrees(Math.atan2(delta.y, horizontal));
+         return new RenderPose(yaw, elevation, blend);
+      }
+
+      /** Die Egoansicht rollt mit derselben Zugneigung wie der Körper. */
+      public float cameraRoll(float partialTick) {
+         Minecraft client = Minecraft.getInstance();
+         LocalPlayer player = client.player;
+         if (player == null || !client.options.getCameraType().isFirstPerson()) {
+            return 0.0F;
+         }
+         RenderPose pose = pose(player, partialTick);
+         return pose == null ? 0.0F : -pose.elevation * pose.blend;
+      }
+
+      public void clear() {
+         pulls.clear();
+      }
+
+      public record RenderPose(float yaw, float elevation, float blend) {
+      }
+
+      private static final class Pull {
+         private Vec3 previousHook;
+         private Vec3 hook;
+         private boolean grappleActive = true;
+         private boolean pulling;
+         private float previousBlend;
+         private float blend;
+
+         private Pull(Vec3 hook, boolean pulling) {
+            this.previousHook = hook;
+            this.hook = hook;
+            this.pulling = pulling;
+         }
+      }
+   }
+
+   // =========================================================================
    // MagnetFieldState.java
    // =========================================================================
    /** Clientkopie der weltweit sichtbaren, aktiven Pfeilmagnet-Felder. */

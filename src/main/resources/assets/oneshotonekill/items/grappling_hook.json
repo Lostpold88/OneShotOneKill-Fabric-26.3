@@ -1,0 +1,7 @@
+{
+  "model": {
+    "type": "oneshotonekill:grappling_hook",
+    "frame": "oneshotonekill:item/grappling_hook",
+    "loaded_head": "oneshotonekill:item/grappling_hook_loaded_head"
+  }
+}

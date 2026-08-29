@@ -2,9 +2,11 @@ package com.oneshotonekill.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.oneshotonekill.client.effect.TimeDistortionEffects;
+import com.oneshotonekill.client.model.OsokClientModels.GrapplingHookModel;
 import com.oneshotonekill.client.screen.AirstrikeTargetScreen;
 import com.oneshotonekill.client.state.ClientStates.AbilityStatusState;
 import com.oneshotonekill.client.state.ClientStates.GlideState;
+import com.oneshotonekill.client.state.ClientStates.GrapplePullState;
 import com.oneshotonekill.client.state.ClientStates.MatchStartState;
 import com.oneshotonekill.client.state.ClientStates.NukeState;
 import com.oneshotonekill.item.runtime.MinigunRuntime;
@@ -62,6 +64,14 @@ public final class ClientInputEvents {
 
    /** Zeigt dynamische Tooltips für Spezialitems mit den aktuell konfigurierten Tasten an. */
    private static void onItemTooltip(ItemStack stack, java.util.List<Component> lines) {
+      if (stack.is(ModItems.GRAPPLING_HOOK)) {
+         int charges = Math.max(0, stack.getMaxDamage() - stack.getDamageValue());
+         lines.add(Component.translatable("tooltip.oneshotonekill.grappling_hook_charges",
+            charges, stack.getMaxDamage()).withStyle(ChatFormatting.AQUA));
+         lines.add(Component.translatable("tooltip.oneshotonekill.grappling_hook_use")
+            .withStyle(ChatFormatting.GRAY));
+         return;
+      }
       if (!stack.is(ModItems.C4) && !stack.is(ModItems.C4_CHARGE)) {
          return;
       }
@@ -89,6 +99,10 @@ public final class ClientInputEvents {
          return InteractionResult.PASS;
       }
       ItemStack held = player.getItemInHand(hand);
+      if (held.is(ModItems.GRAPPLING_HOOK) && !player.getCooldowns().isOnCooldown(held)) {
+         // Der geladene Pömpel verschwindet noch vor dem Server-Roundtrip aus dem Handmodell.
+         GrapplingHookModel.beginLaunch(hand);
+      }
       if (held.is(ModItems.SLOW_MOTION)) {
          TimeDistortionEffects.INSTANCE.beginUse();
       }
@@ -187,7 +201,7 @@ public final class ClientInputEvents {
    }
 
    /**
-    * Die Armhaltung für Railgun und Minigun.
+    * Die Armhaltung für Railgun, Minigun und Grappling Hook.
     *
     * Beide sind schwere Waffen und werden im Anschlag gehalten wie ein gespannter Bogen.
     * Aufgerufen aus {@code AvatarRendererMixin}.
@@ -196,6 +210,13 @@ public final class ClientInputEvents {
     */
    public static HumanoidModel.@Nullable ArmPose heavyWeaponArmPose(Avatar avatar, ItemStack itemInHand,
                                                                    InteractionHand hand) {
+      if (itemInHand.is(ModItems.GRAPPLING_HOOK)) {
+         // Der Pömpel ist während Flug, Zug und Einzug außerhalb der Waffe. In derselben Zeit
+         // bleibt der Waffenarm im Anschlag, statt mitsamt Grappler lose nach unten zu hängen.
+         return GrapplePullState.INSTANCE.isGrappleActive(avatar.getUUID())
+            ? HumanoidModel.ArmPose.BOW_AND_ARROW
+            : HumanoidModel.ArmPose.ITEM;
+      }
       if (!itemInHand.is(ModItems.RAILGUN) && !itemInHand.is(ModItems.MINIGUN)) {
          return null;
       }

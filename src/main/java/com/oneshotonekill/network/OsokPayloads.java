@@ -57,6 +57,7 @@ public final class OsokPayloads {
       registry.register(TimeDistortionPayload.TYPE, TimeDistortionPayload.STREAM_CODEC);
       registry.register(DeployableMarkersPayload.TYPE, DeployableMarkersPayload.STREAM_CODEC);
       registry.register(GlidingPlayersPayload.TYPE, GlidingPlayersPayload.STREAM_CODEC);
+      registry.register(GrapplePullPayload.TYPE, GrapplePullPayload.STREAM_CODEC);
       registry.register(MagnetFieldsPayload.TYPE, MagnetFieldsPayload.STREAM_CODEC);
       registry.register(BomberTargetsPayload.TYPE, BomberTargetsPayload.STREAM_CODEC);
       registry.register(BomberCameraPayload.TYPE, BomberCameraPayload.STREAM_CODEC);
@@ -666,6 +667,54 @@ public final class OsokPayloads {
    
       @Override
       public Type<GlideBoostPayload> type() {
+         return TYPE;
+      }
+   }
+
+   // --- GrapplePullPayload.java ---
+   /**
+    * Vollständiger sichtbarer Zustand eines Grappler-Schusses.
+    *
+    * <p>Die Hakenposition kommt einmal je Servertick. Der Client interpoliert zwischen zwei
+    * Stützstellen und benutzt denselben Punkt für Flugmodell, Seil, Körperneigung und Kamera.
+    * {@code active} bleibt deshalb vom Abschuss bis zum vollständigen Einzug gesetzt;
+    * {@code pulling} bezeichnet nur die Phase, in der der Spieler zum Anker gezogen wird.</p>
+    */
+   public static record GrapplePullPayload(UUID player, boolean active, boolean pulling,
+                                           double hookX, double hookY, double hookZ)
+      implements CustomPacketPayload {
+      public static final Type<GrapplePullPayload> TYPE = new Type<>(
+         OneShotOneKill.INSTANCE.id("grapple_pull"));
+
+      public static final StreamCodec<ByteBuf, GrapplePullPayload> STREAM_CODEC = new StreamCodec<>() {
+         @Override
+         public GrapplePullPayload decode(ByteBuf buffer) {
+            return new GrapplePullPayload(
+               UUIDUtil.STREAM_CODEC.decode(buffer),
+               ByteBufCodecs.BOOL.decode(buffer),
+               ByteBufCodecs.BOOL.decode(buffer),
+               ByteBufCodecs.DOUBLE.decode(buffer),
+               ByteBufCodecs.DOUBLE.decode(buffer),
+               ByteBufCodecs.DOUBLE.decode(buffer));
+         }
+
+         @Override
+         public void encode(ByteBuf buffer, GrapplePullPayload payload) {
+            UUIDUtil.STREAM_CODEC.encode(buffer, payload.player);
+            ByteBufCodecs.BOOL.encode(buffer, payload.active);
+            ByteBufCodecs.BOOL.encode(buffer, payload.pulling);
+            ByteBufCodecs.DOUBLE.encode(buffer, payload.hookX);
+            ByteBufCodecs.DOUBLE.encode(buffer, payload.hookY);
+            ByteBufCodecs.DOUBLE.encode(buffer, payload.hookZ);
+         }
+      };
+
+      public static GrapplePullPayload inactive(UUID player) {
+         return new GrapplePullPayload(player, false, false, 0.0, 0.0, 0.0);
+      }
+
+      @Override
+      public Type<GrapplePullPayload> type() {
          return TYPE;
       }
    }

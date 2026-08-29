@@ -78,6 +78,11 @@ public final class ModItems {
    public static final Item SINGULARITY = special("singularity", SingularityItem::new);
    public static final Item SLOW_MOTION = special("slow_motion", SlowMotionItem::new);
    public static final Item GLIDER = special("glider", GliderItem::new);
+   public static final Item GRAPPLING_HOOK = special("grappling_hook", GrapplingHookItem::new);
+   /** Ausgefahrener Saughaken des Grapplers – reiner Modellträger. */
+   public static final Item GRAPPLING_HOOK_HEAD = special("grappling_hook_head", Item::new);
+   /** Generierter Seilabschnitt als Modellressource; im Flug zeichnet der Client das Kabel bildgenau. */
+   public static final Item GRAPPLING_HOOK_ROPE = special("grappling_hook_rope", Item::new);
    public static final Item SENTRY_TURRET = special("sentry_turret", SentryTurretItem::new);
    /** Stillstehender Unterbau des platzierten Turms – reiner Modellträger. */
    public static final Item SENTRY_BASE = special("sentry_base", Item::new);

@@ -23,6 +23,7 @@ import com.oneshotonekill.client.model.OsokClientModels;
 import com.oneshotonekill.client.network.OsokClientHandlers;
 import com.oneshotonekill.client.renderer.ChainLightningItemRenderer;
 import com.oneshotonekill.client.renderer.GliderWingRenderer;
+import com.oneshotonekill.client.renderer.GrapplingHookRenderer;
 import com.oneshotonekill.client.renderer.MagnetShieldRenderer;
 import com.oneshotonekill.client.renderer.ReflectorShieldRenderer;
 import com.oneshotonekill.client.screen.AdminItemScreen;
@@ -34,6 +35,7 @@ import com.oneshotonekill.client.state.ClientStates.AirstrikeAlarmState;
 import com.oneshotonekill.client.state.ClientStates.BomberCameraState;
 import com.oneshotonekill.client.state.ClientStates.CameraShakeState;
 import com.oneshotonekill.client.state.ClientStates.GlideState;
+import com.oneshotonekill.client.state.ClientStates.GrapplePullState;
 import com.oneshotonekill.client.state.ClientStates.GunGameHudState;
 import com.oneshotonekill.client.state.ClientStates.MagnetFieldState;
 import com.oneshotonekill.client.state.ClientStates.MatchBannerState;
@@ -75,7 +77,7 @@ import net.minecraft.resources.Identifier;
  * Bauzeit dicht und braucht keine Abfrage der Laufzeitumgebung.</p>
  *
  * <p>Alle vierzehn HUD-Ebenen laufen über {@link HudElementRegistry}; gezeichnet wird derselbe
- * Code wie zuvor. Die drei Modellerweiterungen brauchen keine Fabric-API: Vanilla führt seine
+ * Code wie zuvor. Die vier Modellerweiterungen brauchen keine Fabric-API: Vanilla führt seine
  * Modelltypen, Modell-Bedingungen und Sonderrenderer in offenen {@code ID_MAPPER}-Tabellen, in
  * die sich ein eigener Eintrag unmittelbar einhängen lässt.</p>
  */
@@ -164,6 +166,8 @@ public final class OsokClient implements ClientModInitializer {
    private static void registerModels() {
       ItemModels.ID_MAPPER.put(id("spinning_rotor"),
          OsokClientModels.SpinningRotorModel.Unbaked.MAP_CODEC);
+      ItemModels.ID_MAPPER.put(id("grappling_hook"),
+         OsokClientModels.GrapplingHookModel.Unbaked.MAP_CODEC);
       ItemModels.ID_MAPPER.put(id("chrono_distorter"),
          OsokClientModels.ChronoDistorterModel.Unbaked.MAP_CODEC);
       ConditionalItemModelProperties.ID_MAPPER.put(id("has_placed_c4"),
@@ -183,11 +187,13 @@ public final class OsokClient implements ClientModInitializer {
       ReflectorShieldRenderer.register();
       MagnetShieldRenderer.register();
       GliderWingRenderer.register();
+      GrapplingHookRenderer.register();
    }
 
    private static void onClientTick(Minecraft client) {
       MinigunHudState.INSTANCE.tick();
       MatchStartState.INSTANCE.tick();
+      GrapplePullState.INSTANCE.tick();
       MatchBannerState.INSTANCE.tick();
       GunGameHudState.INSTANCE.tick();
       MinigunSpinState.INSTANCE.tick(client);
@@ -268,12 +274,15 @@ public final class OsokClient implements ClientModInitializer {
       MagnetFieldState.INSTANCE.clear();
       MagnetShieldRenderer.clear();
       GliderWingRenderer.clear();
+      GrapplingHookRenderer.clear();
+      GrapplePullState.INSTANCE.clear();
       CameraShakeState.INSTANCE.clear();
       MinigunSoundController.INSTANCE.stopAll();
       NukeState.INSTANCE.clear();
       NukeSoundController.INSTANCE.stopAll();
       TimeDistortionSoundController.INSTANCE.stopAll();
       TimeDistortionEffects.INSTANCE.clear();
+      OsokClientModels.GrapplingHookModel.clearLaunch();
    }
 
    public static boolean isDetonateC4Key(KeyEvent event) {

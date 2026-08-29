@@ -7,6 +7,7 @@ import com.mojang.serialization.codecs.RecordCodecBuilder;
 import static com.oneshotonekill.client.state.ClientStates.*;
 import com.oneshotonekill.client.state.ClientStates.*;
 import com.oneshotonekill.client.effect.TimeDistortionEffects;
+import com.oneshotonekill.client.renderer.GrapplingHookRenderer;
 import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.registry.ModDataComponents;
 import java.util.List;
@@ -27,6 +28,8 @@ import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.client.resources.model.sprite.TextureSlots;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
+import net.minecraft.world.InteractionHand;
+import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.ItemOwner;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -149,6 +152,140 @@ public final class OsokClientModels {
             ModelRenderProperties properties = ModelRenderProperties.fromResolvedModel(baker, resolved, slots);
             // Die Modell-Koordinaten laufen beim Zeichnen von 0 bis 1, nicht von 0 bis 16.
             return new SpinningRotorModel(baked, properties, transformation, this.pivotX / 16.0F, this.pivotY / 16.0F);
+         }
+      }
+   }
+
+   /**
+    * Zweiteiliges Grappler-Modell mit genau einem Pömpel im gesamten Schuss.
+    *
+    * <p>Der geladene Kopf verschwindet im Eingabebild sofort aus der Waffe und bleibt während
+    * Flug, Zug und Einzug ausgeblendet. Erst das serverseitige Ende des gesamten Grapples setzt
+    * ihn wieder ein. Es gibt hier bewusst keine zweite Ausfahr- oder Nachladebewegung.</p>
+    */
+   public static final class GrapplingHookModel implements ItemModel {
+      private static final long NO_LAUNCH = Long.MIN_VALUE;
+      private static final long PREDICTION_NANOS = 750_000_000L;
+
+      private static long predictionEndsNanos = NO_LAUNCH;
+      private static InteractionHand launchHand = InteractionHand.MAIN_HAND;
+
+      private final Part frame;
+      private final Part loadedHead;
+      private final Matrix4fc baseTransform;
+
+      private GrapplingHookModel(Part frame, Part loadedHead, Matrix4fc baseTransform) {
+         this.frame = frame;
+         this.loadedHead = loadedHead;
+         this.baseTransform = baseTransform;
+      }
+
+      /** Startet die rein optische Vorhersage noch im selben Client-Eingabebild. */
+      public static void beginLaunch(InteractionHand hand) {
+         launchHand = hand;
+         predictionEndsNanos = Util.getNanos() + PREDICTION_NANOS;
+      }
+
+      public static void clearLaunch() {
+         predictionEndsNanos = NO_LAUNCH;
+      }
+
+      @Override
+      public void update(ItemStackRenderState output, ItemStack item, ItemModelResolver resolver,
+                         ItemDisplayContext displayContext, ClientLevel level, ItemOwner owner, int seed) {
+         output.appendModelIdentityElement(this);
+         addPart(output, this.frame, displayContext, this.baseTransform);
+
+         LivingEntity holder = owner == null ? null : owner.asLivingEntity();
+         if (!headIsOutsideWeapon(displayContext, holder)) {
+            addPart(output, this.loadedHead, displayContext, this.baseTransform);
+         }
+
+         if (holder != null) {
+            GrapplingHookRenderer.CaptureArgument capture =
+               GrapplingHookRenderer.captureArgument(holder, displayContext);
+            if (capture != null) {
+               ItemStackRenderState.LayerRenderState layer = output.newLayer();
+               layer.setExtents(this.frame.extents);
+               layer.setLocalTransform(this.baseTransform);
+               this.frame.properties.applyToLayer(layer, displayContext);
+               layer.setupSpecialModel(GrapplingHookRenderer.INSTANCE, capture);
+            }
+         }
+
+         if (holder != null && isHeldContext(displayContext)) {
+            output.setAnimated();
+         }
+      }
+
+      private static boolean headIsOutsideWeapon(ItemDisplayContext context, LivingEntity holder) {
+         if (holder == null || !isHeldContext(context)) {
+            return false;
+         }
+         if (GrapplePullState.INSTANCE.isGrappleActive(holder.getUUID())) {
+            return true;
+         }
+
+         return holder == Minecraft.getInstance().player
+            && predictionEndsNanos != NO_LAUNCH
+            && Util.getNanos() < predictionEndsNanos
+            && isLaunchHand(context, holder);
+      }
+
+      private static boolean isLaunchHand(ItemDisplayContext context, LivingEntity holder) {
+         HumanoidArm arm = launchHand == InteractionHand.MAIN_HAND
+            ? holder.getMainArm() : holder.getMainArm().getOpposite();
+         return context.leftHand() == (arm == HumanoidArm.LEFT);
+      }
+
+      private static boolean isHeldContext(ItemDisplayContext context) {
+         return context.firstPerson() || context == ItemDisplayContext.THIRD_PERSON_LEFT_HAND
+            || context == ItemDisplayContext.THIRD_PERSON_RIGHT_HAND;
+      }
+
+      private static void addPart(ItemStackRenderState output, Part part, ItemDisplayContext context,
+                                  Matrix4fc transform) {
+         ItemStackRenderState.LayerRenderState layer = output.newLayer();
+         layer.setExtents(part.extents);
+         layer.setLocalTransform(transform);
+         part.properties.applyToLayer(layer, context);
+         layer.prepareQuadList().addAll(part.quads.getAll());
+      }
+
+      private record Part(QuadCollection quads, ModelRenderProperties properties,
+                          Supplier<Vector3fc[]> extents) {
+      }
+
+      public record Unbaked(Identifier frame, Identifier loadedHead) implements ItemModel.Unbaked {
+         public static final MapCodec<Unbaked> MAP_CODEC = RecordCodecBuilder.mapCodec(instance -> instance.group(
+            Identifier.CODEC.fieldOf("frame").forGetter(Unbaked::frame),
+            Identifier.CODEC.fieldOf("loaded_head").forGetter(Unbaked::loadedHead)
+         ).apply(instance, Unbaked::new));
+
+         @Override
+         public MapCodec<Unbaked> type() {
+            return MAP_CODEC;
+         }
+
+         @Override
+         public void resolveDependencies(ResolvableModel.Resolver resolver) {
+            resolver.markDependency(this.frame);
+            resolver.markDependency(this.loadedHead);
+         }
+
+         @Override
+         public ItemModel bake(ItemModel.BakingContext context, Matrix4fc transformation) {
+            ModelBaker baker = context.blockModelBaker();
+            return new GrapplingHookModel(bakePart(baker, this.frame), bakePart(baker, this.loadedHead), transformation);
+         }
+
+         private static Part bakePart(ModelBaker baker, Identifier id) {
+            ResolvedModel resolved = baker.getModel(id);
+            TextureSlots slots = resolved.getTopTextureSlots();
+            QuadCollection quads = resolved.bakeTopGeometry(slots, baker, BlockModelRotation.IDENTITY);
+            ModelRenderProperties properties = ModelRenderProperties.fromResolvedModel(baker, resolved, slots);
+            Supplier<Vector3fc[]> extents = Suppliers.memoize(() -> CuboidItemModelWrapper.computeExtents(quads.getAll()));
+            return new Part(quads, properties, extents);
          }
       }
    }

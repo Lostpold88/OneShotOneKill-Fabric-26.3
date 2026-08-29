@@ -91,7 +91,7 @@ public final class AdminItemScreen extends Screen {
    public static ItemCategory getCategoryFor(SpecialItem item) {
       return switch (item) {
          case MINIGUN, RAILGUN, EXPLOSIVE_SHOT, CHAIN_LIGHTNING -> ItemCategory.WEAPONS;
-         case RADAR_PULSE, REFLECTOR_SHIELD, INVISIBILITY_CLOAK, ARROW_MAGNET, SINGULARITY, GLIDER, SLOW_MOTION -> ItemCategory.ABILITIES;
+         case RADAR_PULSE, REFLECTOR_SHIELD, INVISIBILITY_CLOAK, ARROW_MAGNET, SINGULARITY, GLIDER, SLOW_MOTION, GRAPPLING_HOOK -> ItemCategory.ABILITIES;
          case C4, FROST_TRAP, SENTRY_TURRET, SMOKE_BOMB, TELEPORT_GRENADE -> ItemCategory.DEPLOYABLES;
          case STEALTH_BOMBER, AIRSTRIKE -> ItemCategory.STREAKS;
       };
@@ -117,6 +117,7 @@ public final class AdminItemScreen extends Screen {
          case GLIDER -> "Taktischer Hängegleiter für hohe Mobilität in der Luft.";
          case SENTRY_TURRET -> "Automatischer Geschützturm mit Zielerfassung.";
          case SLOW_MOTION -> "Verlangsamt den gesamten Zeitfluss für sieben Sekunden.";
+         case GRAPPLING_HOOK -> "Zehn Schüsse: Hakt sich an Flächen ein und zieht dich dorthin.";
       };
    }
 

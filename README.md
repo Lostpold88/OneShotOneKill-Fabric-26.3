@@ -1,7 +1,7 @@
 # OneShotOneKill — Fabric 26.2
 
 PvP-Minigame für Minecraft: Ein Treffer genügt. Umschaltbare Arenen, Killstreaks, Kopfgeld und
-17 Spezial-Items — portiert von der NeoForge-Fassung auf **Fabric 26.2**, ohne eine einzige
+19 Spezial-Items — portiert von der NeoForge-Fassung auf **Fabric 26.2**, ohne eine einzige
 Fremdbibliothek über Fabric API hinaus.
 
 ---
@@ -47,7 +47,7 @@ die Bereichsprüfung ein Feldzugriff statt eines Punkt-in-Polygon-Tests über hu
 
 ---
 
-## Die 17 Spezial-Items
+## Die 19 Spezial-Items
 
 Jedes ist ein **eigenes registriertes Item mit eigener Textur oder individuellem 3D-Modell** — kein umbenanntes Vanilla-Item.
 
@@ -70,6 +70,8 @@ Jedes ist ein **eigenes registriertes Item mit eigener Textur oder individuellem
 | **Singularität** | Werfen | 5 s Sog im Umkreis von 10, sichtbarer 3D-Gravitationskern |
 | **Gleitflug** | Rechtsklick | 8 s Dauerschub in Blickrichtung: waagerecht schweben, steil steigen |
 | **Geschützturm** | Platzieren | 20 s Dauerfeuer mit 3D-Drehkopf, drei Treffer töten |
+| **Zeitverzerrer** | Rechtsklick | Verlangsamt den gesamten Zeitfluss für sieben reale Sekunden |
+| **Grappling Hook** | Rechtsklick | Zehn Schüsse; sichtbarer Saughaken und Seil ziehen den Spieler zum Trefferpunkt |
 
 Zwei Items töten bewusst **nicht** mit einem Schlag: Geschützturm und Bomber zielen automatisch
 beziehungsweise ununterbrochen — mit Sofort-Kill wäre jede von ihnen eingesehene Deckung

@@ -16,6 +16,9 @@
   "item.oneshotonekill.frost_shard": "Frost Shard",
   "item.oneshotonekill.frost_trap": "Frost Trap",
   "item.oneshotonekill.glider": "Glide Rig",
+  "item.oneshotonekill.grappling_hook": "Grappling Hook",
+  "item.oneshotonekill.grappling_hook_head": "Grappler Suction Hook",
+  "item.oneshotonekill.grappling_hook_rope": "Grappler Rope",
   "item.oneshotonekill.invisibility_cloak": "Invisibility Cloak",
   "item.oneshotonekill.item_box": "Item Box",
   "item.oneshotonekill.minigun": "Minigun",
@@ -40,5 +43,7 @@
   "key.oneshotonekill.open_menu": "Open Arena Menu",
   "tooltip.oneshotonekill.c4_detonate": "Detonate via detonator (Right-Click) or key [%s].",
   "tooltip.oneshotonekill.c4_detonator_armed": "● Detonator armed — Right-Click or key [%s] to detonate",
-  "tooltip.oneshotonekill.c4_place": "Attaches a C4 explosive charge to surfaces."
+  "tooltip.oneshotonekill.c4_place": "Attaches a C4 explosive charge to surfaces.",
+  "tooltip.oneshotonekill.grappling_hook_charges": "⛓ Charges: %s/%s",
+  "tooltip.oneshotonekill.grappling_hook_use": "Right-Click: fire the hook and pull toward its impact point"
 }

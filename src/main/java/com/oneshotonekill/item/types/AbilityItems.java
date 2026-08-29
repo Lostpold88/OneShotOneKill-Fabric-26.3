@@ -7,6 +7,7 @@ import com.oneshotonekill.item.runtime.ArmedShots;
 import com.oneshotonekill.shared.DeviceLights;
 import com.oneshotonekill.item.runtime.StatusAbilities;
 import com.oneshotonekill.item.runtime.SlowMotionSystem;
+import com.oneshotonekill.item.runtime.GrapplingHookSystem;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionHand;
@@ -226,6 +227,56 @@ public final class AbilityItems {
       @Override
       protected boolean activate(ServerLevel level, ServerPlayer player, ItemStack stack) {
          return SlowMotionSystem.INSTANCE.activate(player);
+      }
+   }
+
+   // --- GrapplingHookItem.java ---
+   /**
+    * Mehrfach verwendbarer Grappler: Ein Schuss verbraucht eine der zehn Druckladungen.
+    *
+    * <p>Anders als die einmaligen Fähigkeiten schrumpft der Stapel nicht sofort. Vanillas
+    * Schadenskomponente ist hier die Munitionsanzeige; dadurch bleiben Restladungen auch beim
+    * Verschieben, Tod oder erneuten Einloggen ohne eigene Speicherschicht erhalten.</p>
+    */
+   public static final class GrapplingHookItem extends Item {
+      public static final int MAX_CHARGES = 10;
+      private static final int FIRE_COOLDOWN_TICKS = 6;
+
+      public GrapplingHookItem(Properties properties) {
+         super(properties.durability(MAX_CHARGES));
+      }
+
+      @Override
+      public InteractionResult use(Level level, Player player, InteractionHand hand) {
+         // CONSUME bestätigt die lokale Eingabe ohne den von SUCCESS ausgelösten Armschwung.
+         // Die eigentliche Simulation bleibt ausschließlich auf dem Server.
+         if (level.isClientSide()) {
+            return InteractionResult.CONSUME;
+         }
+         if (!(player instanceof ServerPlayer serverPlayer) || !(level instanceof ServerLevel serverLevel)) {
+            return InteractionResult.FAIL;
+         }
+         if (!SpecialItemRules.canUseOrExplain(serverPlayer)) {
+            return InteractionResult.FAIL;
+         }
+
+         ItemStack stack = player.getItemInHand(hand);
+         if (player.getCooldowns().isOnCooldown(stack)
+            || !GrapplingHookSystem.INSTANCE.fire(serverLevel, serverPlayer)) {
+            return InteractionResult.FAIL;
+         }
+
+         player.getCooldowns().addCooldown(stack, FIRE_COOLDOWN_TICKS);
+         stack.hurtAndBreak(1, player, hand.asEquipmentSlot());
+         return InteractionResult.CONSUME;
+      }
+
+      @Override
+      public boolean allowComponentsUpdateAnimation(Player player, InteractionHand hand,
+                                                     ItemStack oldStack, ItemStack newStack) {
+         // Jede Ladung ändert die Schadenskomponente. Fabric unterdrückt damit das ansonsten
+         // folgende Absenken/Nachgreifen, ohne die Ladungsanzeige selbst anzutasten.
+         return false;
       }
    }
 }
