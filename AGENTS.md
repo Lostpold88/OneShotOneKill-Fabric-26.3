@@ -2,7 +2,7 @@
 
 ## Kurzfassung
 
-- **Fabric-API vor Access Widener vor Mixin.** Mixins sind jedoch ein vollwertiges Werkzeug und dürfen jederzeit gerne und gezielt genutzt werden (z. B. für Rendering, tiefere Logik-Eingriffe oder wenn kein passendes Event existiert).
+- **Fabric-API, Access Widener und Mixins** sind vollwertige Werkzeuge und dürfen jederzeit frei und gezielt nach Zweckmäßigkeit genutzt werden (z. B. Mixins für Rendering, tiefere Logik-Eingriffe oder wenn kein passendes Event existiert).
 - Externe Minecraft-, Fabric-API-, Fabric-Loader- und Mixin-Quellen liegen entpackt unter `APIS/`.
 - `APIS/` wird zur Recherche zuerst mit `rg` oder `ast-grep` eingegrenzt; anschließend
   werden nur die relevanten Trefferdateien angesehen.
@@ -110,20 +110,19 @@ ist ast-grep ausschließlich zur Suche erlaubt, nie mit `--rewrite`. Wenn eine S
 ist, Pattern, API-Unterordner oder `--glob` verengen. Erst danach Trefferdateien öffnen.
 Annahmen aus älteren Minecraft-, Fabric- oder NeoForge-Versionen zählen nicht als Nachweis.
 
-## Fabric-API und Mixins
+## Fabric-API, Access Widener und Mixins
 
-Wenn Fabric API einen passenden Callback, ein Event oder eine Registry anbietet, wird sie
-bevorzugt benutzt. **Mixins sind jedoch ausdrücklich erlaubt und dürfen gerne verwendet werden**,
-sobald Eingriffe in Rendering, Animationen, Vanilla-Logik oder Methodenflüsse erforderlich oder
-sauberer sind.
+Fabric-API-Events, Access Widener und Mixins sind vollwertige Werkzeuge und können je nach
+Zweckmäßigkeit und Sauberkeit frei gewählt und kombiniert werden. **Mixins dürfen ausdrücklich
+und gerne verwendet werden**, insbesondere für Eingriffe in Rendering, Animationen, Vanilla-Logik
+oder Methodenflüsse.
 
 Vor der Umsetzung gilt:
 
 1. `APIS/` aktualisieren, falls es fehlt oder die Gradle-Versionen geändert wurden.
-2. Mit `rg` oder `ast-grep` unter `APIS/fabric-api/` nach passenden Events, Callbacks und
-   Registries suchen.
-3. Prüfen, ob ein Eintrag in `src/main/resources/oneshotonekill.accesswidener` oder ein Mixin
-   der sauberere Weg ist.
+2. In `APIS/` (z. B. `APIS/fabric-api/` oder `APIS/minecraft/`) nach passenden Ansatzpunkten suchen.
+3. Den passenden Weg wählen: Fabric-API-Events, ein Eintrag in
+   `src/main/resources/oneshotonekill.accesswidener` oder ein Mixin.
 4. Mixins dürfen gerne und gezielt eingesetzt werden. Annotation, Injection-Point und
    Callback-Typ dabei an den Quellen unter `APIS/mixin/` belegen, nicht aus dem Gedächtnis.
    MixinExtras (`@WrapOperation`, `@ModifyExpressionValue`, etc.) stehen direkt zur Verfügung.

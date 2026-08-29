@@ -156,8 +156,7 @@ Zwei Wege, im Verwaltungsmenü einzeln abschaltbar:
 ## Portierung von NeoForge auf Fabric
 
 Beide Fassungen laufen auf Minecraft 26.2, der gesamte Vanilla-Code blieb deshalb unverändert.
-Ausgetauscht wurde nur die Loader-Schicht. Die Reihenfolge dabei ist die aus
-[AGENTS.md](AGENTS.md): **Fabric-API vor Access Widener vor Mixin.**
+Ausgetauscht wurde nur die Loader-Schicht mit Fabric API, Access Widener und Mixins gemäß [AGENTS.md](AGENTS.md).
 
 **Über Fabric API gelöst** — Registrierungen (`Registry.register` statt `DeferredRegister`),
 Netzwerk (`PayloadTypeRegistry` mit `ServerPlayNetworking`/`ClientPlayNetworking` statt
@@ -254,7 +253,7 @@ prüfen.
 ## Projektregeln
 
 Die verbindlichen Regeln für die Arbeit an diesem Projekt stehen in [AGENTS.md](AGENTS.md):
-Fabric-API vor Access Widener vor Mixin, Rechercheablauf über `APIS/` mit `rg` und `ast-grep`,
+Einsatz von Fabric-API, Access Widener und Mixins, Rechercheablauf über `APIS/` mit `rg` und `ast-grep`,
 und wann für ein Mixin zusätzlich der Bytecode zu prüfen ist.
 
 ---
