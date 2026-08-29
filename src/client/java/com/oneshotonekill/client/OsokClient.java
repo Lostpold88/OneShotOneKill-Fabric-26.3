@@ -108,7 +108,7 @@ public final class OsokClient implements ClientModInitializer {
       detonateC4Key = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.oneshotonekill.detonate_c4",
          InputConstants.Type.KEYSYM, InputConstants.KEY_R, OSOK_CATEGORY));
       menuKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.oneshotonekill.open_menu",
-         InputConstants.Type.KEYSYM, InputConstants.KEY_C, OSOK_CATEGORY));
+         InputConstants.Type.KEYSYM, InputConstants.KEY_G, OSOK_CATEGORY));
       adminMenuKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.oneshotonekill.open_admin_menu",
          InputConstants.Type.KEYSYM, InputConstants.KEY_X, OSOK_CATEGORY));
    }
