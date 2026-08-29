@@ -158,7 +158,7 @@ Zwei Wege, im Verwaltungsmenü einzeln abschaltbar:
 Beide Fassungen laufen auf Minecraft 26.2, der gesamte Vanilla-Code blieb deshalb unverändert.
 Ausgetauscht wurde nur die Loader-Schicht mit Fabric API, Access Widener und Mixins gemäß [AGENTS.md](AGENTS.md).
 
-**Über Fabric API gelöst** — Registrierungen (`Registry.register` statt `DeferredRegister`),
+**Fabric API** — Registrierungen (`Registry.register` statt `DeferredRegister`),
 Netzwerk (`PayloadTypeRegistry` mit `ServerPlayNetworking`/`ClientPlayNetworking` statt
 `PacketDistributor`), Lebenszyklus und Takt (`ServerLifecycleEvents`, `ServerTickEvents`),
 Spielerereignisse (`ServerPlayerEvents`), Schaden und Tod (`ServerLivingEntityEvents`),
@@ -167,14 +167,13 @@ Interaktion (`AttackEntityCallback`, `UseItemCallback` und Verwandte), Welteintr
 (`KeyMappingHelper`), Weltrendering (`LevelExtractionEvents`, `LevelRenderEvents` samt
 `RenderStateDataKey`), Tooltips und Chatfilter.
 
-**Ohne Fabric API, aber ohne Mixin** — die drei eigenen Modellbausteine hängen sich direkt in
+**Vanilla-Erweiterung & Access Widener** — Die drei eigenen Modellbausteine hängen sich direkt in
 Vanillas offene `LateBoundIdMapper`-Tabellen (`ItemModels`, `ConditionalItemModelProperties`,
-`SpecialModelRenderers`), und die beiden Bildschirmeffekte des Match-Starts brauchen nur zwei
+`SpecialModelRenderers`), und die beiden Bildschirmeffekte des Match-Starts nutzen zwei
 Access-Widener-Zeilen für `Hud#extractPortalOverlay` und `#extractConfusionOverlay`. Die Setter
 von `Display` sind bereits durch `fabric-transitive-access-wideners-v1` geöffnet.
 
-**Erst danach Mixin** — 21 Stück für das, wozu Fabric API kein Gegenstück hat. Jede Klasse
-begründet im Kommentar, warum weder Ereignis noch Access Widener trägt. Beispiele: die
+**Mixins** — 21 Stück für gezielte Eingriffe in Vanilla-Logik, Rendering und Abläufe. Beispiele: die
 Unverwundbarkeits-Vorprüfung vor `hurtServer`, der Wurfschutz in `ServerPlayer#drop`, die
 Tabellenlisten-Zeile, Spannen und Lösen des Bogens, Sichtfeld, Kameraabstand, Kamerawackeln,
 Handanimation und Nebel.

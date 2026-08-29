@@ -2,7 +2,7 @@
 
 ## Kurzfassung
 
-- **Fabric-API, Access Widener und Mixins** sind vollwertige Werkzeuge und dürfen jederzeit frei und gezielt nach Zweckmäßigkeit genutzt werden (z. B. Mixins für Rendering, tiefere Logik-Eingriffe oder wenn kein passendes Event existiert).
+- **Fabric-API, Access Widener und Mixins** sind vollwertige Werkzeuge und dürfen jederzeit frei und gezielt nach Zweckmäßigkeit genutzt werden.
 - Externe Minecraft-, Fabric-API-, Fabric-Loader- und Mixin-Quellen liegen entpackt unter `APIS/`.
 - `APIS/` wird zur Recherche zuerst mit `rg` oder `ast-grep` eingegrenzt; anschließend
   werden nur die relevanten Trefferdateien angesehen.
