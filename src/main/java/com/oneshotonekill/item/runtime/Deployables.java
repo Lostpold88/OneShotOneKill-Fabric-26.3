@@ -3,6 +3,7 @@ package com.oneshotonekill.item.runtime;
 import com.oneshotonekill.shared.Hologram;
 import com.oneshotonekill.shared.Blast;
 import com.oneshotonekill.shared.Feedback;
+import com.oneshotonekill.shared.OsokEffects;
 
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
@@ -457,6 +458,10 @@ public final class Deployables {
             }
             revealTrap(level, trap);
             freeze(level, player, trap.position);
+            ServerPlayer owner = server.getPlayerList().getPlayer(trap.owner);
+            if (owner != null && !owner.equals(player)) {
+               OsokEffects.INSTANCE.playFrostTrapTriggeredEffect(owner, player.getGameProfile().name());
+            }
             break;
          }
       }
@@ -488,6 +493,9 @@ public final class Deployables {
     */
    private void freeze(ServerLevel level, ServerPlayer player, Vec3 trapAt) {
       Vec3 anchor = player.position();
+      player.setDeltaMovement(Vec3.ZERO);
+      player.fallDistance = 0.0;
+      player.hurtMarked = true;
       Frozen state = new Frozen(anchor, TRAP_FREEZE_TICKS);
 
       state.ring = Hologram.spawnEffect(level, anchor.add(0.0, 0.08, 0.0), iceRingStack(ICE_BRIGHT), 2.0F);

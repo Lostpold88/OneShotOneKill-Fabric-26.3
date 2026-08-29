@@ -403,7 +403,7 @@ public final class MatchHudLayers {
          }
 
          int centreX = screenWidth / 2;
-         int bannerY = (int) (screenHeight * 0.22F);
+         int bannerY = Math.max(14, (int) (screenHeight * 0.05F));
          int left = centreX - BANNER_WIDTH / 2;
          int right = left + BANNER_WIDTH;
          int bottom = bannerY + BANNER_HEIGHT;

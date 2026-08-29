@@ -63,7 +63,7 @@ Jedes ist ein **eigenes registriertes Item mit eigener Textur oder individuellem
 | **Unsichtbarkeits-Mantel** | Rechtsklick | 15 s unsichtbar |
 | **Pfeil-Magnetfeld** | Rechtsklick | Lenkt Pfeile 15 s ab |
 | **Kettenblitz** | Rechtsklick | Blitz springt auf 2 Gegner über |
-| **Tarnkappenbomber** | Rechtsklick | Zielmenü, 3D-Nurflügler-Anflug, dann 13 s Bombardement |
+| **Tarnkappenbomber** | Rechtsklick | Zielmenü, 3D-Nurflügler-Anflug, dann 10 s Bombardement (max. 3 Kills) |
 | **Luftangriff** | Rechtsklick | Taktisches Radar mit Zielauswahl, 3D-Nuklearbombe und Atompilz |
 | **C4** | Rechtsklick | Kleben, zünden (Boden/Luft) und abnehmen — dynamischer Modellwechsel & geteilter Zünder |
 | **Railgun** | Halten und loslassen | Voll geladen ein durchschlagender Strahl mit unendlicher Reichweite |
@@ -173,10 +173,10 @@ Vanillas offene `LateBoundIdMapper`-Tabellen (`ItemModels`, `ConditionalItemMode
 Access-Widener-Zeilen für `Hud#extractPortalOverlay` und `#extractConfusionOverlay`. Die Setter
 von `Display` sind bereits durch `fabric-transitive-access-wideners-v1` geöffnet.
 
-**Mixins** — 22 Stück für gezielte Eingriffe in Vanilla-Logik, Rendering, Positions-Sync und Abläufe. Beispiele: die
+**Mixins** — 23 Stück für gezielte Eingriffe in Vanilla-Logik, Rendering, Positions-Sync und Abläufe. Beispiele: die
 Unverwundbarkeits-Vorprüfung vor `hurtServer`, der Wurfschutz in `ServerPlayer#drop`, die
 Tabellenlisten-Zeile, Spannen und Lösen des Bogens, Sichtfeld, Kameraabstand, Kamerawackeln,
-Handanimation, Nebel und harter Teleport-Snap bei Remote-Spielern.
+Handanimation, Nebel, Arretierung beim Einfrieren/Countdown und harter Teleport-Snap bei Remote-Spielern.
 
 Injection-Points, die sich aus dem dekompilierten Quelltext nicht sicher ablesen lassen, sind
 mit `javap` am gemappten Jar belegt — so kam etwa heraus, dass der Kameraabstand nicht in

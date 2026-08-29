@@ -91,6 +91,13 @@ public final class OsokEffects {
       level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.ANVIL_USE, SoundSource.PLAYERS, 0.4F, 1.4F);
    }
 
+   public void playFrostTrapTriggeredEffect(ServerPlayer owner, String victimName) {
+      ServerPlayNetworking.send(owner, new MatchNotificationPayload("FROST_TRAP", "❄ FROST-FALLE AUSGELÖST", victimName + " ist in deine Falle getappt!", 55, OsokColors.CYAN));
+      sendPrivateSound(owner, SoundEvents.ARROW_HIT_PLAYER, 0.9F, 1.6F);
+      sendPrivateSound(owner, SoundEvents.GLASS_BREAK, 0.7F, 1.4F);
+      Feedback.actionBar(owner, "§b❄ " + victimName + " §7ist in deine Frost-Falle getappt!");
+   }
+
    public void playEliminationEffect(ServerLevel level, Vec3 deathPos) {
       level.sendParticles(ParticleTypes.DAMAGE_INDICATOR, deathPos.x, deathPos.y + 1.0, deathPos.z, 12, 0.3, 0.5, 0.3, 0.1);
       level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, Blocks.REDSTONE_BLOCK.defaultBlockState()),

@@ -18,6 +18,7 @@
 		"LocalPlayerDropMixin",
 		"MinecraftInteractionMixin",
 		"MouseHandlerMixin",
+		"PlayerFreezeTravelMixin",
 		"PostPassTimeDistortionMixin",
 		"SoundEngineAccessor",
 		"SoundEngineTimeDistortionMixin",

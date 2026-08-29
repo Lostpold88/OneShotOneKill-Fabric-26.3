@@ -26,6 +26,13 @@ public abstract class MinecraftInteractionMixin {
       }
    }
 
+   @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
+   private void osok$blockContinueAttack(boolean down, CallbackInfo ci) {
+      if (AbilityStatusState.INSTANCE.isFrozen()) {
+         ci.cancel();
+      }
+   }
+
    @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
    private void osok$blockUseItem(CallbackInfo ci) {
       if (AbilityStatusState.INSTANCE.isFrozen()) {

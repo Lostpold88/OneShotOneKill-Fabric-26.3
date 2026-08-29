@@ -67,6 +67,30 @@ public enum SpecialItem {
       return BY_ID.get(id);
    }
 
+   public static SpecialItem fromItem(Item item) {
+      if (item == null) {
+         return null;
+      }
+      for (SpecialItem specialItem : values()) {
+         if (item.equals(specialItem.getIcon())) {
+            return specialItem;
+         }
+      }
+      return null;
+   }
+
+   public static SpecialItem fromStack(ItemStack stack) {
+      if (stack == null || stack.isEmpty()) {
+         return null;
+      }
+      for (SpecialItem specialItem : values()) {
+         if (stack.is(specialItem.getIcon())) {
+            return specialItem;
+         }
+      }
+      return null;
+   }
+
    public enum Mode {
       STREAK,
       SPAWN,

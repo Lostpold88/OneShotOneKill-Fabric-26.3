@@ -141,7 +141,9 @@ public final class CombatEvents {
                MatchManager.INSTANCE.checkKillLimit(attacker, newKills);
             }
          }
-   
+
+         SpecialItemManager.INSTANCE.tryDropVictimLoot(attacker, victim, cause, victim.position());
+
          ScoreboardManager.INSTANCE.addDeath(victim.getUUID());
          ScoreboardManager.INSTANCE.resetStreak(victim.getUUID());
          ScoreboardManager.INSTANCE.updateAllScoreboards();

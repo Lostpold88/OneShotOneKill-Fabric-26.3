@@ -16,13 +16,13 @@ import com.oneshotonekill.match.MatchManager;
 import com.oneshotonekill.match.MatchManager.MatchState;
 import com.oneshotonekill.network.OsokPayloads.*;
 import com.oneshotonekill.registry.ModItems;
-import com.oneshotonekill.match.ScoreboardManager;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.concurrent.ThreadLocalRandom;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.network.chat.Component;
@@ -59,8 +59,9 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 public final class StealthBomberSystem {
    public static final StealthBomberSystem INSTANCE = new StealthBomberSystem();
 
-   private static final int DURATION_TICKS = 260;
-   private static final int DROP_INTERVAL_TICKS = 7;
+   private static final int DURATION_TICKS = 200;
+   private static final int DROP_INTERVAL_TICKS = 10;
+   private static final int MAX_KILLS_PER_RUN = 3;
    /** Von so weit draußen fliegt der Bomber ein, bevor er über dem Ziel steht. */
    private static final double APPROACH_DISTANCE = 42.0;
    /** Erst ab dieser waagerechten Nähe zum Ziel öffnet sich der Schacht. */
@@ -106,7 +107,7 @@ public final class StealthBomberSystem {
     * Der Radius bleibt kleiner als der Wirkungsradius einer Ladung; sonst könnte ein Ziel
     * mitten im Ring stehen und würde nie getroffen.
     */
-   private static final double ORBIT_RADIUS = 3.2;
+   private static final double ORBIT_RADIUS = 4.8;
    private static final double ORBIT_SPEED = 0.10;
 
    /**
@@ -126,7 +127,8 @@ public final class StealthBomberSystem {
     * Bei 1 träfe sie einen gleichmäßig laufenden Spieler jedes Mal – das nähme ihm jede Chance.
     * Knapp darunter landet sie dicht vor ihm, wer die Richtung wechselt, kommt davon.
     */
-   private static final double BOMB_LEAD = 0.75;
+   private static final double BOMB_LEAD = 0.40;
+   private static final double BOMB_SPREAD = 2.0;
    /** Waagerechte Höchstgeschwindigkeit der Bombe; darüber sähe der Wurf nach Zielsuchrakete aus. */
    private static final double BOMB_MAX_DRIFT = 0.55;
    /** Der Zielring am Boden zieht sich zusammen, während die Bombe fällt. */
@@ -136,13 +138,13 @@ public final class StealthBomberSystem {
    private static final float MARKER_SCALE = 1.4F;
 
    /** Wirkungsradius einer Ladung – klein, weil viele davon fallen. */
-   private static final double BOMB_RADIUS = 4.0;
+   private static final double BOMB_RADIUS = 3.4;
    private static final int CRATER_RADIUS = 3;
    private static final double CRATER_DEPTH_OFFSET = 1.0;
    private static final int CRATER_RESTORE_DELAY_TICKS = 20 * 6;
 
    private static final float SHAKE_RANGE = 38.0F;
-   private static final float SHAKE_INTENSITY = 1.9F;
+   private static final float SHAKE_INTENSITY = 2.4F;
    private static final int SHAKE_TICKS = 16;
    /** Warmweißer Aufblitzer im Moment der Detonation. */
    private static final ColorParticleOption BLAST_FLASH =
@@ -336,7 +338,7 @@ public final class StealthBomberSystem {
          Bomber bomber = iterator.next();
          ServerPlayer target = server.getPlayerList().getPlayer(bomber.target);
          bomber.ticksLeft--;
-         if (bomber.ticksLeft <= 0 || target == null || worlds.arenaOf(target) != arena) {
+         if (bomber.ticksLeft <= 0 || bomber.kills >= MAX_KILLS_PER_RUN || target == null || worlds.arenaOf(target) != arena) {
             iterator.remove();
             Hologram.remove(bomber.display);
             clearCamera(server, worlds, arena);
@@ -448,7 +450,10 @@ public final class StealthBomberSystem {
    private void releaseBomb(ServerLevel level, Bomber bomber, ServerPlayer target) {
       Vec3 from = bomber.position.add(0.0, -0.9, 0.0);
       double fallTime = estimateFallTime(from.y - target.getY());
-      Vec3 aim = target.position().add(target.getDeltaMovement().scale(fallTime * BOMB_LEAD));
+      double spreadAngle = ThreadLocalRandom.current().nextDouble() * Math.PI * 2.0;
+      double spreadDist = ThreadLocalRandom.current().nextDouble() * BOMB_SPREAD;
+      Vec3 spread = new Vec3(Math.cos(spreadAngle) * spreadDist, 0.0, Math.sin(spreadAngle) * spreadDist);
+      Vec3 aim = target.position().add(target.getDeltaMovement().scale(fallTime * BOMB_LEAD)).add(spread);
 
       Vec3 drift = new Vec3(aim.x - from.x, 0.0, aim.z - from.z).scale(1.0 / Math.max(1.0, fallTime));
       if (drift.lengthSqr() > BOMB_MAX_DRIFT * BOMB_MAX_DRIFT) {
@@ -625,8 +630,15 @@ public final class StealthBomberSystem {
          if (account.hits >= BOMB_HITS_TO_KILL) {
             bombHits.remove(victim.getUUID());
             DamageListener.INSTANCE.eliminate(attacker, victim, arena, KillFeed.Cause.STEALTH_BOMBER);
-            if (activeBomber != null && victim.getUUID().equals(activeBomber.target) && worlds != null) {
-               broadcastCamera(server, worlds, arena, activeBomber, victim, false, true, centre.x, centre.y, centre.z, true);
+            if (activeBomber != null) {
+               activeBomber.kills++;
+               if (activeBomber.kills >= MAX_KILLS_PER_RUN) {
+                  activeBomber.ticksLeft = 0;
+                  Feedback.actionBar(attacker, "§6🐉 Bomber hat sein Kill-Limit (" + MAX_KILLS_PER_RUN + "/" + MAX_KILLS_PER_RUN + ") erreicht und dreht ab");
+               }
+               if (victim.getUUID().equals(activeBomber.target) && worlds != null) {
+                  broadcastCamera(server, worlds, arena, activeBomber, victim, false, true, centre.x, centre.y, centre.z, true);
+               }
             }
          } else {
             Feedback.actionBar(victim, "§c🐉 BOMBENTREFFER " + account.hits + "/" + BOMB_HITS_TO_KILL);
@@ -805,6 +817,7 @@ public final class StealthBomberSystem {
       /** Letzte bekannte Zielposition – daran wird ein Respawn erkannt. */
       private Vec3 lastTargetPosition;
       private int boostTicks;
+      private int kills;
 
       private Bomber(UUID owner, UUID target, int ticksLeft, Vec3 position) {
          this.owner = owner;

@@ -8,8 +8,8 @@ import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.arena.ArenaWorlds;
 import com.oneshotonekill.match.MatchManager.MatchState;
 import com.oneshotonekill.match.MatchManager;
-import com.oneshotonekill.match.MatchManager;
 import com.oneshotonekill.shared.Hologram;
+import com.oneshotonekill.shared.OsokEffects;
 import com.oneshotonekill.arena.RandomTpSystem;
 import java.util.ArrayList;
 import java.nio.file.Files;
@@ -35,6 +35,9 @@ import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
+import com.oneshotonekill.match.ScoreboardManager;
+import net.minecraft.world.damagesource.DamageSource;
+import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
@@ -310,6 +313,11 @@ public final class SpecialItemManager {
          return true;
       }
 
+      ServerPlayer shooter = checkArrowHit(level, box);
+      if (shooter != null && collect(level, box, shooter, currentTick)) {
+         return true;
+      }
+
       if (ticksLeft <= 0) {
          level.sendParticles(ParticleTypes.GLOW, pos.x, pos.y + HOVER_HEIGHT, pos.z, 8, 0.2, 0.2, 0.2, 0.02);
          level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.FIRE_EXTINGUISH, SoundSource.PLAYERS, 0.4F, 1.8F);
@@ -415,6 +423,35 @@ public final class SpecialItemManager {
          double dy = player.getY() - pos.y;
          if (dx * dx + dz * dz <= PICKUP_RADIUS * PICKUP_RADIUS && dy > -PICKUP_HEIGHT && dy < PICKUP_HEIGHT) {
             return player;
+         }
+      }
+      return null;
+   }
+
+   /**
+    * Prüft, ob ein fliegender Pfeil in diesem Tick die schwebende Item-Box getroffen hat.
+    *
+    * Wie beim Geschützturm hat ein Display keine eigene Kollisionsbox: wir prüfen die
+    * zurückgelegte Flugstrecke des Pfeils gegen eine Bounding Box um die Box.
+    *
+    * @return der Schütze, falls ein Pfeil getroffen hat, sonst null
+    */
+   private ServerPlayer checkArrowHit(ServerLevel level, GroundBox box) {
+      Vec3 center = box.basePosition().add(0.0, HOVER_HEIGHT, 0.0);
+      AABB hitbox = AABB.ofSize(center, 1.2, 1.2, 1.2);
+      for (AbstractArrow arrow : level.getEntitiesOfClass(AbstractArrow.class, hitbox.inflate(4.0))) {
+         if (!arrow.isAlive() || arrow.isRemoved()) {
+            continue;
+         }
+         if (!(arrow.getOwner() instanceof ServerPlayer shooter) || !shooter.isAlive() || shooter.isSpectator()) {
+            continue;
+         }
+         Vec3 to = arrow.position();
+         Vec3 from = to.subtract(arrow.getDeltaMovement());
+         if (hitbox.contains(to) || hitbox.clip(from, to).isPresent()) {
+            arrow.discard();
+            OsokEffects.INSTANCE.playOwnSound(shooter, SoundEvents.ARROW_HIT_PLAYER, 0.8F, 1.5F);
+            return shooter;
          }
       }
       return null;
@@ -563,6 +600,77 @@ public final class SpecialItemManager {
       level.playSound(null, position.x, position.y, position.z, SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1.4F, 1.1F);
       level.sendParticles(ParticleTypes.WAX_OFF, position.x, position.y + 0.4, position.z, 8, 0.35, 0.2, 0.35, 0.02);
       level.sendParticles(ParticleTypes.GLOW, position.x, position.y + 0.5, position.z, 6, 0.25, 0.2, 0.25, 0.01);
+   }
+
+   /**
+    * Lässt bei einer Eliminierung mit einer gewissen Wahrscheinlichkeit genau ein Spezial-Item
+    * des Opfers als normales Item auf den Boden fallen.
+    */
+   public void tryDropVictimLoot(ServerPlayer attacker, ServerPlayer victim, KillFeed.Cause cause, Vec3 deathPos) {
+      if (MatchManager.INSTANCE.getCurrentGameMode() == MatchManager.GameMode.GUN_GAME) {
+         return;
+      }
+
+      Inventory inventory = victim.getInventory();
+      List<Integer> specialSlots = new ArrayList<>();
+      for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+         ItemStack stack = inventory.getItem(slot);
+         if (!stack.isEmpty() && SpecialItem.fromStack(stack) != null) {
+            specialSlots.add(slot);
+         }
+      }
+
+      if (specialSlots.isEmpty()) {
+         return;
+      }
+
+      // 1. Basis-Wahrscheinlichkeit: 20%
+      double chance = 0.20;
+
+      // 2. Inventardichte: +20% für jedes weitere Spezial-Item
+      if (specialSlots.size() > 1) {
+         chance += (specialSlots.size() - 1) * 0.20;
+      }
+
+      // 3. Shutdown-Bonus: Höhere Chance bei Beenden einer gegnerischen Serie
+      int victimStreak = ScoreboardManager.INSTANCE.getStreak(victim.getUUID());
+      if (victimStreak >= 6) {
+         chance += 0.30;
+      } else if (victimStreak >= 3) {
+         chance += 0.15;
+      }
+
+      // Deckel bei maximal 85%
+      chance = Math.min(0.85, chance);
+
+      ServerLevel level = victim.level();
+      if (level.getRandom().nextDouble() > chance) {
+         return;
+      }
+
+      // Genau ein zufälliges Spezial-Item aus dem Inventar des Opfers auswählen
+      int chosenIndex = level.getRandom().nextInt(specialSlots.size());
+      int slot = specialSlots.get(chosenIndex);
+      ItemStack stackToDrop = inventory.getItem(slot).copy();
+
+      // Item aus dem Inventar des Opfers entfernen
+      inventory.setItem(slot, ItemStack.EMPTY);
+      victim.inventoryMenu.broadcastChanges();
+
+      // Als normales Minecraft ItemEntity an der Sterbeposition in die Welt spawnen
+      ItemEntity itemEntity = new ItemEntity(level, deathPos.x, deathPos.y + 0.3, deathPos.z, stackToDrop);
+      itemEntity.setDeltaMovement(new Vec3(
+         (level.getRandom().nextDouble() - 0.5) * 0.12,
+         0.25,
+         (level.getRandom().nextDouble() - 0.5) * 0.12
+      ));
+      itemEntity.setDefaultPickUpDelay();
+      level.addFreshEntity(itemEntity);
+
+      // Goldener Glanz- und Partikeleffekt am Sterbeort
+      level.sendParticles(ParticleTypes.GLOW, deathPos.x, deathPos.y + 0.5, deathPos.z, 14, 0.3, 0.3, 0.3, 0.04);
+      level.sendParticles(ParticleTypes.CRIT, deathPos.x, deathPos.y + 0.5, deathPos.z, 8, 0.25, 0.25, 0.25, 0.1);
+      level.playSound(null, deathPos.x, deathPos.y, deathPos.z, SoundEvents.ITEM_PICKUP, SoundSource.PLAYERS, 0.6F, 0.8F);
    }
 
    /** Einsammel-Effekt: Kristalliner Doppel-Sound und sauberer Glanz-Plopp. */
