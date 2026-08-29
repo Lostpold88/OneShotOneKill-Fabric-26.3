@@ -18,7 +18,7 @@ Fremdbibliothek über Fabric API hinaus.
 | **Java** | 25 |
 | **Gradle** | 9.5.1 |
 | **Abhängigkeiten** | keine über Fabric API hinaus |
-| **Mixins** | 21 (11 gemeinsam, 10 nur Client) |
+| **Mixins** | 22 (11 gemeinsam, 11 nur Client) |
 | **Access Widener** | 2 Einträge |
 
 Mod-ID `oneshotonekill`, Package `com.oneshotonekill`. Geteilte Source-Sets über
@@ -173,10 +173,10 @@ Vanillas offene `LateBoundIdMapper`-Tabellen (`ItemModels`, `ConditionalItemMode
 Access-Widener-Zeilen für `Hud#extractPortalOverlay` und `#extractConfusionOverlay`. Die Setter
 von `Display` sind bereits durch `fabric-transitive-access-wideners-v1` geöffnet.
 
-**Mixins** — 21 Stück für gezielte Eingriffe in Vanilla-Logik, Rendering und Abläufe. Beispiele: die
+**Mixins** — 22 Stück für gezielte Eingriffe in Vanilla-Logik, Rendering, Positions-Sync und Abläufe. Beispiele: die
 Unverwundbarkeits-Vorprüfung vor `hurtServer`, der Wurfschutz in `ServerPlayer#drop`, die
 Tabellenlisten-Zeile, Spannen und Lösen des Bogens, Sichtfeld, Kameraabstand, Kamerawackeln,
-Handanimation und Nebel.
+Handanimation, Nebel und harter Teleport-Snap bei Remote-Spielern.
 
 Injection-Points, die sich aus dem dekompilierten Quelltext nicht sicher ablesen lassen, sind
 mit `javap` am gemappten Jar belegt — so kam etwa heraus, dass der Kameraabstand nicht in

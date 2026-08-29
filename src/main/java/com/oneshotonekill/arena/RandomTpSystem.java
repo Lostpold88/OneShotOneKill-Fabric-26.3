@@ -302,6 +302,7 @@ public final class RandomTpSystem {
    
        private static void restorePlayer(ServerPlayer player) {
            player.setHealth(player.getMaxHealth());
+           player.setDeltaMovement(Vec3.ZERO);
            player.hurtTime = 0;
            player.invulnerableTime = 0;
            player.fallDistance = 0.0f;
