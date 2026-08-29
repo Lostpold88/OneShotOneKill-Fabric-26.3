@@ -382,7 +382,7 @@ public final class AdminItemScreen extends Screen {
       graphics.pose().popMatrix();
       // Weiche Kanten noch innerhalb des Scissor-Bereichs, damit sie exakt darauf abschließen.
       OsokWidgets.drawSoftScrollEdges(graphics, left, right, listTop, listBottom, EDGE_FADE,
-         OsokWidgets.COLOR_CARD_BG);
+         OsokWidgets.COLOR_CARD_BG, scroll.offset(), contentLength, listBottom - listTop);
       graphics.disableScissor();
       return hoveredItemForTooltip;
    }

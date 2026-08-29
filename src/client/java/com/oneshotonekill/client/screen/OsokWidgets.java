@@ -416,21 +416,74 @@ public final class OsokWidgets {
    }
 
    /**
+    * Sauberes Alert- / Warn-Banner im Cyber-Stil mit Icon, Text und Akzentfarbe.
+    */
+   public static void alertBanner(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
+                                  ItemStack icon, String text, int accent) {
+      int bg = (accent & 0x00FFFFFF) | 0x22000000;
+      int border = accent;
+      int textCol = (accent & 0x00FFFFFF) | 0xFF000000;
+
+      // Hintergrund mit subtiler Tiefe
+      graphics.fill(x, y, x + width, y + height, 0xE00C0F17);
+      graphics.fill(x, y, x + width, y + height, bg);
+
+      // Rahmen
+      graphics.horizontalLine(x, x + width - 1, y, border);
+      graphics.horizontalLine(x, x + width - 1, y + height - 1, border);
+      graphics.verticalLine(x, y, y + height - 1, border);
+      graphics.verticalLine(x + width - 1, y, y + height - 1, border);
+
+      // Icon links
+      int iconOffset = 0;
+      if (icon != null && !icon.isEmpty()) {
+         graphics.item(icon, x + 5, y + (height - 16) / 2);
+         iconOffset = 22;
+      }
+
+      // Text vertikal zentriert
+      int textY = y + (height - 8) / 2;
+      graphics.text(font, text, x + 6 + iconOffset, textY, textCol);
+   }
+
+   /**
     * Weiche Ein- und Ausblendkanten am Rand eines Scroll-Bereichs.
     *
-    * <p>Der Scissor-Rahmen schneidet Text und Karten hart ab, was am Rand wie ein Fehler
-    * aussieht. Zwei Verläufe in der Kartenfarbe lassen den Inhalt stattdessen aus dem Rand
-    * herauslaufen und wieder hinein. Der Aufruf gehört hinter den Inhalt, aber noch vor
-    * {@code disableScissor}.</p>
+    * <p>Der Scissor-Rahmen schneidet Text und Karten hart ab. Die Verläufe blenden den Inhalt
+    * nur dann weich ein, wenn tatsächlich Inhalt unter den Rand gescrollt wurde (oben nur bei
+    * scrollOffset > 0, unten nur wenn noch Inhalt nach unten existiert).</p>
     */
    public static void drawSoftScrollEdges(GuiGraphicsExtractor graphics, int left, int right,
-                                          int top, int bottom, int fadeHeight, int bgColor) {
+                                          int top, int bottom, int fadeHeight, int bgColor,
+                                          int scrollOffset, int contentLength, int visibleHeight) {
       if (fadeHeight <= 0 || right <= left || bottom - top <= fadeHeight * 2) {
          return;
       }
       int transparent = bgColor & 0x00FFFFFF;
-      graphics.fillGradient(left, top, right, top + fadeHeight, bgColor, transparent);
-      graphics.fillGradient(left, bottom - fadeHeight, right, bottom, transparent, bgColor);
+      int maxScroll = Math.max(0, contentLength - visibleHeight);
+
+      // Oberer Verlauf: nur wenn nach oben gescrollt wurde
+      if (scrollOffset > 0) {
+         float topFactor = Math.min(1.0F, scrollOffset / (float) fadeHeight);
+         int baseAlpha = (bgColor >>> 24);
+         int topStartAlpha = Math.round(baseAlpha * topFactor);
+         int topStartColor = transparent | (topStartAlpha << 24);
+         graphics.fillGradient(left, top, right, top + fadeHeight, topStartColor, transparent);
+      }
+
+      // Unterer Verlauf: nur wenn nach unten noch Inhalt existiert
+      if (scrollOffset < maxScroll) {
+         float bottomFactor = Math.min(1.0F, (maxScroll - scrollOffset) / (float) fadeHeight);
+         int baseAlpha = (bgColor >>> 24);
+         int bottomEndAlpha = Math.round(baseAlpha * bottomFactor);
+         int bottomEndColor = transparent | (bottomEndAlpha << 24);
+         graphics.fillGradient(left, bottom - fadeHeight, right, bottom, transparent, bottomEndColor);
+      }
+   }
+
+   public static void drawSoftScrollEdges(GuiGraphicsExtractor graphics, int left, int right,
+                                          int top, int bottom, int fadeHeight, int bgColor) {
+      drawSoftScrollEdges(graphics, left, right, top, bottom, fadeHeight, bgColor, 1, 100, 10);
    }
 
    /**

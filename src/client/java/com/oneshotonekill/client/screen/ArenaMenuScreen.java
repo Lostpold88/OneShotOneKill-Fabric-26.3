@@ -215,7 +215,7 @@ public final class ArenaMenuScreen extends Screen {
       graphics.pose().popMatrix();
       // Weiche Kanten noch innerhalb des Scissor-Bereichs, damit sie exakt darauf abschließen.
       OsokWidgets.drawSoftScrollEdges(graphics, contentLeft, contentRight, contentTop, contentBottom,
-         EDGE_FADE, OsokWidgets.COLOR_CARD_BG);
+         EDGE_FADE, OsokWidgets.COLOR_CARD_BG, scroll.offset(), contentLength, contentHeight);
       graphics.disableScissor();
       drawScrollbar(graphics, mouseX, mouseY);
 
@@ -278,17 +278,11 @@ public final class ArenaMenuScreen extends Screen {
    private void drawArenasTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
       int left = cardLeft + 16;
       int right = cardLeft + CARD_WIDTH - 16;
-      int y = contentTop - scroll.offset();
+      int y = contentTop + 4 - scroll.offset();
 
       if (!isMatchState(MatchState.STOPPED)) {
-         graphics.fill(left, y, right, y + 24, 0x33FF3366);
-         graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_CRIMSON);
-         graphics.horizontalLine(left, right - 1, y + 23, OsokWidgets.COLOR_CRIMSON);
-         graphics.verticalLine(left, y, y + 23, OsokWidgets.COLOR_CRIMSON);
-         graphics.verticalLine(right - 1, y, y + 23, OsokWidgets.COLOR_CRIMSON);
-
-         graphics.item(new ItemStack(Items.BARRIER), left + 5, y + 4);
-         graphics.text(font, "Arena-Wechsel gesperrt (Laufendes/pausiertes Match)", left + 26, y + 8, OsokWidgets.COLOR_CRIMSON);
+         OsokWidgets.alertBanner(graphics, font, left, y, right - left, 26,
+            new ItemStack(Items.BARRIER), "Arena-Wechsel gesperrt (Laufendes/pausiertes Match)", OsokWidgets.COLOR_CRIMSON);
          y += 32;
       }
 
@@ -377,7 +371,7 @@ public final class ArenaMenuScreen extends Screen {
    private void drawMatchControlTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
       int left = cardLeft + 16;
       int right = cardLeft + CARD_WIDTH - 16;
-      int y = contentTop - scroll.offset();
+      int y = contentTop + 4 - scroll.offset();
 
       // Dashboard Info Card
       graphics.fill(left, y, right, y + 50, 0xFF141A27);
@@ -497,19 +491,13 @@ public final class ArenaMenuScreen extends Screen {
    private void drawMatchTargetTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
       int left = cardLeft + 16;
       int right = cardLeft + CARD_WIDTH - 16;
-      int y = contentTop - scroll.offset();
+      int y = contentTop + 4 - scroll.offset();
       boolean stopped = isMatchState(MatchState.STOPPED);
       boolean isGunGame = "GUN_GAME".equalsIgnoreCase(state.getGameMode());
 
       if (!stopped) {
-         graphics.fill(left, y, right, y + 24, 0x33FF3366);
-         graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_CRIMSON);
-         graphics.horizontalLine(left, right - 1, y + 23, OsokWidgets.COLOR_CRIMSON);
-         graphics.verticalLine(left, y, y + 23, OsokWidgets.COLOR_CRIMSON);
-         graphics.verticalLine(right - 1, y, y + 23, OsokWidgets.COLOR_CRIMSON);
-
-         graphics.item(new ItemStack(Items.BARRIER), left + 5, y + 4);
-         graphics.text(font, "Ziel-Änderungen nur vor Match-Start möglich (Match läuft/pausiert)", left + 26, y + 8, OsokWidgets.COLOR_CRIMSON);
+         OsokWidgets.alertBanner(graphics, font, left, y, right - left, 26,
+            new ItemStack(Items.BARRIER), "Ziel-Änderungen nur vor Match-Start möglich (Match läuft/pausiert)", OsokWidgets.COLOR_CRIMSON);
          y += 32;
       }
 
@@ -725,7 +713,7 @@ public final class ArenaMenuScreen extends Screen {
    private void drawItemWeightsTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
       int left = cardLeft + 16;
       int right = cardLeft + CARD_WIDTH - 16;
-      int y = contentTop - scroll.offset();
+      int y = contentTop + 4 - scroll.offset();
 
       // Item-Modus Card
       graphics.fill(left, y, right, y + 54, 0xFF141A27);
