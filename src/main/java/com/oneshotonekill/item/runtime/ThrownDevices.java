@@ -259,12 +259,8 @@ public final class ThrownDevices {
       switch (shot.type) {
          case SMOKE -> level.sendParticles(ParticleTypes.LARGE_SMOKE,
             shot.position.x, shot.position.y, shot.position.z, 3, 0.05, 0.05, 0.05, 0.01);
-         case TELEPORT -> {
-            level.sendParticles(ParticleTypes.PORTAL, shot.position.x, shot.position.y, shot.position.z,
-               5, 0.1, 0.1, 0.1, 0.15);
-            level.sendParticles(ParticleTypes.END_ROD, shot.position.x, shot.position.y, shot.position.z,
-               1, 0.0, 0.0, 0.0, 0.0);
-         }
+         case TELEPORT -> level.sendParticles(ParticleTypes.PORTAL, shot.position.x, shot.position.y, shot.position.z,
+            4, 0.08, 0.08, 0.08, 0.1);
          case SINGULARITY -> {
             level.sendParticles(ParticleTypes.REVERSE_PORTAL, shot.position.x, shot.position.y, shot.position.z,
                10, 0.13, 0.13, 0.13, 0.25);
