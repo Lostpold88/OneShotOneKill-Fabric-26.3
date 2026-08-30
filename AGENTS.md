@@ -2,153 +2,66 @@
 
 ## Kurzfassung
 
+- **IntelliJ IDEA & MCP (`intellij-index`)** sind das primäre Werkzeug für semantische Code-Navigation, Typ-Hierarchien, Referenzprüfungen und sichere Refactorings.
 - **Fabric-API, Access Widener und Mixins** sind vollwertige Werkzeuge und dürfen jederzeit frei und gezielt nach Zweckmäßigkeit genutzt werden.
-- Externe Minecraft-, Fabric-API-, Fabric-Loader- und Mixin-Quellen liegen entpackt unter `APIS/`.
-- `APIS/` wird zur Recherche zuerst mit `rg` oder `ast-grep` eingegrenzt; anschließend
-  werden nur die relevanten Trefferdateien angesehen.
-- `APIS/` ist generiert, schreibgeschützt zu behandeln und wird nicht eingecheckt.
-- Zielplattform: **Java 25, Minecraft 26.2, Fabric Loader 0.19.4, Fabric API 0.158.0+26.2,
-  Fabric Loom 1.17.20, Gradle 9.5.1**. Alle Versionen stehen in `gradle.properties`.
+- Alle externen Bibliotheken (Minecraft, Fabric API, Fabric Loader, Sponge Mixin, MixinExtras, Brigadier, Netty, Java SDK etc.) werden direkt über die **IntelliJ IDEA MCP-Engine** (`scope: "project_and_libraries"`) semantisch durchsucht und analysiert.
+- Nach Datei- oder Strukturänderungen durch Agenten wird [`ide_sync_files`](file:///E:/OneShotOneKill) aufgerufen, um das Virtual File System (VFS) der IDE aktuell zu halten.
+- Zielplattform: **Java 25, Minecraft 26.2, Fabric Loader 0.19.4, Fabric API 0.158.0+26.2, Fabric Loom 1.17.20, Gradle 9.5.1**. Alle Versionen stehen in `gradle.properties`.
 - Mod-ID `oneshotonekill`, Package `com.oneshotonekill`.
-- Geteilte Source-Sets: `src/main/java` läuft auf Server und Client,
-  `src/client/java` ausschließlich auf dem Client.
-- Die Mod hat keine zusätzlichen Laufzeitbibliotheken.
-- Build und Deployment laufen über `.\build.ps1`.
+- Geteilte Source-Sets: `src/main/java` läuft auf Server und Client, `src/client/java` ausschließlich auf dem Client.
+- Build und Deployment laufen über `.\build.ps1` (bzw. die IntelliJ Run Configuration `BUILD`).
 
-## API-Sources unter APIS
+---
 
-`tools/update_api_sources.py` ist ein universelles Hilfsskript für Fabric-Loom-Projekte.
-Es enthält keine festen Minecraft-, Fabric-, Loom- oder Projektversionen. Stattdessen findet
-es die Projektwurzel, verwendet den Gradle-Wrapper des jeweiligen Projekts, lässt fehlende
-Minecraft-Quellen von Looms Dekompilierer (`genSources`) erzeugen und löst die
-`sources`-Artefakte der vom Build deklarierten Abhängigkeiten auf. Aggregat-Artefakte wie
-Fabric API werden dabei über ihre Modul-Artefakte derselben Gruppe aufgeklappt. Zusätzlich
-werden Bibliotheken vom Kompilierklassenpfad mitgenommen, deren Gruppe oder Name `mixin`
-enthält; so landet die Mixin-Implementierung des Loaders im Ergebnis, ohne dass eine feste
-Koordinate im Skript steht.
+## Code-Intelligence & Navigation via IntelliJ IDEA MCP
 
-Standardaufruf aus der Projektwurzel:
+Die Anbindung erfolgt über das **intellij-index MCP** (`http://127.0.0.1:29170/index-mcp/streamable-http`).
 
-```powershell
-python tools/update_api_sources.py
-```
+### 1. Verbindliche MCP-Nutzung für Recherche und Analyse
 
-Der erste Durchlauf fragt Gradle nur nach den vorhandenen Artefakten. Fehlen die
-Minecraft-Quellen, wird automatisch ein zweiter Durchlauf mit `genSources` gestartet; die
-Dekompilierung dauert einige Minuten. Danach ist der Aufruf schnell.
+Statt ungenauer Textsuche (Grep) wird für Java-Code immer die semantische MCP-Engine bevorzugt:
 
-Nach einem Versionswechsel oder wenn Gradle seine Abhängigkeiten ausdrücklich neu prüfen soll:
+1. **Definitionen & Deklarationen:** [`ide_find_definition`](file:///E:/OneShotOneKill) nutzen, um den Ursprung von Methoden, Feldern und Klassen exakt anzuspringen.
+2. **Referenzen & Aufrufer:** [`ide_find_references`](file:///E:/OneShotOneKill) nutzen, um alle echten Verwendungen eines Symbols im Projekt zu ermitteln.
+3. **Klassen & Interfaces:** [`ide_find_class`](file:///E:/OneShotOneKill) mit `scope: "project_and_libraries"` nutzen, um beliebige Minecraft-, Fabric- oder JDK-Klassen nachzuschlagen.
+4. **Vererbung & Hierarchien:** [`ide_type_hierarchy`](file:///E:/OneShotOneKill) und [`ide_find_implementations`](file:///E:/OneShotOneKill) nutzen, um Subtypen, Oberklassen und Interface-Implementierungen zu analysieren.
+5. **Call-Flows:** [`ide_call_hierarchy`](file:///E:/OneShotOneKill) nutzen, um Aufruferketten (Caller/Callee) nachzuvollziehen.
+6. **Text- & Mustersuche:** [`ide_search_text`](file:///E:/OneShotOneKill) mit `context: "code"`, `filePattern` oder Pfad-Filtern einsetzen, um gezielt nach Code-Patterns in den indizierten Bibliotheken zu suchen.
 
-```powershell
-python tools/update_api_sources.py --refresh --decompile
-```
+### 2. Refactorings & Dateioperationen
 
-Das Ergebnis wird atomar aufgebaut:
+- **Umbenennungen:** Immer [`ide_refactor_rename`](file:///E:/OneShotOneKill) verwenden. Dadurch werden Methoden-, Variablen- und Klassennamen in allen referenzierenden Dateien, Overrides und Gettern/Settern fehlerfrei und semantisch umbenannt.
+- **Sicheres Löschen:** [`ide_refactor_safe_delete`](file:///E:/OneShotOneKill) prüft vor dem Löschen auf verbleibende Verwendungen.
+- **Dateien verschieben:** [`ide_move_file`](file:///E:/OneShotOneKill) passt Paketdeklarationen und Imports automatisch an.
+- **IDE-Synchronisation:** Nach externen Bearbeitungen oder Skriptausführungen [`ide_sync_files`](file:///E:/OneShotOneKill) aufrufen.
 
-- `APIS/minecraft/` enthält die dekompilierten Minecraft-Quellen. Weil das Projekt
-  `splitEnvironmentSourceSets()` verwendet, liefert Loom zwei JARs (`common` und
-  `clientOnly`); das Skript führt sie in einen Baum zusammen.
-- `APIS/fabric-api/` enthält die Quellen aller Fabric-API-Module.
-- `APIS/fabric-loader/` enthält die Quellen des Fabric Loaders.
-- `APIS/mixin/` enthält die Quellen von Sponge Mixin (`org.spongepowered.asm`) und
-  MixinExtras (`com.llamalad7.mixinextras`), also Annotationen, Injection-Points und
-  Callback-Typen.
-- `tools/SOURCES.json` nennt je Bereich Ursprungs-JARs mit Version und SHA-256 sowie die
-  Dateianzahl. Eine Bereichsversion steht nur dort, wo sie eindeutig ist.
-
-Gegen genau diese Datei vergleicht jeder Lauf und meldet, was sich geändert hat: neue,
-entfallene und aktualisierte Module (`+`, `-`, `~`), gleiche Version bei anderem Inhalt (`!`)
-und am Ende die Dateizahl je Bereich. Ändert sich nichts, steht dort nur, dass `APIS/` bereits
-aktuell ist.
-
-Ebenfalls gemeldet wird, was der Build angeboten hat, aber nicht in `APIS/` landet: ein
-Source-JAR, das sich nicht lesen lässt, und eines, dessen Java-Pakete zu keinem der vier
-Bereiche gehören. Ein unlesbares JAR bricht den Lauf nicht mehr ab, sondern erscheint unter
-„Nicht zugeordnete Source-JARs“. Die breite Cache-Suche bleibt dabei stumm – dort liegen
-zahllose fremde Source-JARs, gemeldet wird nur, was der Build selbst benannt hat.
-
-Weitere Schalter: `--decompile` erzwingt `genSources`, `--no-decompile` verbietet es,
-`--offline` verwendet ausschließlich den Gradle-Cache, `--no-gradle` sucht nur in bereits
-vorhandenen Caches, `--project` akzeptiert eine fremde Projektwurzel oder einen Unterordner
-davon. Explizite JAR-Pfade (`--minecraft-jar`, `--fabric-api-jar`, `--fabric-loader-jar`,
-`--mixin-jar`) sind nur ein Diagnose-Fallback. Das Skript darf unverändert in andere Fabric-Projekte
-kopiert werden.
-
-`APIS/` und `tools/SOURCES.json` niemals von Hand ändern. Bei veralteten oder beschädigten
-Inhalten das Skript erneut mit `--force` ausführen. Der API-Ordner bleibt in `.gitignore`.
-
-### Verbindlicher Rechercheablauf
-
-Der Ordner `APIS/` wird nur mit ripgrep (`rg`) und ast-grep (`ast-grep`) durchsucht.
-Keine eigenen Python-Such-, Parser-, Index- oder Cachewerkzeuge dafür einführen. Auch keine
-vollständigen Verzeichnisbäume pauschal öffnen.
-
-1. Mit `rg` nach Dateinamen, Text, Dokumentation, Assets, Typ-, Methoden-, Feld-, Event- oder
-   Paketnamen suchen.
-2. Für strukturelle Java-Fragen `ast-grep run --lang java` verwenden, etwa für Deklarationen,
-   Methodenaufrufe oder bestimmte Syntaxformen. In PowerShell Patterns mit `$` immer in
-   einfache Anführungszeichen setzen.
-3. Die Treffer mit Pfad und Zeilennummer eingrenzen.
-4. Nur die konkret relevanten Dateien und Stellen im Editor oder mit `Get-Content` ansehen.
-5. Signatur, Besitzer, Vererbung und Abbruchverhalten am tatsächlichen Quelltext belegen.
-
-Beispiele:
-
-```powershell
-rg -n --glob '*.java' 'class LivingEntity|class ServerPlayer' APIS/minecraft
-rg -n -i --glob '*.java' 'ServerTickEvents|ServerPlayConnectionEvents' APIS/fabric-api
-rg --files APIS/fabric-api | rg 'event|networking|registry'
-rg -n --glob '*.java' 'interface ModInitializer' APIS/fabric-loader
-rg -n --glob '*.java' '@interface (Inject|Redirect|WrapOperation)' APIS/mixin
-ast-grep run --lang java --pattern 'Event<$T> $NAME = $$$REST' APIS/fabric-api
-ast-grep run --lang java --pattern 'public void awardStat($$$ARGS) { $$$BODY }' APIS/minecraft
-```
-
-`rg` bleibt der schnelle Einstieg für Namen und Text; `ast-grep` wird eingesetzt, wenn die
-Java-Struktur relevant ist oder eine Textsuche zu viele falsche Treffer liefert. In `APIS/`
-ist ast-grep ausschließlich zur Suche erlaubt, nie mit `--rewrite`. Wenn eine Suche zu breit
-ist, Pattern, API-Unterordner oder `--glob` verengen. Erst danach Trefferdateien öffnen.
-Annahmen aus älteren Minecraft-, Fabric- oder NeoForge-Versionen zählen nicht als Nachweis.
+---
 
 ## Fabric-API, Access Widener und Mixins
 
-Fabric-API-Events, Access Widener und Mixins sind vollwertige Werkzeuge und können je nach
-Zweckmäßigkeit und Sauberkeit frei gewählt und kombiniert werden. **Mixins dürfen ausdrücklich
-und gerne verwendet werden**, insbesondere für Eingriffe in Rendering, Animationen, Vanilla-Logik
-oder Methodenflüsse.
+Fabric-API-Events, Access Widener und Mixins sind vollwertige Werkzeuge und können je nach Zweckmäßigkeit und Sauberkeit frei gewählt und kombiniert werden. **Mixins dürfen ausdrücklich und gerne verwendet werden**, insbesondere für Eingriffe in Rendering, Animationen, Vanilla-Logik oder Methodenflüsse.
 
-Vor der Umsetzung gilt:
+### Vorgehen bei der Umsetzung:
 
-1. `APIS/` aktualisieren, falls es fehlt oder die Gradle-Versionen geändert wurden.
-2. In `APIS/` (z. B. `APIS/fabric-api/` oder `APIS/minecraft/`) nach passenden Ansatzpunkten suchen.
-3. Den passenden Weg wählen: Fabric-API-Events, ein Eintrag in
-   `src/main/resources/oneshotonekill.accesswidener` oder ein Mixin.
-4. Mixins dürfen gerne und gezielt eingesetzt werden. Annotation, Injection-Point und
-   Callback-Typ dabei an den Quellen unter `APIS/mixin/` belegen, nicht aus dem Gedächtnis.
-   MixinExtras (`@WrapOperation`, `@ModifyExpressionValue`, etc.) stehen direkt zur Verfügung.
+1. **API-Prüfung per MCP:** Zielklasse und Methoden in Minecraft/Fabric per [`ide_find_class`](file:///E:/OneShotOneKill) oder [`ide_search_text`](file:///E:/OneShotOneKill) (`scope: "project_and_libraries"`) verifizieren.
+2. **Den passenden Weg wählen:**
+   - Fabric-API-Events (wenn ein sauberes Callback existiert).
+   - Access Widener in `src/main/resources/oneshotonekill.accesswidener` (für Sichtbarkieterweiterungen oder `mutable`).
+   - Mixin (für Eingriffe in Ausführungsflüsse, Werte-Modifikationen oder Rendering).
+3. **Mixin-Deskriptoren exakt ableiten:**
+   - Methoden- und Feld-Signaturen über die MCP-Typinformationen prüfen.
+   - Bytecode-Deskriptoren (z. B. `drop(Lnet/minecraft/world/item/ItemStack;ZZ)Lnet/minecraft/world/entity/item/ItemEntity;`) nach JVM-Spezifikation aufbauen.
+   - MixinExtras (`@WrapOperation`, `@ModifyExpressionValue`, `@Local`, `@Share`) stehen direkt zur Verfügung und dürfen bevorzugt werden.
 
-Aktuell sind die beiden Vorlagen-Mixins `MinecraftServerMixin` und `MinecraftClientMixin`
-registriert und können bei Bedarf angepasst, erweitert oder durch neue Mixins ergänzt werden.
+### Access Widener
 
-Anders als bei NeoForge gibt es in Fabric keine Access Transformer. Das Gegenstück ist der
-Access Widener. Er liegt in `src/main/resources/oneshotonekill.accesswidener`, ist in
-`fabric.mod.json` und über `loom.accessWidenerPath` in `build.gradle` angemeldet und
-verwendet den Namespace `official` (mit `named` bricht der Build ab).
-`.\gradlew.bat validateAccessWidener` prüft die Einträge gegen das Minecraft-JAR.
+- Datei: `src/main/resources/oneshotonekill.accesswidener`.
+- Verwendet zwingend den Namespace `official` (mit `named` bricht der Build ab).
+- Validierung: `.\gradlew.bat validateAccessWidener` prüft die Einträge gegen das Minecraft-JAR.
 
-### Wann der Quelltext für ein Mixin nicht reicht
+### Bytecode-Inspektion bei komplexen Mixins
 
-Für einfache Mixins genügt `APIS/`: Einstieg am Anfang oder Ende einer Methode (`@Inject`
-mit `HEAD` oder `RETURN`), Ersetzen eines im Quelltext sichtbaren Aufrufs (`@Redirect`,
-`@WrapOperation`), Accessor und Invoker. Namen müssen dabei nicht umgerechnet werden: Es gibt
-nur den Namespace `official` und kein Refmap, die Namen im Quelltext gelten auch zur Laufzeit.
-
-Sobald `ordinal`, `slice`, eine lokale Variable (`@Local`, `@ModifyVariable`), eine Konstante
-(`@Constant`) oder ein Lambda-Körper im Spiel ist, reicht der dekompilierte Quelltext nicht.
-Lambdas, `invokedynamic`-Aufrufe, Slot-Nummern lokaler Variablen und zurückgebaute Schleifen
-stehen im Bytecode anders als in `APIS/minecraft/`. Dann zusätzlich die Zielklasse mit `javap`
-ansehen; das gemappte Minecraft-JAR liegt bereits im Loom-Cache und muss nicht nachgeladen
-werden:
+Sobald `ordinal`, `slice`, lokale Variablen-Slots (`@Local`, `@ModifyVariable`), Konstanten (`@Constant`) oder interne Lambda-Körper betroffen sind, zusätzlich den Bytecode mit `javap` aus dem Loom-Cache prüfen:
 
 ```powershell
 $Jar = (Get-ChildItem .gradle/loom-cache/minecraftMaven -Recurse -Filter '*.jar' |
@@ -157,76 +70,44 @@ $Jar = (Get-ChildItem .gradle/loom-cache/minecraftMaven -Recurse -Filter '*.jar'
 javap -p -c -l -cp $Jar net.minecraft.server.MinecraftServer
 ```
 
-Für Client-Klassen statt `*common*` nach `*clientOnly*` filtern. Ein falscher Injection-Point
-fällt wegen `defaultRequire` 1 beim Start hart auf und läuft nicht still ins Leere.
+---
 
 ## Wichtige Fabric-Besonderheiten
 
-- Einstiegspunkte stehen in `src/main/resources/fabric.mod.json`: `main`
-  (`ModInitializer`), `client` (`ClientModInitializer`) und `fabric-datagen`
-  (`DataGeneratorEntrypoint`). Es gibt keinen Mod- und keinen Game-Bus wie bei NeoForge.
-- Fabric API stellt Ereignisse als `Event<T>`-Konstanten mit Callback-Interfaces bereit,
-  die per `EVENT.register(...)` abonniert werden. Ob ein Callback abbrechen kann, ergibt
-  sich aus seinem Rückgabetyp und ist im Quelltext unter `APIS/fabric-api/` zu belegen.
-- Registrierungen laufen über die Vanilla-Registries mit einer eigenen `Identifier`;
-  die genaue Halterklasse und Signatur immer in `APIS/minecraft/` prüfen.
-- Netzwerkpakete werden als Payload-Typ registriert und über die Networking-Module von
-  Fabric API verschickt. Registrierung, Nebenläufigkeit und Ausführungs-Thread vor der
-  Verwendung im Quelltext von `APIS/fabric-api/` nachlesen.
-- Client-Code gehört nach `src/client/java`. Das Source-Set wird nur auf dem Client geladen;
-  ein Zugriff aus `src/main/java` darauf ist ein Kompilierfehler und kein Laufzeitproblem.
-  Deshalb ersetzt die Source-Set-Trennung die NeoForge-Abgrenzung über `Dist`.
-- Mixins werden in `oneshotonekill.mixins.json` (gemeinsam) beziehungsweise
-  `oneshotonekill.client.mixins.json` (nur Client) eingetragen. `compatibilityLevel` ist
-  `JAVA_25`, `defaultRequire` ist 1: Ein nicht greifender Injection-Point lässt den Start
-  scheitern statt still ins Leere zu laufen.
-- Der Loader bringt neben Sponge Mixin auch MixinExtras mit. Dessen Annotationen sind ohne
-  zusätzliche Abhängigkeit nutzbar; ihre genaue Semantik steht unter `APIS/mixin/`.
+- **Einstiegspunkte** in `src/main/resources/fabric.mod.json`:
+  - `main`: `ModInitializer` (gemeinsam)
+  - `client`: `ClientModInitializer` (nur Client)
+  - `fabric-datagen`: `DataGeneratorEntrypoint`
+- **Fabric Events:** `Event<T>`-Konstanten mit Callbacks werden per `EVENT.register(...)` abonniert. Das Abbruchverhalten ergibt sich aus dem Rückgabetyp des Callbacks (über MCP prüfbar).
+- **Registrierungen:** Erfolgen über Vanilla-Registries mit `Identifier`.
+- **Netzwerk:** Payload-Typen registrieren und über die Fabric Networking API (z. B. `ServerPlayNetworking`, `ClientPlayNetworking`) senden.
+- **Client-Trennung:** Client-Code gehört strikt nach `src/client/java`. Ein Zugriff aus `src/main/java` darauf führt zu einem Kompilierfehler.
+- **Mixins-Konfiguration:**
+  - `oneshotonekill.mixins.json` (gemeinsam)
+  - `oneshotonekill.client.mixins.json` (nur Client)
+  - `compatibilityLevel` ist `JAVA_25`, `defaultRequire` ist `1` (Fehler fallen beim Start sofort auf).
 
-## Minecraft 26.2
+---
 
-Wichtige Brüche gegenüber 26.1.2:
+## Minecraft 26.2 Besonderheiten
 
 - `ResourceLocation` wurde durch `net.minecraft.resources.Identifier` ersetzt.
-- `Minecraft.screen` / `setScreen` wurde zu `Minecraft.gui.screen()` / `gui.setScreen()`;
-  `Minecraft#gui` ist weiterhin vom Typ `Gui`.
-- Farbige Blöcke und Items liegen in `net.minecraft.world.level.block.ColorCollection`,
-  einem Record mit Zugriffsmethoden je Farbe und `pick(DyeColor)`, etwa `Blocks.WOOL.black()`.
+- `Minecraft.screen` / `setScreen` wurde zu `Minecraft.gui.screen()` / `gui.setScreen()`.
+- Farbige Blöcke/Items liegen in `net.minecraft.world.level.block.ColorCollection` mit `pick(DyeColor)`.
 - `EntityType.ITEM_DISPLAY` wurde zu `EntityTypes.ITEM_DISPLAY`.
-- Portal- und Verzerrungs-Overlay liegen in `net.minecraft.client.gui.Hud` statt in `Gui`.
-- `Options.hideGui` ist entfallen.
+- Portal- und Verzerrungs-Overlay liegen in `net.minecraft.client.gui.Hud`.
+- Namespace im Access Widener und in Mixins ist `official` (keine intermediären Mappings nötig).
 
-Das Projekt deklariert keine Mappings-Abhängigkeit; die Klassennamen im Quelltext entsprechen
-genau denen unter `APIS/minecraft/`. Loom verlangt im Access Widener deshalb den Namespace
-`official` und lehnt `named` beim Bauen ab.
+---
 
-Das Modellformat unterstützt freie Euler-Drehwinkel je Element. Laufzeitfarben verwenden
-`minecraft:dye`, `tintindex: 0` und `DyedItemColor`.
+## Build, Deployment und IDE-Integration
 
-## Technologie und Abhängigkeiten
-
-- Java 25, Minecraft 26.2, Fabric Loader 0.19.4, Fabric API 0.158.0+26.2, Fabric Loom
-  1.17.20 und Gradle 9.5.1. Versionen werden nur in `gradle.properties` gepflegt.
-- Zwei Source-Sets über `splitEnvironmentSourceSets()`; beide gehören zur Mod
-  `oneshotonekill` im `loom.mods`-Block.
-- Keine zusätzlichen Mod-Laufzeitbibliotheken. Eine neue Abhängigkeit braucht eine
-  Begründung, warum Vanilla und Fabric API nicht ausreichen. Neue Abhängigkeiten werden mit
-  `modImplementation` deklariert, wenn sie selbst eine Mod sind.
-- Nach jeder Änderung an `build.gradle` oder `gradle.properties`
-  `python tools/update_api_sources.py` erneut ausführen.
-
-## Quellen, Assets und Build
-
-- Unter `src/main/java` und `src/client/java` sind ausschließlich `.java`-Dateien erlaubt.
-  `src/main/resources` und `src/client/resources` enthalten die benötigten Assets.
-- Generierte Assets entstehen über den `fabric-datagen`-Einstiegspunkt
-  (`.\gradlew.bat runDatagen`) und werden nicht von Hand nachbearbeitet.
-- Build und Deployment immer über `.\build.ps1` beziehungsweise
-  `powershell -ExecutionPolicy Bypass -File ./build.ps1`. Das Skript liest `mod_id` aus
-  `gradle.properties` und die Zielordner aus `deploy.properties`, baut mit Gradle, kopiert
-  das JAR atomar in Server und Client und verifiziert SHA-256.
-- `.\build.ps1 -Reconfigure` setzt die Deploy-Pfade neu, `.\build.ps1 -Clean` baut sauber,
-  `.\build.ps1 -StopDaemons` beendet hängende Gradle-Daemons.
-- Ein grüner Build ersetzt keinen Laufzeittest. Bei Änderungen an Rendering, HUD, Netzwerk
-  oder Mixins zusätzlich `.\gradlew.bat runClient` beziehungsweise `runServer` starten und
-  das Log prüfen.
+- **Build & Deployment:** Immer über [`.\build.ps1`](file:///E:/OneShotOneKill/MOD/build.ps1) bzw. `powershell -ExecutionPolicy Bypass -File ./build.ps1` (oder die IntelliJ Run Configuration `BUILD`).
+  - Liest `mod_id` aus `gradle.properties`.
+  - Liest Zielordner aus `deploy.properties`.
+  - Baut die Mod mit Gradle und kopiert das JAR atomar in Server- und Client-Mods-Ordner.
+- **Parameter für `build.ps1`:**
+  - `-Reconfigure`: Setzt die Deploy-Pfade neu.
+  - `-Clean`: Führt vorab `gradlew clean` aus.
+  - `-StopDaemons`: Beendet hängende Gradle-Daemons.
+- **IDE Local History:** Bei unerwünschten Dateiänderungen bietet IntelliJ über `Local History > Show History` die Möglichkeit, jeden Zustand sofort per Revert wiederherzustellen.
