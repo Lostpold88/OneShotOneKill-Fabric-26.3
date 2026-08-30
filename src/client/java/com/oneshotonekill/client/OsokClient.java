@@ -178,6 +178,9 @@ public final class OsokClient implements ClientModInitializer {
    }
 
    private static void onClientTick(Minecraft client) {
+      if (client.isPaused()) {
+         return;
+      }
       MinigunHudState.INSTANCE.tick();
       MatchStartState.INSTANCE.tick();
       GrapplePullState.INSTANCE.tick();

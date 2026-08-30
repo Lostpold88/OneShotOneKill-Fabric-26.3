@@ -74,7 +74,7 @@ public final class MatchHudLayers {
       @Override
       public void extractRenderState(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
          MatchStartState state = MatchStartState.INSTANCE;
-         float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
+         float partialTick = Minecraft.getInstance().isPaused() ? 0.0F : deltaTracker.getGameTimeDeltaPartialTick(false);
          int centreX = graphics.guiWidth() / 2;
          int centreY = graphics.guiHeight() / 2;
          int width = graphics.guiWidth();
@@ -98,8 +98,8 @@ public final class MatchHudLayers {
          float overall = 1.0F - remaining / MatchStartState.COUNTDOWN_TICKS;
          int accent = SECOND_COLORS[second - 1];
 
-         // Audio-Beep bei Sekundenwechsel
-         if (second != lastBeepSecond) {
+         // Audio-Beep bei Sekundenwechsel (nur wenn nicht pausiert)
+         if (!Minecraft.getInstance().isPaused() && second != lastBeepSecond) {
             lastBeepSecond = second;
             Minecraft.getInstance().getSoundManager().play(
                SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, SECOND_PITCHES[second - 1])
