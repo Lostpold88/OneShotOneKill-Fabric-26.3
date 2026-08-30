@@ -620,28 +620,14 @@ public final class OsokPayloads {
       public static final Type<GrapplePullPayload> TYPE = new Type<>(
          OneShotOneKill.INSTANCE.id("grapple_pull"));
 
-      public static final StreamCodec<ByteBuf, GrapplePullPayload> STREAM_CODEC = new StreamCodec<>() {
-         @Override
-         public GrapplePullPayload decode(ByteBuf buffer) {
-            return new GrapplePullPayload(
-               UUIDUtil.STREAM_CODEC.decode(buffer),
-               ByteBufCodecs.BOOL.decode(buffer),
-               ByteBufCodecs.BOOL.decode(buffer),
-               ByteBufCodecs.DOUBLE.decode(buffer),
-               ByteBufCodecs.DOUBLE.decode(buffer),
-               ByteBufCodecs.DOUBLE.decode(buffer));
-         }
-
-         @Override
-         public void encode(ByteBuf buffer, GrapplePullPayload payload) {
-            UUIDUtil.STREAM_CODEC.encode(buffer, payload.player);
-            ByteBufCodecs.BOOL.encode(buffer, payload.active);
-            ByteBufCodecs.BOOL.encode(buffer, payload.pulling);
-            ByteBufCodecs.DOUBLE.encode(buffer, payload.hookX);
-            ByteBufCodecs.DOUBLE.encode(buffer, payload.hookY);
-            ByteBufCodecs.DOUBLE.encode(buffer, payload.hookZ);
-         }
-      };
+      public static final StreamCodec<ByteBuf, GrapplePullPayload> STREAM_CODEC = StreamCodec.composite(
+         UUIDUtil.STREAM_CODEC, GrapplePullPayload::player,
+         ByteBufCodecs.BOOL, GrapplePullPayload::active,
+         ByteBufCodecs.BOOL, GrapplePullPayload::pulling,
+         ByteBufCodecs.DOUBLE, GrapplePullPayload::hookX,
+         ByteBufCodecs.DOUBLE, GrapplePullPayload::hookY,
+         ByteBufCodecs.DOUBLE, GrapplePullPayload::hookZ,
+         GrapplePullPayload::new);
 
       public static GrapplePullPayload inactive(UUID player) {
          return new GrapplePullPayload(player, false, false, 0.0, 0.0, 0.0);
@@ -665,26 +651,15 @@ public final class OsokPayloads {
    public record GlidingPlayersPayload(List<UUID> players) implements CustomPacketPayload {
       public static final Type<GlidingPlayersPayload> TYPE = new Type<>(
          OneShotOneKill.INSTANCE.id("gliding_players"));
-   
-      private static final StreamCodec<ByteBuf, List<UUID>> PLAYER_LIST =
-         UUIDUtil.STREAM_CODEC.apply(ByteBufCodecs.list(64));
-   
-      public static final StreamCodec<ByteBuf, GlidingPlayersPayload> STREAM_CODEC = new StreamCodec<>() {
-         @Override
-         public GlidingPlayersPayload decode(ByteBuf buffer) {
-            return new GlidingPlayersPayload(PLAYER_LIST.decode(buffer));
-         }
-   
-         @Override
-         public void encode(ByteBuf buffer, GlidingPlayersPayload payload) {
-            PLAYER_LIST.encode(buffer, payload.players());
-         }
-      };
-   
+
+      public static final StreamCodec<ByteBuf, GlidingPlayersPayload> STREAM_CODEC =
+         UUIDUtil.STREAM_CODEC.apply(ByteBufCodecs.list(64))
+            .map(GlidingPlayersPayload::new, GlidingPlayersPayload::players);
+
       public GlidingPlayersPayload {
          players = List.copyOf(players);
       }
-   
+
       @Override
       public Type<GlidingPlayersPayload> type() {
          return TYPE;
@@ -696,26 +671,15 @@ public final class OsokPayloads {
    public record MagnetFieldsPayload(List<UUID> players) implements CustomPacketPayload {
       public static final Type<MagnetFieldsPayload> TYPE = new Type<>(
          OneShotOneKill.INSTANCE.id("magnet_fields"));
-   
-      private static final StreamCodec<ByteBuf, List<UUID>> PLAYER_LIST =
-         UUIDUtil.STREAM_CODEC.apply(ByteBufCodecs.list(64));
-   
-      public static final StreamCodec<ByteBuf, MagnetFieldsPayload> STREAM_CODEC = new StreamCodec<>() {
-         @Override
-         public MagnetFieldsPayload decode(ByteBuf buffer) {
-            return new MagnetFieldsPayload(PLAYER_LIST.decode(buffer));
-         }
-   
-         @Override
-         public void encode(ByteBuf buffer, MagnetFieldsPayload payload) {
-            PLAYER_LIST.encode(buffer, payload.players());
-         }
-      };
-   
+
+      public static final StreamCodec<ByteBuf, MagnetFieldsPayload> STREAM_CODEC =
+         UUIDUtil.STREAM_CODEC.apply(ByteBufCodecs.list(64))
+            .map(MagnetFieldsPayload::new, MagnetFieldsPayload::players);
+
       public MagnetFieldsPayload {
          players = List.copyOf(players);
       }
-   
+
       @Override
       public Type<MagnetFieldsPayload> type() {
          return TYPE;
@@ -1034,19 +998,10 @@ public final class OsokPayloads {
    public record SelectBomberTargetPayload(UUID target) implements CustomPacketPayload {
       public static final Type<SelectBomberTargetPayload> TYPE =
          new Type<>(OneShotOneKill.INSTANCE.id("select_bomber_target"));
-   
-      public static final StreamCodec<ByteBuf, SelectBomberTargetPayload> STREAM_CODEC = new StreamCodec<>() {
-         @Override
-         public SelectBomberTargetPayload decode(ByteBuf buffer) {
-            return new SelectBomberTargetPayload(UUIDUtil.STREAM_CODEC.decode(buffer));
-         }
-   
-         @Override
-         public void encode(ByteBuf buffer, SelectBomberTargetPayload payload) {
-            UUIDUtil.STREAM_CODEC.encode(buffer, payload.target);
-         }
-      };
-   
+
+      public static final StreamCodec<ByteBuf, SelectBomberTargetPayload> STREAM_CODEC =
+         UUIDUtil.STREAM_CODEC.map(SelectBomberTargetPayload::new, SelectBomberTargetPayload::target);
+
       @Override
       public Type<SelectBomberTargetPayload> type() {
          return TYPE;
@@ -1165,32 +1120,16 @@ public final class OsokPayloads {
       boolean isLevelUp
    ) implements CustomPacketPayload {
       public static final Type<GunGameStatusPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("gun_game_status"));
-      public static final StreamCodec<ByteBuf, GunGameStatusPayload> STREAM_CODEC = new StreamCodec<>() {
-         @Override
-         public GunGameStatusPayload decode(ByteBuf buffer) {
-            boolean active = ByteBufCodecs.BOOL.decode(buffer);
-            int currentTier = ByteBufCodecs.VAR_INT.decode(buffer);
-            int totalTiers = ByteBufCodecs.VAR_INT.decode(buffer);
-            int tierKills = ByteBufCodecs.VAR_INT.decode(buffer);
-            int requiredKills = ByteBufCodecs.VAR_INT.decode(buffer);
-            String tierName = ByteBufCodecs.STRING_UTF8.decode(buffer);
-            String colorName = ByteBufCodecs.STRING_UTF8.decode(buffer);
-            boolean isLevelUp = ByteBufCodecs.BOOL.decode(buffer);
-            return new GunGameStatusPayload(active, currentTier, totalTiers, tierKills, requiredKills, tierName, colorName, isLevelUp);
-         }
-
-         @Override
-         public void encode(ByteBuf buffer, GunGameStatusPayload payload) {
-            ByteBufCodecs.BOOL.encode(buffer, payload.active);
-            ByteBufCodecs.VAR_INT.encode(buffer, payload.currentTier);
-            ByteBufCodecs.VAR_INT.encode(buffer, payload.totalTiers);
-            ByteBufCodecs.VAR_INT.encode(buffer, payload.tierKills);
-            ByteBufCodecs.VAR_INT.encode(buffer, payload.requiredKills);
-            ByteBufCodecs.STRING_UTF8.encode(buffer, payload.tierName);
-            ByteBufCodecs.STRING_UTF8.encode(buffer, payload.colorName);
-            ByteBufCodecs.BOOL.encode(buffer, payload.isLevelUp);
-         }
-      };
+      public static final StreamCodec<ByteBuf, GunGameStatusPayload> STREAM_CODEC = StreamCodec.composite(
+         ByteBufCodecs.BOOL, GunGameStatusPayload::active,
+         ByteBufCodecs.VAR_INT, GunGameStatusPayload::currentTier,
+         ByteBufCodecs.VAR_INT, GunGameStatusPayload::totalTiers,
+         ByteBufCodecs.VAR_INT, GunGameStatusPayload::tierKills,
+         ByteBufCodecs.VAR_INT, GunGameStatusPayload::requiredKills,
+         ByteBufCodecs.STRING_UTF8, GunGameStatusPayload::tierName,
+         ByteBufCodecs.STRING_UTF8, GunGameStatusPayload::colorName,
+         ByteBufCodecs.BOOL, GunGameStatusPayload::isLevelUp,
+         GunGameStatusPayload::new);
 
       public static GunGameStatusPayload inactive() {
          return new GunGameStatusPayload(false, 1, 13, 0, 3, "", "yellow", false);

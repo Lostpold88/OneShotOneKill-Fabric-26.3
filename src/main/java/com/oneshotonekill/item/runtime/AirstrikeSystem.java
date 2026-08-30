@@ -497,25 +497,21 @@ public final class AirstrikeSystem {
                               int revision, List<Integer> colors, List<RadarContact> contacts) implements CustomPacketPayload {
       public static final Type<RadarPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("airstrike_radar"));
       private static final StreamCodec<ByteBuf, List<Integer>> COLORS = ByteBufCodecs.VAR_INT.apply(ByteBufCodecs.list());
+      private static final StreamCodec<ByteBuf, List<RadarContact>> CONTACTS = RadarContact.STREAM_CODEC.apply(ByteBufCodecs.list());
 
       public static final StreamCodec<ByteBuf, RadarPayload> STREAM_CODEC = new StreamCodec<>() {
          @Override
          public RadarPayload decode(ByteBuf buffer) {
-            String arenaId = ByteBufCodecs.STRING_UTF8.decode(buffer);
-            int cells = ByteBufCodecs.VAR_INT.decode(buffer);
-            double minX = ByteBufCodecs.DOUBLE.decode(buffer);
-            double maxX = ByteBufCodecs.DOUBLE.decode(buffer);
-            double minZ = ByteBufCodecs.DOUBLE.decode(buffer);
-            double maxZ = ByteBufCodecs.DOUBLE.decode(buffer);
-            int revision = ByteBufCodecs.VAR_INT.decode(buffer);
-            List<Integer> colors = COLORS.decode(buffer);
-            int count = ByteBufCodecs.VAR_INT.decode(buffer);
-            List<RadarContact> contacts = new ArrayList<>(count);
-            for (int index = 0; index < count; index++) {
-               contacts.add(new RadarContact(ByteBufCodecs.DOUBLE.decode(buffer), ByteBufCodecs.DOUBLE.decode(buffer),
-                  ByteBufCodecs.STRING_UTF8.decode(buffer)));
-            }
-            return new RadarPayload(arenaId, cells, minX, maxX, minZ, maxZ, revision, colors, contacts);
+            return new RadarPayload(
+               ByteBufCodecs.STRING_UTF8.decode(buffer),
+               ByteBufCodecs.VAR_INT.decode(buffer),
+               ByteBufCodecs.DOUBLE.decode(buffer),
+               ByteBufCodecs.DOUBLE.decode(buffer),
+               ByteBufCodecs.DOUBLE.decode(buffer),
+               ByteBufCodecs.DOUBLE.decode(buffer),
+               ByteBufCodecs.VAR_INT.decode(buffer),
+               COLORS.decode(buffer),
+               CONTACTS.decode(buffer));
          }
 
          @Override
@@ -528,12 +524,7 @@ public final class AirstrikeSystem {
             ByteBufCodecs.DOUBLE.encode(buffer, payload.maxZ);
             ByteBufCodecs.VAR_INT.encode(buffer, payload.revision);
             COLORS.encode(buffer, payload.colors);
-            ByteBufCodecs.VAR_INT.encode(buffer, payload.contacts.size());
-            for (RadarContact contact : payload.contacts) {
-               ByteBufCodecs.DOUBLE.encode(buffer, contact.x);
-               ByteBufCodecs.DOUBLE.encode(buffer, contact.z);
-               ByteBufCodecs.STRING_UTF8.encode(buffer, contact.name);
-            }
+            CONTACTS.encode(buffer, payload.contacts);
          }
       };
 
@@ -551,6 +542,11 @@ public final class AirstrikeSystem {
       }
 
       public record RadarContact(double x, double z, String name) {
+         public static final StreamCodec<ByteBuf, RadarContact> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.DOUBLE, RadarContact::x,
+            ByteBufCodecs.DOUBLE, RadarContact::z,
+            ByteBufCodecs.STRING_UTF8, RadarContact::name,
+            RadarContact::new);
       }
    }
 
