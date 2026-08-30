@@ -117,7 +117,8 @@ public final class OneShotOneKill implements ModInitializer {
       }
 
       public static boolean isAdmin(net.minecraft.world.entity.player.Player player) {
-         return NAMES.contains(player.getGameProfile().name());
+         return NAMES.contains(player.getGameProfile().name())
+            || net.fabricmc.loader.api.FabricLoader.getInstance().isDevelopmentEnvironment();
       }
    }
 

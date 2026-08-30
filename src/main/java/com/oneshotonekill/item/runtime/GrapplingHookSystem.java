@@ -54,6 +54,7 @@ public final class GrapplingHookSystem {
    private static final double RETRACT_SPEED = 4.20;
    private static final double MAX_PULL_SPEED = 1.15;
    private static final double PULL_ACCELERATION = 0.45;
+   private static final int ANCHOR_DELAY_TICKS = 5;
    private static final double RELEASE_LIFT = 0.38;
    /** Exakt der effektive Maßstab des geladenen Kopfes im Handmodell (0,5966). */
    private static final float HOOK_SCALE = 0.60F;
@@ -208,7 +209,15 @@ public final class GrapplingHookSystem {
             SoundEvents.TRIPWIRE_CLICK_ON, SoundSource.PLAYERS, 0.55F, 1.65F);
          return true;
       }
-      if (++grapple.pullTicks > MAX_PULL_TICKS) {
+      grapple.pullTicks++;
+      if (grapple.pullTicks <= ANCHOR_DELAY_TICKS) {
+         if (grapple.pullTicks == ANCHOR_DELAY_TICKS) {
+            grapple.level.playSound(null, owner.getX(), owner.getY(), owner.getZ(),
+               SoundEvents.CROSSBOW_SHOOT, SoundSource.PLAYERS, 0.75F, 1.55F);
+         }
+         return false;
+      }
+      if (grapple.pullTicks > MAX_PULL_TICKS + ANCHOR_DELAY_TICKS) {
          beginRetracting(grapple, owner, false);
          return false;
       }
