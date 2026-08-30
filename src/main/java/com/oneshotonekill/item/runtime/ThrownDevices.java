@@ -352,7 +352,7 @@ public final class ThrownDevices {
          BlockPos feet = BlockPos.containing(candidate);
          BlockState feetState = level.getBlockState(feet);
          BlockState headState = level.getBlockState(feet.above());
-         if (!feetState.blocksMotion() && !headState.blocksMotion()) {
+         if ((feetState.isAir() || feetState.canBeReplaced()) && (headState.isAir() || headState.canBeReplaced())) {
             return candidate;
          }
       }
