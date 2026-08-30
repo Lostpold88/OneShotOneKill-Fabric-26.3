@@ -489,20 +489,19 @@ public final class CombatHudLayers {
    // =========================================================================
    /**
     * Taktisches Visier und Ziel-Rangefinder des Grappling Hooks:
-    * Pneumatisches Harpunen-Reticle mit Live-Entfernungsmesser bis 38 Blöcke,
-    * dynamischen Zielbacken (Target-Lock bei Blockkontakt), 10-Zellen Manometer-Druckanzeige,
-    * kinetischen Zugvektor-Pfeilen und vollständiger deutscher Telemetrie.
+    * Crimson-rotes pneumatisches Harpunen-Reticle passend zum roten Pömpelkopf,
+    * freischwebende Geometrie ohne Box-Hintergründe, Live-Entfernungsmesser bis 38 Blöcke,
+    * dynamische Zielbacken (Target-Lock bei Blockkontakt), 10-Zellen Rubin-Druckanzeige
+    * und kinetische Zugvektor-Pfeile in deutscher Telemetrie.
     */
    public static final class GrapplingHookHudLayer implements HudElement {
       private static final double MAX_GRAPPLE_RANGE = 38.0;
-      private static final int COLOR_LOCK_CYAN = 0xFF00F0FF;
-      private static final int COLOR_LOCK_WHITE = 0xFFFFFFFF;
-      private static final int COLOR_AMBER = 0xFFFFCC00;
-      private static final int COLOR_CRITICAL_RED = 0xFFFF3344;
-      private static final int COLOR_DIM_STEEL = 0x88607080;
-      private static final int COLOR_BOX_BG = 0xAA080E14;
-      private static final int COLOR_CELL_EMPTY = 0x33101520;
-      private static final int COLOR_CELL_BORDER = 0x44304050;
+      private static final int COLOR_RED_PRIMARY = 0xFFFF2A4D;
+      private static final int COLOR_RED_BRIGHT = 0xFFFF4D6D;
+      private static final int COLOR_RED_PULL = 0xFFFF6600;
+      private static final int COLOR_RED_DIM = 0x88993344;
+      private static final int COLOR_RED_EMPTY = 0x33661122;
+      private static final int COLOR_WHITE = 0xFFFFFFFF;
 
       @Override
       public void extractRenderState(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
@@ -522,7 +521,7 @@ public final class CombatHudLayers {
          int centerY = (graphics.guiHeight() - 1) / 2;
          float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
 
-         // Live-Raycast zur Oberfläche
+         // Live-Raycast zur Zieloberfläche
          Vec3 eye = player.getEyePosition(partialTick);
          Vec3 look = player.getViewVector(partialTick);
          Vec3 end = eye.add(look.scale(MAX_GRAPPLE_RANGE));
@@ -554,17 +553,14 @@ public final class CombatHudLayers {
          float pulse = 0.5f + 0.5f * Mth.sin(time * 0.45f);
 
          int accentColor = active
-            ? (pulling ? COLOR_AMBER : COLOR_LOCK_CYAN)
-            : (inRange ? COLOR_LOCK_CYAN : COLOR_DIM_STEEL);
+            ? (pulling ? COLOR_RED_PULL : COLOR_RED_PRIMARY)
+            : (inRange ? COLOR_RED_PRIMARY : COLOR_RED_DIM);
 
-         // 1. Zartes Vignette/Shadow-Backdrop um das Visier für kristallklaren Kontrast
-         graphics.fill(cx - 20, cy - 20, cx + 21, cy + 21, 0x12000000);
+         // 1. Zentraler Präzisionspunkt (2x2) mit Kontur
+         graphics.fill(cx - 2, cy - 2, cx + 3, cy + 3, 0x55000000);
+         graphics.fill(cx - 1, cy - 1, cx + 2, cy + 2, inRange || active ? COLOR_WHITE : COLOR_RED_DIM);
 
-         // 2. Zentraler Präzisionspunkt (2x2) mit Kontur
-         graphics.fill(cx - 2, cy - 2, cx + 3, cy + 3, 0x66000000);
-         graphics.fill(cx - 1, cy - 1, cx + 2, cy + 2, inRange || active ? COLOR_LOCK_WHITE : COLOR_DIM_STEEL);
-
-         // 3. 4 Sub-Pixel Achsen-Linien
+         // 2. 4 Sub-Pixel Achsen-Linien
          int axisGap = 4;
          int axisLen = 3;
          graphics.horizontalLine(cx - axisGap - axisLen, cx - axisGap, cy, accentColor);
@@ -572,11 +568,11 @@ public final class CombatHudLayers {
          graphics.verticalLine(cx, cy - axisGap - axisLen, cy - axisGap, accentColor);
          graphics.verticalLine(cx, cy + axisGap, cy + axisGap + axisLen, accentColor);
 
-         // 4. 4 Greif-Backen (Calipers): ziehen sich bei Lock zusammen
-         int radius = inRange ? 11 : 16;
+         // 3. 4 Dynamische Greif-Backen (Klammern): ziehen sich bei Lock zusammen
+         int radius = inRange ? 10 : 15;
          int arm = 4;
          if (active) {
-            radius = 9 + (int) (pulse * 3.0f);
+            radius = 8 + (int) (pulse * 3.0f);
          }
 
          // Oben-Links
@@ -595,43 +591,40 @@ public final class CombatHudLayers {
          graphics.horizontalLine(cx + radius, cx + radius + arm, cy + radius, accentColor);
          graphics.verticalLine(cx + radius, cy + radius - arm, cy + radius, accentColor);
 
-         // 5. Kinetische Zugpfeile (zeigen zur Mitte bei aktivem Zug)
+         // 4. Kinetische Zugpfeile (zeigen zur Mitte bei aktivem Zug)
          if (pulling) {
             int arrowDist = 7;
-            graphics.fill(cx, cy - arrowDist, cx + 1, cy - arrowDist + 2, COLOR_AMBER);
-            graphics.fill(cx, cy + arrowDist - 1, cx + 1, cy + arrowDist + 1, COLOR_AMBER);
-            graphics.fill(cx - arrowDist, cy, cx - arrowDist + 2, cy + 1, COLOR_AMBER);
-            graphics.fill(cx + arrowDist - 1, cy, cx + arrowDist + 1, cy + 1, COLOR_AMBER);
+            graphics.fill(cx, cy - arrowDist, cx + 1, cy - arrowDist + 2, COLOR_RED_PULL);
+            graphics.fill(cx, cy + arrowDist - 1, cx + 1, cy + arrowDist + 1, COLOR_RED_PULL);
+            graphics.fill(cx - arrowDist, cy, cx - arrowDist + 2, cy + 1, COLOR_RED_PULL);
+            graphics.fill(cx + arrowDist - 1, cy, cx + arrowDist + 1, cy + 1, COLOR_RED_PULL);
          }
 
-         // 6. Taktisches Status- & Entfernungs-Badge (oberhalb bei cy - 28)
-         int textY = cy - 28;
+         // 5. Freischwebende Status- & Entfernungsanzeige (oberhalb bei cy - 24, ohne Kasten)
+         int textY = cy - 24;
          String statusText;
          int statusColor;
          if (pulling) {
             statusText = "⛓ ZUG AKTIV · " + String.format(Locale.ROOT, "%.1f", distance) + " m";
-            statusColor = COLOR_AMBER;
+            statusColor = COLOR_RED_PULL;
          } else if (active) {
             statusText = "⛓ HAKEN IM FLUG";
-            statusColor = COLOR_LOCK_CYAN;
+            statusColor = COLOR_RED_BRIGHT;
          } else if (inRange) {
             statusText = "🎯 " + String.format(Locale.ROOT, "%.1f", distance) + " m // ZIEL BEREIT";
-            statusColor = COLOR_LOCK_CYAN;
+            statusColor = COLOR_RED_BRIGHT;
          } else {
             statusText = "--- m // AUSSER REICHWEITE";
-            statusColor = COLOR_DIM_STEEL;
+            statusColor = COLOR_RED_DIM;
          }
 
-         int textW = font.width(statusText);
-         graphics.fill(cx - textW / 2 - 4, textY - 2, cx + textW / 2 + 4, textY + 9, COLOR_BOX_BG);
-         graphics.horizontalLine(cx - textW / 2 - 4, cx + textW / 2 + 3, textY - 2, 0x4400F0FF);
          graphics.centeredText(font, statusText, cx, textY, statusColor);
 
-         // 7. 10-Zellen Pneumatik-Druckanzeige (unterhalb bei cy + 22)
-         drawPneumaticPressureGauge(graphics, font, cx, cy + 22, charges, maxCharges, pulse);
+         // 6. Freischwebende 10-Zellen Rubin-Druckanzeige (unterhalb bei cy + 20, ohne Kasten)
+         drawFloatingPressureGauge(graphics, font, cx, cy + 20, charges, maxCharges, pulse);
       }
 
-      private static void drawPneumaticPressureGauge(GuiGraphicsExtractor graphics, Font font,
+      private static void drawFloatingPressureGauge(GuiGraphicsExtractor graphics, Font font,
                                                     int cx, int y, int charges, int maxCharges,
                                                     float pulse) {
          if (maxCharges <= 0) {
@@ -644,49 +637,46 @@ public final class CombatHudLayers {
          int totalW = maxCharges * cellW + (maxCharges - 1) * gap;
          int startX = cx - totalW / 2;
 
-         // Hintergrund-Rahmen für das Manometer
-         graphics.fill(startX - 3, y - 2, startX + totalW + 3, y + cellH + 2, COLOR_BOX_BG);
-
          for (int i = 0; i < maxCharges; i++) {
             int px = startX + i * (cellW + gap);
             boolean filled = i < charges;
 
-            // Äußerer Zellenrahmen
-            graphics.fill(px - 1, y - 1, px + cellW + 1, y + cellH + 1, COLOR_CELL_BORDER);
-
             if (filled) {
                int cellColor;
-               if (charges <= 1) {
-                  cellColor = MinigunHudLayer.lerpColor(COLOR_CRITICAL_RED, 0xFFFFFFFF, pulse);
+               if (charges == 1) {
+                  cellColor = MinigunHudLayer.lerpColor(COLOR_RED_PRIMARY, COLOR_WHITE, pulse);
                } else if (charges <= 3) {
-                  cellColor = 0xFFFF9900;
+                  cellColor = COLOR_RED_PULL;
                } else {
-                  cellColor = COLOR_LOCK_CYAN;
+                  cellColor = COLOR_RED_PRIMARY;
                }
+               // Gefüllte Kapsel mit 1px Schatten
+               graphics.fill(px - 1, y - 1, px + cellW + 1, y + cellH + 1, 0x44000000);
                graphics.fill(px, y, px + cellW, y + cellH, cellColor);
             } else {
-               graphics.fill(px, y, px + cellW, y + cellH, COLOR_CELL_EMPTY);
+               // Leere Kapsel dezent dunkelrot
+               graphics.fill(px, y, px + cellW, y + cellH, COLOR_RED_EMPTY);
             }
          }
 
-         // Deutscher Telemetrie-Text darunter
+         // Deutscher Telemetrie-Text freischwebend darunter
          String label;
          int labelColor;
          if (charges == 1) {
             label = "⚠ LETZTE LADUNG // KABEL AM LIMIT";
-            labelColor = MinigunHudLayer.lerpColor(COLOR_CRITICAL_RED, 0xFFFFFFFF, pulse);
+            labelColor = MinigunHudLayer.lerpColor(COLOR_RED_PRIMARY, COLOR_WHITE, pulse);
          } else if (charges <= 3 && charges > 0) {
             label = "⛓ DRUCK: " + charges + " / " + maxCharges + " LADUNGEN";
-            labelColor = 0xFFFF9900;
+            labelColor = COLOR_RED_PULL;
          } else if (charges > 0) {
             label = "⛓ DRUCK: " + charges + " / " + maxCharges + " LADUNGEN";
-            labelColor = OsokWidgets.COLOR_TEXT_MUTED;
+            labelColor = COLOR_RED_BRIGHT;
          } else {
             label = "✖ ENTLADEN // KEIN DRUCK";
-            labelColor = COLOR_DIM_STEEL;
+            labelColor = COLOR_RED_DIM;
          }
 
-         graphics.centeredText(font, label, cx, y + cellH + 5, labelColor);
+         graphics.centeredText(font, label, cx, y + cellH + 4, labelColor);
       }
    }
 
