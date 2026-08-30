@@ -49,12 +49,12 @@ public final class GrapplingHookSystem {
    private static final double FIRE_SPEED = 3.20;
    private static final double MAX_RANGE = 38.0;
    private static final int MAX_FLIGHT_TICKS = 16;
-   private static final int MAX_PULL_TICKS = 42;
+   private static final int MAX_PULL_TICKS = 65;
    private static final double RELEASE_DISTANCE = 2.35;
    private static final double RETRACT_SPEED = 4.20;
-   private static final double MAX_PULL_SPEED = 1.78;
-   private static final double PULL_ACCELERATION = 0.72;
-   private static final double RELEASE_LIFT = 0.42;
+   private static final double MAX_PULL_SPEED = 1.15;
+   private static final double PULL_ACCELERATION = 0.45;
+   private static final double RELEASE_LIFT = 0.38;
    /** Exakt der effektive Maßstab des geladenen Kopfes im Handmodell (0,5966). */
    private static final float HOOK_SCALE = 0.60F;
    private static final float VIEW_RANGE = 3.0F;
@@ -215,14 +215,14 @@ public final class GrapplingHookSystem {
 
       Vec3 direction = toAnchor.scale(1.0 / distance);
       Vec3 current = owner.getDeltaMovement();
-      double targetSpeed = Math.min(MAX_PULL_SPEED, 1.12 + distance * 0.025);
-      Vec3 desired = direction.scale(targetSpeed).add(0.0, 0.055, 0.0);
-      Vec3 movement = current.scale(0.58).add(desired.scale(PULL_ACCELERATION));
+      double targetSpeed = Math.min(MAX_PULL_SPEED, 0.85 + distance * 0.015);
+      Vec3 desired = direction.scale(targetSpeed).add(0.0, 0.045, 0.0);
+      Vec3 movement = current.scale(0.68).add(desired.scale(PULL_ACCELERATION));
       if (movement.lengthSqr() > MAX_PULL_SPEED * MAX_PULL_SPEED) {
          movement = movement.normalize().scale(MAX_PULL_SPEED);
       }
       if (owner.onGround() && direction.y > 0.08) {
-         movement = new Vec3(movement.x, Math.max(movement.y, 0.48), movement.z);
+         movement = new Vec3(movement.x, Math.max(movement.y, 0.38), movement.z);
       }
 
       owner.setDeltaMovement(movement);

@@ -24,13 +24,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(ServerPlayer.class)
 public abstract class ServerPlayerDropMixin {
+   @SuppressWarnings({"ConstantConditions", "DataFlowIssue"})
    @Inject(
       method = "drop(Lnet/minecraft/world/item/ItemStack;ZZ)Lnet/minecraft/world/entity/item/ItemEntity;",
       at = @At("HEAD"),
       cancellable = true)
    private void osok$keepProtectedItems(ItemStack itemStack, boolean randomly, boolean thrownFromHand,
                                         CallbackInfoReturnable<ItemEntity> cir) {
-      if (ItemProtectionEvents.interceptDrop((ServerPlayer) (Object) this, itemStack)) {
+      if (thrownFromHand && ItemProtectionEvents.interceptDrop((ServerPlayer) (Object) this, itemStack)) {
          cir.setReturnValue(null);
       }
    }
