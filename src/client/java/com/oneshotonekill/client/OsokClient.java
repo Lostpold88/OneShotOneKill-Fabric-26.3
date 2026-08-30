@@ -5,20 +5,9 @@ import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.client.effect.TimeDistortionEffects;
 import com.oneshotonekill.client.hud.ChronoHudLayers.TimeDistortionLayer;
 import com.oneshotonekill.client.hud.CombatHudLayers;
-import com.oneshotonekill.client.hud.CombatHudLayers.AbilityStatusLayer;
-import com.oneshotonekill.client.hud.CombatHudLayers.AirstrikeAlarmLayer;
-import com.oneshotonekill.client.hud.CombatHudLayers.BomberCameraLayer;
-import com.oneshotonekill.client.hud.CombatHudLayers.DeployableMarkerLayer;
-import com.oneshotonekill.client.hud.CombatHudLayers.ItemBoxLayer;
-import com.oneshotonekill.client.hud.CombatHudLayers.MinigunHudLayer;
-import com.oneshotonekill.client.hud.CombatHudLayers.RailgunHudLayer;
-import com.oneshotonekill.client.hud.MatchHudLayers.GunGameHudLayer;
-import com.oneshotonekill.client.hud.MatchHudLayers.MatchBannerLayer;
-import com.oneshotonekill.client.hud.MatchHudLayers.MatchCountdownLayer;
-import com.oneshotonekill.client.hud.MatchHudLayers.MatchStartOverlayLayer;
-import com.oneshotonekill.client.hud.NukeHudLayers.NukeCountdownLayer;
-import com.oneshotonekill.client.hud.NukeHudLayers.NukeFlashLayer;
-import com.oneshotonekill.client.hud.NukeHudLayers.NukeVictoryLayer;
+import com.oneshotonekill.client.hud.CombatHudLayers.*;
+import com.oneshotonekill.client.hud.MatchHudLayers.*;
+import com.oneshotonekill.client.hud.NukeHudLayers.*;
 import com.oneshotonekill.client.model.OsokClientModels;
 import com.oneshotonekill.client.network.OsokClientHandlers;
 import com.oneshotonekill.client.renderer.ChainLightningItemRenderer;
@@ -118,13 +107,11 @@ public final class OsokClient implements ClientModInitializer {
 
    /**
     * Alle HUD-Ebenen der Mod.
-    * <p>
-    * {@code addLast} hängt sie hinter das gesamte Vanilla-HUD – dasselbe Ergebnis wie das
-    * frühere Einhängen am Ende von {@code Hud#extractRenderState}.
     */
    private static void registerHudElements() {
       HudElementRegistry.addLast(id("minigun_hud"), new MinigunHudLayer());
       HudElementRegistry.addLast(id("railgun_hud"), new RailgunHudLayer());
+      HudElementRegistry.addLast(id("grappling_hook_hud"), new GrapplingHookHudLayer());
       HudElementRegistry.addLast(id("airstrike_alarm"), new AirstrikeAlarmLayer());
       HudElementRegistry.addLast(id("bomber_camera"), new BomberCameraLayer());
       HudElementRegistry.addLast(id("item_box_marker"), new ItemBoxLayer());
@@ -139,14 +126,16 @@ public final class OsokClient implements ClientModInitializer {
       HudElementRegistry.addLast(id("nuke_victory"), new NukeVictoryLayer());
       HudElementRegistry.addLast(id("nuke_flash"), new NukeFlashLayer());
 
-      // Das Vanilla-Fadenkreuz wird ausgeblendet, solange Minigun oder Railgun in der Hand liegen:
+      // Das Vanilla-Fadenkreuz wird ausgeblendet, solange Minigun, Railgun oder Grappling Hook in der Hand liegen:
       HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, original -> (graphics, deltaTracker) -> {
          Minecraft client = Minecraft.getInstance();
          if (client.player != null && client.options.getCameraType().isFirstPerson()) {
-            boolean hasHeavyWeapon = client.player.getMainHandItem().is(ModItems.MINIGUN)
+            boolean hasCustomCrosshair = client.player.getMainHandItem().is(ModItems.MINIGUN)
                || client.player.getMainHandItem().is(ModItems.RAILGUN)
-               || client.player.getOffhandItem().is(ModItems.RAILGUN);
-            if (hasHeavyWeapon) {
+               || client.player.getOffhandItem().is(ModItems.RAILGUN)
+               || client.player.getMainHandItem().is(ModItems.GRAPPLING_HOOK)
+               || client.player.getOffhandItem().is(ModItems.GRAPPLING_HOOK);
+            if (hasCustomCrosshair) {
                return;
             }
          }
@@ -156,9 +145,6 @@ public final class OsokClient implements ClientModInitializer {
 
    /**
     * Die eigenen Modellbausteine.
-    * <p>
-    * <p>Ein Item-Modell ist von Haus aus starr, und eine Modell-Bedingung kennt nur, was Vanilla
-    * mitbringt. Beides lässt sich ohne Mixin erweitern: {@code ItemModels},
     * {@code ConditionalItemModelProperties} und {@code SpecialModelRenderers} halten je eine
     * öffentliche {@code LateBoundIdMapper}-Tabelle, in die ein eigener Codec unter eigener
     * Kennung eingetragen wird. Genau darauf verweisen die Modell-Definitionen unter

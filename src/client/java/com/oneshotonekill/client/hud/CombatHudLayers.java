@@ -40,9 +40,13 @@ import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.shapes.CollisionContext;
+import java.util.Locale;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
@@ -61,7 +65,7 @@ import static com.oneshotonekill.item.types.WeaponItems.*;
 /**
  * HUD-Layer Gruppe.
  */
-@SuppressWarnings({"NullableProblems", "SameParameterValue", "unused"})
+@SuppressWarnings({"NullableProblems", "SameParameterValue", "resource", "unused"})
 public final class CombatHudLayers {
    private CombatHudLayers() {}
 
@@ -477,6 +481,145 @@ public final class CombatHudLayers {
             int pct = (int) (progress * 100);
             graphics.centeredText(font, "⚡ CAPACITOR: " + pct + "%", centerX, y + height + 6, OsokWidgets.COLOR_TEXT_MUTED);
          }
+      }
+   }
+
+   // =========================================================================
+   // GrapplingHookHudLayer.java
+   // =========================================================================
+   /**
+    * Visier und Ziel-Rangefinder des Grappling Hooks:
+    * Pneumatisches Harpunen-Reticle mit Live-Entfernungsmesser bis 38 Blöcke,
+    * dynamischen Greifbacken (Target-Lock bei Blockkontakt), 10-Stufen Ladungsanzeige
+    * und kinetischen Zugvektor-Indikatoren.
+    */
+   public static final class GrapplingHookHudLayer implements HudElement {
+      private static final double MAX_GRAPPLE_RANGE = 38.0;
+      private static final int COLOR_LOCK_CYAN = 0xFF00F0FF;
+      private static final int COLOR_LOCK_WHITE = 0xFFFFFFFF;
+      private static final int COLOR_DIM_STEEL = 0x88708090;
+      private static final int COLOR_CHARGE_EMPTY = 0x44222830;
+      private static final int COLOR_PULL_ACTIVE = 0xFFFFCC00;
+
+      @Override
+      public void extractRenderState(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
+         Minecraft client = Minecraft.getInstance();
+         LocalPlayer player = client.player;
+         if (player == null || !client.options.getCameraType().isFirstPerson()) {
+            return;
+         }
+
+         boolean holdingHook = player.getMainHandItem().is(ModItems.GRAPPLING_HOOK)
+            || player.getOffhandItem().is(ModItems.GRAPPLING_HOOK);
+         if (!holdingHook) {
+            return;
+         }
+
+         int centerX = (graphics.guiWidth() - 1) / 2;
+         int centerY = (graphics.guiHeight() - 1) / 2;
+         float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
+
+         Vec3 eye = player.getEyePosition(partialTick);
+         Vec3 look = player.getViewVector(partialTick);
+         Vec3 end = eye.add(look.scale(MAX_GRAPPLE_RANGE));
+         BlockHitResult hit = player.level().clip(new ClipContext(
+            eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+            CollisionContext.empty()));
+
+         boolean hitSolid = hit.getType() != HitResult.Type.MISS;
+         double distance = hitSolid ? eye.distanceTo(hit.getLocation()) : MAX_GRAPPLE_RANGE;
+         boolean inRange = hitSolid && distance <= MAX_GRAPPLE_RANGE;
+
+         boolean active = GrapplePullState.INSTANCE.isGrappleActive(player.getUUID());
+         boolean pulling = active && GrapplePullState.INSTANCE.aimPose(player, partialTick) != null;
+
+         ItemStack hookItem = player.getMainHandItem().is(ModItems.GRAPPLING_HOOK)
+            ? player.getMainHandItem() : player.getOffhandItem();
+         int maxCharges = hookItem.getMaxDamage();
+         int remainingCharges = Math.max(0, maxCharges - hookItem.getDamageValue());
+
+         drawReticle(graphics, client.font, player, centerX, centerY, distance, inRange, active, pulling, remainingCharges, maxCharges, partialTick);
+      }
+
+      private static void drawReticle(GuiGraphicsExtractor graphics, Font font, LocalPlayer player,
+                                      int cx, int cy, double distance, boolean inRange,
+                                      boolean active, boolean pulling,
+                                      int charges, int maxCharges, float partialTick) {
+         float time = player.tickCount + partialTick;
+         float pulse = 0.5f + 0.5f * Mth.sin(time * 0.5f);
+
+         int accentColor = active
+            ? (pulling ? COLOR_PULL_ACTIVE : COLOR_LOCK_CYAN)
+            : (inRange ? COLOR_LOCK_CYAN : COLOR_DIM_STEEL);
+
+         // 1. Zentraler Präzisionspunkt
+         graphics.fill(cx - 1, cy - 1, cx + 2, cy + 2, 0x55000000);
+         graphics.fill(cx, cy, cx + 1, cy + 1, inRange || active ? COLOR_LOCK_WHITE : COLOR_DIM_STEEL);
+
+         // 2. 4 Greif-Backen (Klammern): ziehen sich bei Lock zusammen
+         int radius = inRange ? 9 : 14;
+         int arm = 4;
+         if (active) {
+            radius = 7 + (int) (pulse * 3.0f);
+         }
+
+         // Oben-Links
+         graphics.horizontalLine(cx - radius - arm, cx - radius, cy - radius, accentColor);
+         graphics.verticalLine(cx - radius, cy - radius, cy - radius + arm, accentColor);
+
+         // Oben-Rechts
+         graphics.horizontalLine(cx + radius, cx + radius + arm, cy - radius, accentColor);
+         graphics.verticalLine(cx + radius, cy - radius, cy - radius + arm, accentColor);
+
+         // Unten-Links
+         graphics.horizontalLine(cx - radius - arm, cx - radius, cy + radius, accentColor);
+         graphics.verticalLine(cx - radius, cy + radius - arm, cy + radius, accentColor);
+
+         // Unten-Rechts
+         graphics.horizontalLine(cx + radius, cx + radius + arm, cy + radius, accentColor);
+         graphics.verticalLine(cx + radius, cy + radius - arm, cy + radius, accentColor);
+
+         // 3. Status & Entfernungsanzeige (oberhalb)
+         int textY = cy - 24;
+         if (active) {
+            String status = pulling ? "⛓ PULLING" : "⛓ HOOK IN FLIGHT";
+            int col = pulling ? COLOR_PULL_ACTIVE : COLOR_LOCK_CYAN;
+            graphics.centeredText(font, status, cx, textY, col);
+         } else if (inRange) {
+            String distText = String.format(Locale.ROOT, "%.1f m", distance);
+            graphics.centeredText(font, distText, cx, textY, COLOR_LOCK_CYAN);
+         } else {
+            graphics.centeredText(font, "OUT OF RANGE", cx, textY, COLOR_DIM_STEEL);
+         }
+
+         // 4. Ladungs-Pips (unterhalb)
+         drawChargePips(graphics, font, cx, cy + 20, charges, maxCharges);
+      }
+
+      private static void drawChargePips(GuiGraphicsExtractor graphics, Font font, int cx, int y,
+                                         int charges, int maxCharges) {
+         if (maxCharges <= 0) {
+            return;
+         }
+
+         int pipW = 4;
+         int pipH = 3;
+         int gap = 2;
+         int totalW = maxCharges * pipW + (maxCharges - 1) * gap;
+         int startX = cx - totalW / 2;
+
+         for (int i = 0; i < maxCharges; i++) {
+            int px = startX + i * (pipW + gap);
+            boolean filled = i < charges;
+            int color = filled
+               ? (charges <= 2 ? 0xFFFF4444 : (charges <= 5 ? 0xFFFFCC00 : COLOR_LOCK_CYAN))
+               : COLOR_CHARGE_EMPTY;
+
+            graphics.fill(px, y, px + pipW, y + pipH, color);
+         }
+
+         int textColor = charges <= 2 ? 0xFFFF4444 : OsokWidgets.COLOR_TEXT_MUTED;
+         graphics.centeredText(font, "⛓ " + charges + "/" + maxCharges, cx, y + pipH + 4, textColor);
       }
    }
 
