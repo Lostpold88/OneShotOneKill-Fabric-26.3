@@ -7,6 +7,7 @@ import com.oneshotonekill.shared.OsokEffects;
 import com.oneshotonekill.item.box.SpecialItemManager;
 import com.oneshotonekill.item.runtime.Deployables;
 import com.oneshotonekill.shared.Feedback;
+import com.oneshotonekill.item.runtime.GrapplingHookSystem;
 import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.item.runtime.StatusAbilities;
 import com.oneshotonekill.item.runtime.ThrownDevices;
@@ -158,7 +159,12 @@ public final class CombatEvents {
          if (!(entity instanceof ServerPlayer victim)) {
             return true;
          }
-   
+
+         if (source.is(DamageTypeTags.IS_FALL) && GrapplingHookSystem.INSTANCE.isFallImmune(victim)) {
+            victim.resetFallDistance();
+            return false;
+         }
+
          ServerPlayer attacker = attackerOf(source);
          Entity directEntity = source.getDirectEntity();
          if (MatchManager.INSTANCE.getCurrentMatchState() != MatchState.RUNNING

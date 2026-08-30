@@ -63,12 +63,42 @@ public final class GrapplingHookSystem {
    private static final int VISUAL_INTERPOLATION_TICKS = 1;
 
    private final Map<UUID, Grapple> active = new LinkedHashMap<>();
+   private final Map<UUID, Long> fallImmunity = new java.util.concurrent.ConcurrentHashMap<>();
 
    private GrapplingHookSystem() {
    }
 
+   public void grantFallImmunity(ServerPlayer player, long durationTicks) {
+      if (player == null) {
+         return;
+      }
+      fallImmunity.put(player.getUUID(), player.level().getGameTime() + durationTicks);
+      player.resetFallDistance();
+   }
+
+   public boolean isFallImmune(ServerPlayer player) {
+      if (player == null) {
+         return false;
+      }
+      if (active.containsKey(player.getUUID())) {
+         player.resetFallDistance();
+         return true;
+      }
+      Long until = fallImmunity.get(player.getUUID());
+      if (until != null) {
+         if (player.level().getGameTime() <= until) {
+            player.resetFallDistance();
+            return true;
+         }
+         fallImmunity.remove(player.getUUID());
+      }
+      return false;
+   }
+
+
    /** Schießt einen neuen Haken; ein noch laufender Schuss desselben Spielers wird sauber ersetzt. */
    public boolean fire(ServerLevel level, ServerPlayer player, net.minecraft.world.InteractionHand hand) {
+      grantFallImmunity(player, 100L);
       Grapple previous = active.remove(player.getUUID());
       if (previous != null) {
          applyCharge(previous, player);
@@ -248,17 +278,19 @@ public final class GrapplingHookSystem {
    }
 
    /** Gibt am Anker noch einen kleinen Aufwärtsimpuls – sonst klebt man stumpf an der Wand. */
-   private static void launchPastAnchor(ServerPlayer owner) {
+   private void launchPastAnchor(ServerPlayer owner) {
       Vec3 movement = owner.getDeltaMovement();
       owner.setDeltaMovement(movement.x, Math.max(movement.y, RELEASE_LIFT), movement.z);
       owner.hurtMarked = true;
       owner.resetFallDistance();
+      grantFallImmunity(owner, 100L);
    }
 
    private void beginRetracting(Grapple grapple, ServerPlayer owner, boolean missed) {
       grapple.phase = Phase.RETRACTING;
       grapple.anchor = null;
       grapple.anchorBlock = null;
+      grantFallImmunity(owner, 80L);
       Vec3 returnDirection = muzzlePosition(owner, 1.0F).subtract(grapple.position);
       if (returnDirection.lengthSqr() > 1.0E-6) {
          grapple.aimDirection = returnDirection.normalize();
@@ -338,6 +370,7 @@ public final class GrapplingHookSystem {
    public void reset() {
       active.values().forEach(Grapple::dismantle);
       active.clear();
+      fallImmunity.clear();
    }
 
    private enum Phase {
