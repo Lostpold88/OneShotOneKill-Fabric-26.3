@@ -45,3 +45,4 @@ replay_*.log
 # generierte Werkzeugausgaben
 __pycache__/
 /tools/SOURCES.json
+/tools/.*_session.json
