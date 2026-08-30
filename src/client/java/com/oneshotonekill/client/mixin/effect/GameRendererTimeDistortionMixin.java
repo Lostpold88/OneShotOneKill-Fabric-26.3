@@ -1,6 +1,9 @@
 package com.oneshotonekill.client.mixin.effect;
 
+import com.mojang.blaze3d.framegraph.FrameGraphBuilder;
+import com.mojang.blaze3d.pipeline.RenderTarget;
 import com.mojang.blaze3d.resource.CrossFrameResourcePool;
+import com.mojang.blaze3d.resource.ResourceHandle;
 import com.oneshotonekill.client.effect.TimeDistortionEffects;
 import com.oneshotonekill.client.sound.TimeDistortionSoundController;
 import net.minecraft.client.DeltaTracker;
@@ -26,7 +29,6 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  * hier je Bild und nicht je Tick fortgeschrieben wird.</p>
  */
 @Mixin(GameRenderer.class)
-@SuppressWarnings("deprecation")
 public abstract class GameRendererTimeDistortionMixin {
    @Shadow @Final private CrossFrameResourcePool resourcePool;
 
@@ -48,7 +50,11 @@ public abstract class GameRendererTimeDistortionMixin {
       effects.beginFrame();
       PostChain chain = client.getShaderManager().getPostChain(effectId, LevelTargetBundle.MAIN_TARGETS);
       if (chain != null) {
-         chain.process(((GameRenderer) (Object) this).mainRenderTarget(), this.resourcePool);
+         RenderTarget target = ((GameRenderer) (Object) this).mainRenderTarget();
+         FrameGraphBuilder frameGraph = new FrameGraphBuilder();
+         ResourceHandle<RenderTarget> handle = frameGraph.importExternal("main", target);
+         chain.addToFrame(frameGraph, target.width, target.height, PostChain.TargetBundle.of(LevelTargetBundle.MAIN_TARGETS.iterator().next(), handle));
+         frameGraph.execute(this.resourcePool);
       }
    }
 }
