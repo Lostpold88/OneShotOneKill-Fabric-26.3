@@ -15,6 +15,7 @@ import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.phys.Vec3;
@@ -605,75 +606,107 @@ public final class ClientStates {
     */
    public static final class MatchStartState {
       public static final MatchStartState INSTANCE = new MatchStartState();
-   
+
       /** Länge des Countdowns; der Client kennt sie, um den Gesamtfortschritt zeichnen zu können. */
       public static final int COUNTDOWN_TICKS = 60;
       /** So lange hallt der Startschuss auf dem Bildschirm nach. */
-      private static final int GO_TICKS = 18;
-   
+      private static final int GO_TICKS = 22;
+
       private static float fovBoost;
       private static float portalIntensity;
       private static float confusionIntensity;
       private static int remainingTicks = -1;
       private static int goTicks;
-   
+      private static String mapName = "Standard";
+      private static String gameModeName = "Klassisch";
+
       private MatchStartState() {
       }
-   
+
       public float getFovBoost() {
          return fovBoost;
       }
-   
+
       public float getPortalIntensity() {
          return portalIntensity;
       }
-   
+
       public float getConfusionIntensity() {
          return confusionIntensity;
       }
-   
+
+      public String getMapName() {
+         return mapName;
+      }
+
+      public String getGameModeName() {
+         return gameModeName;
+      }
+
       public void setFovBoost(float value) {
          fovBoost = value;
       }
-   
+
       public void setPortalIntensity(float value) {
          portalIntensity = value;
       }
-   
+
       public void setConfusionIntensity(float value) {
          confusionIntensity = value;
       }
-   
+
       public boolean isCountdownActive() {
          return remainingTicks > 0;
       }
-   
+
       /** Restzeit in Ticks, zwischen zwei Ticks interpoliert – die Grundlage jeder Animation. */
       public float getRemainingTicks(float partialTick) {
          return Math.max(0.0F, remainingTicks - partialTick);
       }
-   
+
       /** Restlicher Nachhall des Startschusses von 1 (gerade eben) bis 0. */
       public float getGoProgress(float partialTick) {
          return goTicks <= 0 ? 0.0F : Math.max(0.0F, (goTicks - partialTick) / GO_TICKS);
       }
-   
+
+      /**
+       * Dynamischer Kamera-Abstand während des Countdowns:
+       * Gleitet von nah (1.15m) bei Sekunde 3 sanft zurück auf 1.85m bei Sekunde 1 mit feiner Atmung.
+       */
+      public float getCameraDistance(float partialTick) {
+         if (!isCountdownActive()) {
+            return 4.0F;
+         }
+         float remaining = getRemainingTicks(partialTick);
+         float overall = Math.clamp(1.0F - remaining / (float) COUNTDOWN_TICKS, 0.0F, 1.0F);
+         float dolly = 1.15F + 0.70F * (float) (1.0 - Math.cos(overall * Math.PI * 0.5));
+         float breathing = (float) Math.sin((Util.getMillis() % 2400L) / 2400.0 * Math.PI * 2.0) * 0.025F;
+         return dolly + breathing;
+      }
+
       public void handle(MatchCountdownPayload payload) {
          Minecraft client = Minecraft.getInstance();
          if (payload.getRemainingTicks() < 0) {
             clear();
             return;
          }
-   
+
+         if (!payload.getArenaName().isEmpty()) {
+            mapName = payload.getArenaName();
+         }
+         if (!payload.getGameMode().isEmpty()) {
+            gameModeName = payload.getGameMode();
+         }
+
          if (payload.isGo()) {
-            // Start: zurück in die Ich-Perspektive, dazu ein kurzer Bild- und Sichtfeldstoß.
+            // Start: zurück in die Ich-Perspektive, dazu ein druckvoller Kinetik- & Sichtfeldstoß.
             client.options.setCameraType(CameraType.FIRST_PERSON);
-            fovBoost = 0.5F;
-            portalIntensity = 1.0F;
-            confusionIntensity = 0.85F;
+            fovBoost = 0.65F;
+            portalIntensity = 0.85F;
+            confusionIntensity = 0.50F;
             remainingTicks = -1;
             goTicks = GO_TICKS;
-            CameraShakeState.INSTANCE.triggerDirect(0.45F, 14);
+            CameraShakeState.INSTANCE.triggerDirect(0.55F, 18);
          } else {
             // Countdown: Kamera von vorn, damit man sich selbst im Startfeld stehen sieht.
             client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
@@ -682,7 +715,7 @@ public final class ClientStates {
             goTicks = 0;
          }
       }
-   
+
       public void tick() {
          if (remainingTicks > 0) {
             remainingTicks--;
@@ -697,7 +730,7 @@ public final class ClientStates {
             }
          }
       }
-   
+
       /** Beim Verlassen des Servers muss die Kamera zurück, sonst bleibt sie in der Aussenansicht. */
       public void clear() {
          remainingTicks = -1;
@@ -705,6 +738,8 @@ public final class ClientStates {
          fovBoost = 0.0F;
          portalIntensity = 0.0F;
          confusionIntensity = 0.0F;
+         mapName = "Standard";
+         gameModeName = "Klassisch";
          Minecraft.getInstance().options.setCameraType(CameraType.FIRST_PERSON);
       }
    }

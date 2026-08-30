@@ -18,15 +18,14 @@ import java.util.EnumMap;
 import java.util.List;
 import java.util.Locale;
 import java.util.Map;
+import java.util.Set;
 import java.util.function.Consumer;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
-import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Util;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
@@ -45,7 +44,7 @@ public final class ArenaMenuScreen extends Screen {
    private static final int BUTTON_WIDTH = 76;
    private static final int CONTROL_BUTTON_WIDTH = 110;
    private static final int WEIGHT_BUTTON_WIDTH = 34;
-   private static final int ROW_HEIGHT = 34;
+   private static final int ARENA_ROW_HEIGHT = 44;
    private static final int SCROLLBAR_INSET = 9;
    private static final int EDGE_FADE = 10;
    private static final long ENTRANCE_MILLIS = 150L;
@@ -53,6 +52,7 @@ public final class ArenaMenuScreen extends Screen {
    /** Jeder Reiter merkt sich seine eigene Scrollposition über das Schließen hinweg. */
    private static final Map<Tab, Float> SCROLL_MEMORY = new EnumMap<>(Tab.class);
    private static Tab lastSelectedTab = Tab.ARENAS;
+   private static AdminItemScreen.ItemCategory weightFilterCategory = AdminItemScreen.ItemCategory.ALL;
 
    private ArenaMenuStatePayload state;
    private Tab currentTab;
@@ -92,7 +92,7 @@ public final class ArenaMenuScreen extends Screen {
             screen.localPreviewMinutes = null;
             screen.localPreviewKills = null;
          }
-      } else if (state.getOpen()) {
+      } else if (state.open()) {
          client.gui.setScreen(new ArenaMenuScreen(state));
       }
    }
@@ -104,6 +104,8 @@ public final class ArenaMenuScreen extends Screen {
       cardLeft = Math.max(4, width / 2 - CARD_WIDTH / 2);
       cardTop = Math.max(4, height / 2 - cardHeight / 2);
       contentTop = cardTop + 84;
+
+      scroll.clampNow(contentLength - contentHeight);
    }
 
    @Override
@@ -112,17 +114,18 @@ public final class ArenaMenuScreen extends Screen {
    }
 
    @Override
-   public boolean keyPressed(KeyEvent keyEvent) {
-      if (OsokClient.isMenuKey(keyEvent)) {
+   public boolean keyPressed(KeyEvent event) {
+      if (OsokClient.isMenuKey(event)) {
          onClose();
          return true;
       }
-      return super.keyPressed(keyEvent);
+      return super.keyPressed(event);
    }
 
    @Override
    public void removed() {
       SCROLL_MEMORY.put(currentTab, scroll.value());
+      lastSelectedTab = currentTab;
       super.removed();
    }
 
@@ -191,6 +194,7 @@ public final class ArenaMenuScreen extends Screen {
       graphics.pose().scale(entrance, entrance);
       graphics.pose().translate(-centerX, -centerY);
 
+      // Hauptkarte
       OsokWidgets.glassCard(graphics, cardLeft, cardTop, cardLeft + CARD_WIDTH, cardTop + cardHeight, false, 0);
 
       hotspots.clear();
@@ -200,7 +204,20 @@ public final class ArenaMenuScreen extends Screen {
       drawTabs(graphics, mouseX, mouseY, delta);
       OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, contentTop - 6, OsokWidgets.COLOR_CARD_BORDER);
 
-      // Inhalt liegt im Scissor-Bereich
+      drawCurrentTab(graphics, mouseX, mouseY);
+      drawScrollbar(graphics, mouseX, mouseY);
+
+      int footerY = contentTop + contentHeight + 16;
+      OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, footerY - 8, OsokWidgets.COLOR_CARD_BORDER);
+      drawFooter(graphics, mouseX, mouseY, footerY);
+
+      graphics.pose().popMatrix();
+
+      super.extractRenderState(graphics, mouseX, mouseY, partial);
+      updateCursor(graphics, mouseX, mouseY);
+   }
+
+   private void drawCurrentTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
       int contentLeft = cardLeft + 16;
       int contentRight = cardLeft + CARD_WIDTH - 16;
       int contentBottom = contentTop + contentHeight;
@@ -214,25 +231,14 @@ public final class ArenaMenuScreen extends Screen {
          case ITEM_WEIGHTS -> drawItemWeightsTab(graphics, mouseX, mouseY);
       }
       graphics.pose().popMatrix();
-      // Weiche Kanten noch innerhalb des Scissor-Bereichs, damit sie exakt darauf abschließen.
       OsokWidgets.drawSoftScrollEdges(graphics, contentLeft, contentRight, contentTop, contentBottom,
          EDGE_FADE, OsokWidgets.COLOR_CARD_BG, scroll.offset(), contentLength, contentHeight);
       graphics.disableScissor();
-      drawScrollbar(graphics, mouseX, mouseY);
-
-      int footerY = contentTop + contentHeight + 8;
-      OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, footerY, OsokWidgets.COLOR_CARD_BORDER);
-      drawFooter(graphics, mouseX, mouseY, footerY + 10);
-
-      graphics.pose().popMatrix();
-
-      super.extractRenderState(graphics, mouseX, mouseY, partial);
-      updateCursor(graphics, mouseX, mouseY);
    }
 
    private void drawHeader(GuiGraphicsExtractor graphics) {
       graphics.text(font, "✦ OneShotOneKill", cardLeft + 16, cardTop + 14, OsokWidgets.COLOR_GOLD);
-      graphics.text(font, "• Zentral-Verwaltung", cardLeft + 16 + font.width("✦ OneShotOneKill ") + 4, cardTop + 14, OsokWidgets.COLOR_TEXT_MUTED);
+      graphics.text(font, "• Arena-Verwaltung", cardLeft + 16 + font.width("✦ OneShotOneKill ") + 4, cardTop + 14, OsokWidgets.COLOR_TEXT_MUTED);
 
       // Live-Match-Status Badge rechts oben
       drawMatchStateBadge(graphics, cardLeft + CARD_WIDTH - 16, cardTop + 12);
@@ -246,7 +252,7 @@ public final class ArenaMenuScreen extends Screen {
 
       for (Tab tab : Tab.values()) {
          String label = tab.label;
-         int tabWidth = font.width(label) + 18;
+         int tabWidth = font.width(label) + 16;
          boolean isActive = currentTab == tab;
          boolean hovered = OsokWidgets.isOver(mouseX, mouseY, x, y, tabWidth, 22);
 
@@ -259,7 +265,8 @@ public final class ArenaMenuScreen extends Screen {
          }
 
          Tab target = tab;
-         hotspots.add(new Hotspot(x, y, tabWidth, 22, true, false, () -> selectTab(target)));
+         // playSound: false, da selectTab bereits playTabSwitchSound abspielt
+         hotspots.add(new Hotspot(x, y, tabWidth, 22, true, true, false, false, () -> selectTab(target)));
          x += tabWidth + 6;
       }
 
@@ -289,7 +296,7 @@ public final class ArenaMenuScreen extends Screen {
 
       for (Arena arena : Arena.values()) {
          drawArenaRow(graphics, arena, left, right, y, mouseX, mouseY);
-         y += ROW_HEIGHT + 6;
+         y += ARENA_ROW_HEIGHT + 6;
       }
       contentLength = y + scroll.offset() - contentTop;
    }
@@ -299,21 +306,21 @@ public final class ArenaMenuScreen extends Screen {
       boolean isPlayerHere = arena.getId().equals(state.getPlayerArenaId());
       boolean isOpen = state.getOpenArenaIds().contains(arena.getId());
       boolean isResetting = arena.getId().equals(state.getResettingArenaId());
-      boolean hovered = OsokWidgets.isOver(mouseX, mouseY, left, y, right - left, ROW_HEIGHT)
+      boolean hovered = OsokWidgets.isOver(mouseX, mouseY, left, y, right - left, ARENA_ROW_HEIGHT)
          && mouseY >= contentTop && mouseY < contentTop + contentHeight;
 
       int rowBg = isActive ? 0xFF241F16 : (hovered ? 0xFF222B3D : 0xFF141924);
       int rowBorder = isActive ? OsokWidgets.COLOR_GOLD : (hovered ? OsokWidgets.COLOR_CARD_BORDER_HOVER : OsokWidgets.COLOR_CARD_BORDER);
 
-      graphics.fill(left, y, right, y + ROW_HEIGHT, rowBg);
+      graphics.fill(left, y, right, y + ARENA_ROW_HEIGHT, rowBg);
       graphics.horizontalLine(left, right - 1, y, rowBorder);
-      graphics.horizontalLine(left, right - 1, y + ROW_HEIGHT - 1, rowBorder);
-      graphics.verticalLine(left, y, y + ROW_HEIGHT - 1, rowBorder);
-      graphics.verticalLine(right - 1, y, y + ROW_HEIGHT - 1, rowBorder);
+      graphics.horizontalLine(left, right - 1, y + ARENA_ROW_HEIGHT - 1, rowBorder);
+      graphics.verticalLine(left, y, y + ARENA_ROW_HEIGHT - 1, rowBorder);
+      graphics.verticalLine(right - 1, y, y + ARENA_ROW_HEIGHT - 1, rowBorder);
 
       // Status-Streifen links
       int statusCol = stateColor(isActive, isOpen, isResetting);
-      graphics.fill(left + 2, y + 2, left + 5, y + ROW_HEIGHT - 2, statusCol);
+      graphics.fill(left + 2, y + 2, left + 5, y + ARENA_ROW_HEIGHT - 2, statusCol);
 
       // Läuft ein Reset, wandert ein Lichtimpuls über die Zeile. Er liegt auf Echtzeit, weil der
       // Server während des Resets ohnehin beschäftigt ist und die Tickrate einbrechen kann.
@@ -330,22 +337,29 @@ public final class ArenaMenuScreen extends Screen {
             if (alpha <= 0) {
                continue;
             }
-            graphics.fill(px, y + 1, px + 1, y + ROW_HEIGHT - 1, rgb | (alpha << 24));
+            graphics.fill(px, y + 1, px + 1, y + ARENA_ROW_HEIGHT - 1, rgb | (alpha << 24));
          }
       }
 
       // Arena-Icon
-      graphics.item(new ItemStack(itemFor(arena)), left + 10, y + 9);
-      graphics.text(font, arena.getDisplayName(), left + 34, y + 9, OsokWidgets.COLOR_TEXT_WHITE);
+      graphics.item(new ItemStack(itemFor(arena)), left + 10, y + 14);
+      graphics.text(font, arena.getDisplayName(), left + 36, y + 8, OsokWidgets.COLOR_TEXT_WHITE);
+
+      String subtitle = switch (arena) {
+         case STANDARD -> "Klassische CQB-Arena · Strukturierter Nahkampf";
+         case DUSTPVP -> "Wüstenstadt-Szenario · Vertikale Schusslinien";
+         case BO2 -> "Taktisches Häuserkampf-Gelände · Eng & Verwinkelt";
+      };
+      graphics.text(font, subtitle, left + 36, y + 25, OsokWidgets.COLOR_TEXT_FAINT);
 
       // Status-Tags
-      int badgeX = left + 38 + font.width(arena.getDisplayName());
+      int badgeX = left + 40 + font.width(arena.getDisplayName());
       if (isActive) {
-         OsokWidgets.statusBadge(graphics, font, badgeX, y + 8, "Aktiv", OsokWidgets.COLOR_GOLD, true);
+         OsokWidgets.statusBadge(graphics, font, badgeX, y + 6, "Aktiv", OsokWidgets.COLOR_GOLD, true);
          badgeX += font.width("Aktiv") + 22;
       }
       if (isPlayerHere) {
-         OsokWidgets.statusBadge(graphics, font, badgeX, y + 8, "Hier", OsokWidgets.COLOR_EMERALD, true);
+         OsokWidgets.statusBadge(graphics, font, badgeX, y + 6, "Hier", OsokWidgets.COLOR_EMERALD, true);
       }
 
       boolean stopped = isMatchState(MatchState.STOPPED);
@@ -354,19 +368,27 @@ public final class ArenaMenuScreen extends Screen {
       boolean canSwitch = stopped && isOpen && !isActive && !isResetting;
       boolean canReset = stopped && isOpen && state.getResettingArenaId().isEmpty();
 
-      boolean switchHover = OsokWidgets.isOver(mouseX, mouseY, switchX, y + 7, BUTTON_WIDTH, 20);
-      boolean resetHover = OsokWidgets.isOver(mouseX, mouseY, resetX, y + 7, BUTTON_WIDTH, 20);
+      int btnY = y + 12;
+      boolean switchHover = OsokWidgets.isOver(mouseX, mouseY, switchX, btnY, BUTTON_WIDTH, 20);
+      boolean resetHover = OsokWidgets.isOver(mouseX, mouseY, resetX, btnY, BUTTON_WIDTH, 20);
 
-      OsokWidgets.cyberButton(graphics, font, switchX, y + 7, BUTTON_WIDTH, 20, isActive ? "Aktiv" : "Wählen",
+      OsokWidgets.cyberButton(graphics, font, switchX, btnY, BUTTON_WIDTH, 20, isActive ? "Aktiv" : "Wählen",
          canSwitch, switchHover, OsokWidgets.COLOR_GOLD);
-      OsokWidgets.cyberButton(graphics, font, resetX, y + 7, BUTTON_WIDTH, 20, isResetting ? "Lädt…" : "Reset",
+      OsokWidgets.cyberButton(graphics, font, resetX, btnY, BUTTON_WIDTH, 20, isResetting ? "Lädt…" : "Reset",
          canReset, resetHover, OsokWidgets.COLOR_CYAN);
 
-      hotspots.add(new Hotspot(switchX, y + 7, BUTTON_WIDTH, 20, canSwitch,
-         stopped && isOpen && !isResetting, true,
-         () -> ClientPlayNetworking.send(new SelectArenaPayload(arena.getId()))));
-      hotspots.add(new Hotspot(resetX, y + 7, BUTTON_WIDTH, 20, canReset,
-         () -> ClientPlayNetworking.send(new ResetArenaPayload(arena.getId()))));
+      hotspots.add(new Hotspot(switchX, btnY, BUTTON_WIDTH, 20, canSwitch,
+         stopped && isOpen && !isResetting, true, false,
+         () -> {
+            ClientPlayNetworking.send(new SelectArenaPayload(arena.getId()));
+            OsokWidgets.playActionSound();
+         }));
+      hotspots.add(new Hotspot(resetX, btnY, BUTTON_WIDTH, 20, canReset,
+         true, true, false,
+         () -> {
+            ClientPlayNetworking.send(new ResetArenaPayload(arena.getId()));
+            OsokWidgets.playActionSound();
+         }));
    }
 
    private void drawMatchControlTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
@@ -422,8 +444,12 @@ public final class ArenaMenuScreen extends Screen {
       y += 32;
       boolean isAdmin = Minecraft.getInstance().player != null
          && OneShotOneKill.isAdmin(Minecraft.getInstance().player);
-      controlButton(graphics, left, y, "➶ Pfeile löschen", isAdmin, mouseX, mouseY, false, OsokWidgets.COLOR_CYAN,
-         () -> ClientPlayNetworking.send(ClearArrowsPayload.EMPTY));
+      String arrowLabel = isAdmin ? "➶ Pfeile löschen" : "🔒 Pfeile löschen";
+      controlButton(graphics, left, y, arrowLabel, isAdmin, mouseX, mouseY, false, OsokWidgets.COLOR_CYAN,
+         () -> {
+            ClientPlayNetworking.send(ClearArrowsPayload.EMPTY);
+            OsokWidgets.playActionSound();
+         });
 
       y += 36;
       OsokWidgets.divider(graphics, left, right, y, OsokWidgets.COLOR_CARD_BORDER);
@@ -744,20 +770,74 @@ public final class ArenaMenuScreen extends Screen {
       boolean modeHover = OsokWidgets.isOver(mouseX, mouseY, left + 10, y + 22, 220, 20);
       OsokWidgets.cyberButton(graphics, font, left + 10, y + 22, 220, 20, itemModeLabel(), true, modeHover, OsokWidgets.COLOR_GOLD);
       hotspots.add(new Hotspot(left + 10, y + 22, 220, 20, true,
-         () -> ClientPlayNetworking.send(new SetItemModePayload(nextItemMode().name()))));
+         () -> {
+            ClientPlayNetworking.send(new SetItemModePayload(nextItemMode().name()));
+            OsokWidgets.playActionSound();
+         }));
 
       graphics.text(font, itemModeDescription(), left + 238, y + 28, OsokWidgets.COLOR_TEXT_FAINT);
-      y += 64;
+      y += 62;
 
-      // Header Zeile für Gewichtungen
-      graphics.text(font, "Spezialitems · Gewichtete Spawnchance", left, y + 6, OsokWidgets.COLOR_TEXT_WHITE);
-      boolean resetHover = OsokWidgets.isOver(mouseX, mouseY, right - 110, y, 110, 20);
-      OsokWidgets.cyberButton(graphics, font, right - 110, y, 110, 20, "Zurücksetzen", true, resetHover, OsokWidgets.COLOR_CRIMSON);
-      hotspots.add(new Hotspot(right - 110, y, 110, 20, true,
-         () -> ClientPlayNetworking.send(ResetSpecialItemWeightsPayload.EMPTY)));
+      // Gestapelte Verteilungsleiste aller Spezialitems
+      List<OsokWidgets.DistributionSegment> segments = new ArrayList<>();
+      for (SpecialItem item : SpecialItem.values()) {
+         double chance = spawnChanceFor(item);
+         if (chance > 0) {
+            AdminItemScreen.ItemCategory cat = AdminItemScreen.getCategoryFor(item);
+            segments.add(new OsokWidgets.DistributionSegment(item.getDisplayName(), chance, cat.accent));
+         }
+      }
+
+      graphics.text(font, "📊 Gesamtverteilung aller Spawnchancen:", left, y, OsokWidgets.COLOR_TEXT_MUTED);
+      y += 12;
+
+      OsokWidgets.DistributionSegment hoveredSeg = OsokWidgets.drawStackedDistributionBar(
+         graphics, font, left, y, right - left, 14, segments, mouseX, mouseY);
+      y += 20;
+
+      // Floating Tooltip für das überfahrene Segment
+      if (hoveredSeg != null && mouseY >= contentTop && mouseY < contentTop + contentHeight) {
+         String tip = String.format(Locale.GERMANY, "%s: %.1f %%", hoveredSeg.label(), hoveredSeg.percentage());
+         int tipW = font.width(tip) + 12;
+         int tipX = Math.clamp(mouseX - tipW / 2, left, right - tipW);
+         int tipY = y - 36;
+         graphics.fill(tipX, tipY, tipX + tipW, tipY + 14, 0xF00B0E16);
+         graphics.horizontalLine(tipX, tipX + tipW - 1, tipY, hoveredSeg.color());
+         graphics.horizontalLine(tipX, tipX + tipW - 1, tipY + 13, hoveredSeg.color());
+         graphics.verticalLine(tipX, tipY, tipY + 13, hoveredSeg.color());
+         graphics.verticalLine(tipX + tipW - 1, tipY, tipY + 13, hoveredSeg.color());
+         graphics.text(font, tip, tipX + 6, tipY + 3, OsokWidgets.COLOR_TEXT_WHITE);
+      }
+
+      // Filter-Reiter & Reset-Button
+      int filterX = left;
+      for (AdminItemScreen.ItemCategory cat : AdminItemScreen.ItemCategory.values()) {
+         if (cat == AdminItemScreen.ItemCategory.FAVORITES) continue;
+         int catWidth = font.width(cat.label) + 12;
+         boolean isSelected = weightFilterCategory == cat;
+         boolean hov = OsokWidgets.isOver(mouseX, mouseY, filterX, y, catWidth, 20);
+         OsokWidgets.tabHeader(graphics, font, filterX, y, catWidth, 20, cat.label, isSelected, hov, cat.accent, true);
+         AdminItemScreen.ItemCategory targetCat = cat;
+         hotspots.add(new Hotspot(filterX, y, catWidth, 20, true, true, true, false, () -> {
+            weightFilterCategory = targetCat;
+            OsokWidgets.playTabSwitchSound();
+         }));
+         filterX += catWidth + 4;
+      }
+
+      boolean resetHover = OsokWidgets.isOver(mouseX, mouseY, right - 100, y, 100, 20);
+      OsokWidgets.cyberButton(graphics, font, right - 100, y, 100, 20, "Zurücksetzen", true, resetHover, OsokWidgets.COLOR_CRIMSON);
+      hotspots.add(new Hotspot(right - 100, y, 100, 20, true, true, true, false,
+         () -> {
+            ClientPlayNetworking.send(ResetSpecialItemWeightsPayload.EMPTY);
+            OsokWidgets.playClearSound();
+         }));
       y += 28;
 
       for (SpecialItem item : SpecialItem.values()) {
+         if (!weightFilterCategory.matches(item, Set.of())) {
+            continue;
+         }
          drawWeightRow(graphics, item, left, right, y, mouseX, mouseY);
          y += 32;
       }
@@ -768,19 +848,23 @@ public final class ArenaMenuScreen extends Screen {
       boolean rowHover = OsokWidgets.isOver(mouseX, mouseY, left, y, right - left, 28)
          && mouseY >= contentTop && mouseY < contentTop + contentHeight;
 
+      AdminItemScreen.ItemCategory cat = AdminItemScreen.getCategoryFor(item);
       int rowBg = rowHover ? 0xFF222B3D : 0xFF141924;
-      graphics.fill(left, y, right, y + 28, rowBg);
-      graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_CARD_BORDER);
-      graphics.horizontalLine(left, right - 1, y + 27, OsokWidgets.COLOR_CARD_BORDER);
-      graphics.verticalLine(left, y, y + 27, OsokWidgets.COLOR_CARD_BORDER);
-      graphics.verticalLine(right - 1, y, y + 27, OsokWidgets.COLOR_CARD_BORDER);
+      int rowBorder = rowHover ? cat.accent : OsokWidgets.COLOR_CARD_BORDER;
 
-      graphics.item(new ItemStack(item.getIcon()), left + 6, y + 6);
-      graphics.text(font, item.getDisplayName(), left + 30, y + 5, OsokWidgets.COLOR_TEXT_WHITE);
+      graphics.fill(left, y, right, y + 28, rowBg);
+      graphics.horizontalLine(left, right - 1, y, rowBorder);
+      graphics.horizontalLine(left, right - 1, y + 27, rowBorder);
+      graphics.verticalLine(left, y, y + 27, rowBorder);
+      graphics.verticalLine(right - 1, y, y + 27, rowBorder);
+
+      graphics.fill(left + 2, y + 2, left + 5, y + 26, cat.accent);
+      graphics.item(new ItemStack(item.getIcon()), left + 8, y + 6);
+      graphics.text(font, item.getDisplayName(), left + 32, y + 5, OsokWidgets.COLOR_TEXT_WHITE);
 
       double chance = spawnChanceFor(item);
       String chanceText = String.format(Locale.GERMANY, "Gewicht: %d · %.1f %%", weightFor(item), chance);
-      graphics.text(font, chanceText, left + 30, y + 16, OsokWidgets.COLOR_TEXT_FAINT);
+      graphics.text(font, chanceText, left + 32, y + 16, OsokWidgets.COLOR_TEXT_FAINT);
 
       int x = right - (WEIGHT_BUTTON_WIDTH + 4) * 4 - 4;
       for (int[] step : new int[][] {{-5}, {-1}, {1}, {5}}) {
@@ -974,16 +1058,16 @@ public final class ArenaMenuScreen extends Screen {
       lastSelectedTab = tab;
       tabChangedAt = Util.getMillis();
       scroll.set(SCROLL_MEMORY.getOrDefault(tab, 0.0F));
+      OsokWidgets.playTabSwitchSound();
    }
 
    private void clickSound() {
-      Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+      OsokWidgets.playUiClickSound();
    }
 
    /** Leises Rastern beim Ziehen eines Reglers; die Tonhöhe folgt dem eingestellten Anteil. */
    private void tickSound(float ratio) {
-      Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(
-         SoundEvents.NOTE_BLOCK_HAT.value(), 1.35F + Math.clamp(ratio, 0.0F, 1.0F) * 0.55F, 0.16F));
+      OsokWidgets.playSliderTickSound(ratio);
    }
 
    // -- Zustand -------------------------------------------------------------

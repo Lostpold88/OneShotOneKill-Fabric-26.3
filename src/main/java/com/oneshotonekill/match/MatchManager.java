@@ -1,32 +1,34 @@
 package com.oneshotonekill.match;
 
+import java.util.Arrays;
+import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
-import java.util.UUID;
-import java.util.Set;
+import java.util.List;
 import java.util.Map;
-import net.minecraft.world.entity.Relative;
-
+import java.util.Set;
+import java.util.UUID;
+import java.util.function.Consumer;
 
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
-import com.oneshotonekill.shared.ArenaDemolition;
 import com.oneshotonekill.arena.ArenaWorlds;
 import com.oneshotonekill.arena.ArenaWorlds.ResetOutcome;
-import com.oneshotonekill.shared.OsokEffects;
-import com.oneshotonekill.equipment.EquipmentManager;
-import com.oneshotonekill.item.SpecialItem;
-import com.oneshotonekill.shared.Feedback;
-import com.oneshotonekill.item.box.SpecialItemManager;
-import com.oneshotonekill.item.runtime.MinigunRuntime;
-import com.oneshotonekill.nuke.NukeSequenceManager;
 import com.oneshotonekill.arena.RandomTpSystem;
 import com.oneshotonekill.arena.RandomTpSystem.RespawnSystem;
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.List;
-import java.util.function.Consumer;
+import com.oneshotonekill.equipment.EquipmentManager;
+import com.oneshotonekill.item.SpecialItem;
+import com.oneshotonekill.item.box.SpecialItemManager;
+import com.oneshotonekill.item.runtime.MinigunRuntime;
+import com.oneshotonekill.network.OsokPayloads.*;
+import com.oneshotonekill.nuke.NukeSequenceManager;
+import com.oneshotonekill.shared.ArenaDemolition;
+import com.oneshotonekill.shared.Feedback;
+import com.oneshotonekill.shared.OsokEffects;
+
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
+import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
@@ -36,10 +38,11 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import com.oneshotonekill.network.OsokPayloads.*;
-import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.entity.Relative;
+import net.minecraft.world.entity.player.Inventory;
+import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
+import net.minecraft.world.phys.Vec3;
 
 /**
  * Der Ablauf eines Matches: starten, pausieren, stoppen, Arena wechseln, Match-Ziele verwalten und zurücksetzen.
@@ -55,6 +58,7 @@ public final class MatchManager {
    private static int targetValue = 600; // 600 Sekunden (10 Min) bzw. 25 Kills
    private static int remainingTicks = 600 * 20;
    private static int elapsedTicks = 0;
+   private static final Map<UUID, Map<Integer, ItemStack>> pausedSpecialItems = new LinkedHashMap<>();
    /**
     * Das Ergebnis steht fest, der Abschluss fehlt noch.
     * <p>
@@ -95,6 +99,7 @@ public final class MatchManager {
       MatchManager.Countdown.INSTANCE.cancelCountdown();
       currentMatchState = MatchState.STOPPED;
       decided = false;
+      pausedSpecialItems.clear();
       remainingTicks = targetMode == MatchTargetMode.TIME_LIMIT ? targetValue * 20 : 0;
       elapsedTicks = 0;
       GunGameManager.INSTANCE.reset();
@@ -126,7 +131,7 @@ public final class MatchManager {
    }
 
    public void setMatchTarget(ServerPlayer player, String modeName, int value) {
-      if (!settleBeforeArenaChange(player)) {
+      if (currentMatchState != MatchState.STOPPED) {
          player.sendSystemMessage(Component.literal("Match-Ziele können nur bei gestopptem Match geändert werden.")
             .withStyle(ChatFormatting.YELLOW));
          return;
@@ -159,6 +164,7 @@ public final class MatchManager {
       }
       currentMatchState = MatchState.RUNNING;
       decided = false;
+      pausedSpecialItems.clear();
       remainingTicks = targetMode == MatchTargetMode.TIME_LIMIT ? targetValue * 20 : 0;
       elapsedTicks = 0;
       SpecialItemManager.INSTANCE.clearGroundItems();
@@ -172,7 +178,24 @@ public final class MatchManager {
       }
       MatchManager.Countdown.INSTANCE.cancelCountdown();
       currentMatchState = MatchState.PAUSED;
+      OneShotOneKill.clearAbilities(OneShotOneKill.INSTANCE.getServer());
+      pausedSpecialItems.clear();
+
       forEachOnlinePlayer(online -> {
+         // Spezialitems vor dem Pausieren slot-getreu merken und aus dem Inventar räumen
+         Map<Integer, ItemStack> playerItems = new LinkedHashMap<>();
+         Inventory inventory = online.getInventory();
+         for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
+            ItemStack stack = inventory.getItem(slot);
+            if (!stack.isEmpty() && SpecialItem.fromStack(stack) != null) {
+               playerItems.put(slot, stack.copy());
+               inventory.setItem(slot, ItemStack.EMPTY);
+            }
+         }
+         if (!playerItems.isEmpty()) {
+            pausedSpecialItems.put(online.getUUID(), playerItems);
+         }
+
          EquipmentManager.INSTANCE.clearBaseEquipment(online);
          ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
          if (worlds != null) {
@@ -189,6 +212,7 @@ public final class MatchManager {
          return;
       }
       MatchManager.Countdown.INSTANCE.cancelCountdown();
+      pausedSpecialItems.clear();
       SpecialItemManager.INSTANCE.clearGroundItems();
       OneShotOneKill.clearAbilities(OneShotOneKill.INSTANCE.getServer());
       // Erst hier endet, was die Nuke hinterlassen hat: Die Zuschauer duerfen wieder spielen,
@@ -255,9 +279,25 @@ public final class MatchManager {
             } else {
                EquipmentManager.INSTANCE.giveOneShotEquipment(player);
             }
+
+            // Gemerkte Spezialitems genau in die ursprünglichen Slots zurückgeben
+            Map<Integer, ItemStack> savedItems = pausedSpecialItems.remove(player.getUUID());
+            if (savedItems != null) {
+               Inventory inventory = player.getInventory();
+               for (Map.Entry<Integer, ItemStack> entry : savedItems.entrySet()) {
+                  int slot = entry.getKey();
+                  ItemStack stack = entry.getValue();
+                  if (slot >= 0 && slot < inventory.getContainerSize()) {
+                     inventory.setItem(slot, stack);
+                  }
+               }
+               player.inventoryMenu.broadcastChanges();
+            }
+
             OsokEffects.INSTANCE.playResumeMatchEffect(player);
          }
       }
+      pausedSpecialItems.clear();
       ScoreboardManager.INSTANCE.updateAllScoreboards();
       broadcastState();
    }
@@ -392,27 +432,6 @@ public final class MatchManager {
       NukeSequenceManager.INSTANCE.triggerSequence(level, isDraw ? null : winner, Component.literal(reason));
    }
 
-   /**
-    * Das Ergebnis steht fest – aber das Match läuft weiter, bis jemand es stoppt.
-    * <p>
-    * <p>Aufgerufen vom {@link NukeSequenceManager} am Ende seiner Sequenz. Es passiert
-    * ausdrücklich <em>nichts</em>, was Spieler anfasst: kein Rückflug in die Lobby, keine
-    * Ausrüstung eingesammelt, keine Werte zurückgesetzt, kein Zustandswechsel. Wer den
-    * Einschlag gesehen hat, bleibt als Zuschauer über der Karte stehen.</p>
-    * <p>
-    * <h2>Warum der Zustand auf {@code RUNNING} bleibt</h2>
-    * <p>
-    * <p>Hier stand einmal ein Wechsel auf {@code STOPPED} – mit dem Gedanken, dass ein Match,
-    * dessen Sieger feststeht, nicht mehr läuft. Das hatte eine Folge, die ich übersehen habe:
-    * {@link #stopMatch} bricht als Erstes ab, wenn der Zustand schon {@code STOPPED} ist. Der
-    * Druck auf den Stopp-Knopf lief damit ins Leere, und mit ihm alles, was daran hängt – der
-    * Kartenrückbau aus dem Archiv, der Rückflug in die Lobby und die Freigabe des
-    * Zuschauermodus.</p>
-    * <p>
-    * <p>Stattdessen merkt sich {@link #decided}, dass das Ergebnis steht. Der Match-Timer hält
-    * daran an, damit die Runde nicht ein zweites Mal endet, aber der Zustand bleibt
-    * {@code RUNNING} – und der Stopp-Knopf tut wieder etwas.</p>
-    */
    public void markDecided() {
       if (currentMatchState != MatchState.RUNNING) {
          return;
@@ -423,24 +442,13 @@ public final class MatchManager {
       broadcastState();
    }
 
-   /** Ob das Ergebnis feststeht und nur noch der Abschluss von Hand fehlt. */
    public boolean isDecided() {
       return decided;
    }
 
    /**
     * Bringt eine entschiedene Runde zu Ende, bevor an der Arena gedreht wird.
-    * <p>
-    * <p>Nach dem Einschlag bleibt der Zustand mit Absicht auf {@code RUNNING} – niemand soll
-    * automatisch in die Lobby gezogen werden. Das hatte eine Folge, die ich uebersehen habe:
-    * Arena wechseln, zuruecksetzen und Ziele aendern verlangen alle einen gestoppten Zustand,
-    * und wiesen deshalb nach jeder Nuke stillschweigend ab. Der Reset-Knopf tat schlicht
-    * nichts, und das sah aus wie ein kaputter Reset.</p>
-    * <p>
-    * <p>Jetzt gilt eine entschiedene Runde als abschliessbar: Sie wird beim ersten Griff an die
-    * Arena zu Ende gebracht – Zuschauer frei, Karte zurueck, alle in die Lobby – und danach
-    * laeuft die eigentliche Anweisung durch.</p>
-    * <p>
+    *
     * @return ob jetzt an der Arena gearbeitet werden darf
     */
    private boolean settleBeforeArenaChange(ServerPlayer player) {
@@ -695,28 +703,27 @@ public final class MatchManager {
       }
    }
 
-   
    public enum MatchTargetMode {
       UNLIMITED("♾ Unbegrenzt", "Match läuft ohne Limit bis zum manuellen Stopp."),
       TIME_LIMIT("⏱ Zeitlimit", "Match endet nach Ablauf der vorgegebenen Zeit."),
       KILL_LIMIT("🎯 Kill-Ziel", "Der erste Spieler mit der Ziel-Killanzahl gewinnt.");
-   
+
       private final String displayName;
       private final String description;
-   
+
       MatchTargetMode(String displayName, String description) {
          this.displayName = displayName;
          this.description = description;
       }
-   
+
       public String getDisplayName() {
          return displayName;
       }
-   
+
       public String getDescription() {
          return description;
       }
-   
+
       public static MatchTargetMode fromName(String name) {
          for (MatchTargetMode mode : values()) {
             if (mode.name().equalsIgnoreCase(name)) {
@@ -726,7 +733,6 @@ public final class MatchManager {
          return TIME_LIMIT;
       }
    }
-
 
    public static final class Countdown {
       public static final Countdown INSTANCE = new Countdown();
@@ -738,16 +744,16 @@ public final class MatchManager {
       private static final Map<UUID, Vec3> frozenPositions = new LinkedHashMap<>();
       private static final Map<UUID, Float> frozenYaws = new LinkedHashMap<>();
       private static int remainingTicks = COUNTDOWN_CANCELLED;
-   
+
       private Countdown() {
       }
-   
+
       public void startCountdown() {
          MinecraftServer server = OneShotOneKill.INSTANCE.getServer();
          if (server == null) {
             return;
          }
-   
+
          frozenPlayers.clear();
          frozenPositions.clear();
          frozenYaws.clear();
@@ -761,12 +767,12 @@ public final class MatchManager {
          broadcastCountdown();
          playCountdownBeat(3);
       }
-   
+
       public void cancelCountdown() {
          if (remainingTicks < 0) {
             return;
          }
-   
+
          remainingTicks = COUNTDOWN_CANCELLED;
          frozenPlayers.clear();
          frozenPositions.clear();
@@ -776,18 +782,16 @@ public final class MatchManager {
             server.getPlayerList().getPlayers().forEach(player -> ServerPlayNetworking.send(player, MatchCountdownPayload.cancelled()));
          }
       }
-   
+
       public void tick() {
          if (remainingTicks < 0) {
             return;
          }
-   
+
          holdFrozenPlayers();
          remainingTicks--;
          switch (remainingTicks) {
             case 0 -> finishCountdownAndStartMatch();
-            // Der Client zählt selbst herunter; der erneute Stand hält ihn nur im Takt, falls ein
-            // Paket unterwegs verzögert wurde.
             case 20 -> {
                broadcastCountdown();
                playCountdownBeat(1);
@@ -800,39 +804,32 @@ public final class MatchManager {
             }
          }
       }
-   
+
       public boolean isFrozen(ServerPlayer player) {
          return frozenPlayers.contains(player.getUUID());
       }
-   
+
       public Vec3 getFrozenPosition(ServerPlayer player) {
          return isFrozen(player) ? frozenPositions.get(player.getUUID()) : null;
       }
-   
+
       public Float getFrozenYaw(ServerPlayer player) {
          return isFrozen(player) ? frozenYaws.get(player.getUUID()) : null;
       }
-   
+
       public boolean isCountdownRunning() {
          return remainingTicks >= 0;
       }
-   
-      /* Schickt den aktuellen Stand; gezeichnet und heruntergezählt wird auf dem Client. */
+
       /**
        * Hält jeden Eingefrorenen auf seinem Startpunkt.
-       * <p>
-       * Die Positionen wurden schon immer beim Start gemerkt, nur nie ausgewertet – bewegen konnte
-       * man sich im Countdown also sehr wohl. Die eigentliche Sperre sitzt auf dem Client, der
-       * seine Bewegungseingabe verwirft; hier steht die Absicherung dahinter, die zugleich Rückstoß
-       * und Restschwung abfängt. Zurückgesetzt wird nur bei echter Abweichung, sonst zappelte die
-       * Anzeige durch Korrekturen, die niemand braucht.
        */
       private void holdFrozenPlayers() {
          MinecraftServer server = OneShotOneKill.INSTANCE.getServer();
          if (server == null) {
             return;
          }
-   
+
          for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             Vec3 anchor = getFrozenPosition(player);
             if (anchor == null) {
@@ -847,38 +844,60 @@ public final class MatchManager {
             }
          }
       }
-   
+
       private void broadcastCountdown() {
          MinecraftServer server = OneShotOneKill.INSTANCE.getServer();
+         ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
          if (server == null) {
             return;
          }
-         MatchCountdownPayload payload = new MatchCountdownPayload(remainingTicks, false);
+         String arenaName = worlds != null ? worlds.getActive().getDisplayName() : "Standard";
+         String modeName = currentGameMode == GameMode.GUN_GAME ? "Waffenspiel" : "Klassisch";
+         MatchCountdownPayload payload = new MatchCountdownPayload(remainingTicks, false, arenaName, modeName);
          server.getPlayerList().getPlayers().forEach(player -> ServerPlayNetworking.send(player, payload));
       }
-   
+
       /**
-       * Der Schlag zur Sekunde. Die Töne hängen am Spieler selbst, nicht an einem Ort – im
-       * Countdown steht zwar ohnehin jeder still, aber lautstärkegleich für alle ist es nur so.
+       * Mehrschichtiges Cyber-Audio-Design und Partikeleffekte für jede Sekunde.
        */
       private void playCountdownBeat(int seconds) {
          MinecraftServer server = OneShotOneKill.INSTANCE.getServer();
          if (server == null) {
             return;
          }
-   
-         float pitch = switch (seconds) {
-            case 3 -> 0.6F;
-            case 2 -> 1.1F;
-            default -> 1.7F;
-         };
+
          for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.NOTE_BLOCK_PLING.value(), 1.0F, pitch);
-            OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.WARDEN_HEARTBEAT, 0.8F, pitch);
-            OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.BEACON_POWER_SELECT, 0.7F, pitch);
+            ServerLevel level = player.level();
+            Vec3 pos = player.position();
+            switch (seconds) {
+               case 3 -> {
+                  // Sub-Bass & Initialisierung (Cyan)
+                  OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.WARDEN_HEARTBEAT, 1.0F, 0.65F);
+                  OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.BEACON_ACTIVATE, 0.7F, 0.75F);
+                  OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.NOTE_BLOCK_PLING.value(), 1.0F, 0.6F);
+                  level.sendParticles(ParticleTypes.ELECTRIC_SPARK, pos.x, pos.y + 0.1, pos.z, 20, 0.6, 0.1, 0.6, 0.05);
+               }
+               case 2 -> {
+                  // Energie-Aufladung & Schild (Gold)
+                  OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.RESPAWN_ANCHOR_CHARGE, 0.85F, 1.2F);
+                  OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.WARDEN_HEARTBEAT, 1.0F, 1.05F);
+                  OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.NOTE_BLOCK_PLING.value(), 1.0F, 1.1F);
+                  level.sendParticles(ParticleTypes.ELECTRIC_SPARK, pos.x, pos.y + 0.2, pos.z, 30, 0.8, 0.2, 0.8, 0.08);
+                  level.sendParticles(ParticleTypes.GLOW, pos.x, pos.y + 0.5, pos.z, 15, 0.5, 0.4, 0.5, 0.02);
+               }
+               default -> {
+                  // Lock-On / Alarm (Crimson)
+                  OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.ARROW_HIT_PLAYER, 1.0F, 1.7F);
+                  OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.AMETHYST_BLOCK_RESONATE, 1.0F, 1.6F);
+                  OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.WARDEN_HEARTBEAT, 1.0F, 1.4F);
+                  OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.NOTE_BLOCK_PLING.value(), 1.0F, 1.7F);
+                  level.sendParticles(ParticleTypes.ELECTRIC_SPARK, pos.x, pos.y + 0.3, pos.z, 45, 1.0, 0.3, 1.0, 0.12);
+                  level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, pos.x, pos.y + 0.2, pos.z, 20, 0.6, 0.3, 0.6, 0.04);
+               }
+            }
          }
       }
-   
+
       private void finishCountdownAndStartMatch() {
          remainingTicks = COUNTDOWN_CANCELLED;
          frozenPlayers.clear();
@@ -889,8 +908,10 @@ public final class MatchManager {
          if (server == null || worlds == null) {
             return;
          }
-   
+
          Arena arena = worlds.getActive();
+         String arenaName = arena.getDisplayName();
+         String modeName = currentGameMode == GameMode.GUN_GAME ? "Waffenspiel" : "Klassisch";
          if (currentGameMode == GameMode.GUN_GAME) {
             GunGameManager.INSTANCE.startMatch(server);
          }
@@ -906,7 +927,7 @@ public final class MatchManager {
                EquipmentManager.INSTANCE.giveOneShotEquipment(player);
             }
             OsokEffects.INSTANCE.playStartMatchEffect(player);
-            ServerPlayNetworking.send(player, MatchCountdownPayload.go());
+            ServerPlayNetworking.send(player, MatchCountdownPayload.go(arenaName, modeName));
          }
          ScoreboardManager.INSTANCE.updateAllScoreboards();
          MatchManager.INSTANCE.broadcastState();

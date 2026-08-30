@@ -1,12 +1,15 @@
 package com.oneshotonekill.client.screen;
 
 import com.oneshotonekill.shared.OsokColors;
+import java.util.List;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.Camera;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
+import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.phys.Vec3;
@@ -300,8 +303,6 @@ public final class OsokWidgets {
          int thumbX = x + Math.max(0, Math.min(width - thumbWidth, (int) (ratio * (width - thumbWidth))));
          int thumbY = y + (height - thumbHeight) / 2;
 
-         // Weicher Schein rund um den Daumen. Drei nach außen ausdünnende Ringe genügen; ein
-         // echter Weichzeichner wäre für ein Bedienelement dieser Größe nicht zu rechtfertigen.
          if (hovered || active) {
             int rgb = accent & 0x00FFFFFF;
             int strength = active ? 3 : 2;
@@ -322,11 +323,8 @@ public final class OsokWidgets {
          graphics.verticalLine(thumbX, thumbY, thumbY + thumbHeight - 1, thumbBorder);
          graphics.verticalLine(thumbX + thumbWidth - 1, thumbY, thumbY + thumbHeight - 1, thumbBorder);
 
-         // Mittelrille auf dem Thumb
          graphics.fill(thumbX + thumbWidth / 2 - 1, thumbY + 3, thumbX + thumbWidth / 2 + 1, thumbY + thumbHeight - 3, 0x44000000);
 
-         // Schwebende Wertanzeige über dem Daumen. Sie erscheint nur beim Ziehen, weil der Wert
-         // dann unter dem Mauszeiger gebraucht wird und nicht oben in der Zeile.
          if (active) {
             int badgeWidth = font.width(valueText) + 10;
             int badgeX = Math.clamp(thumbX + thumbWidth / 2 - badgeWidth / 2,
@@ -337,7 +335,6 @@ public final class OsokWidgets {
             graphics.horizontalLine(badgeX, badgeX + badgeWidth - 1, badgeY + 12, accent);
             graphics.verticalLine(badgeX, badgeY, badgeY + 12, accent);
             graphics.verticalLine(badgeX + badgeWidth - 1, badgeY, badgeY + 12, accent);
-            // Kleiner Zeiger zum Daumen hinunter
             int tipX = Math.clamp(thumbX + thumbWidth / 2, badgeX + 2, badgeX + badgeWidth - 3);
             graphics.fill(tipX - 1, badgeY + 13, tipX + 2, badgeY + 15, accent);
             graphics.centeredText(font, Component.literal(valueText),
@@ -347,7 +344,7 @@ public final class OsokWidgets {
    }
 
    /**
-    * Taktisches Such- / Eingabefeld mit Fokusrahmen, Icon und Platzhalter-Text.
+    * Taktisches Such- / Eingabefeld mit Fokusrahmen, Icon, Platzhalter-Text und [✕]-Clear-Button.
     */
    public static void searchInput(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
                                   String query, String placeholder, boolean focused, boolean hovered) {
@@ -360,20 +357,103 @@ public final class OsokWidgets {
       graphics.verticalLine(x, y, y + height - 1, border);
       graphics.verticalLine(x + width - 1, y, y + height - 1, border);
 
-      // Such-Symbol "🔍"
       graphics.text(font, "🔍", x + 6, y + (height - 8) / 2, focused ? COLOR_CYAN : COLOR_TEXT_MUTED);
 
-      // Eingegebener Text oder Platzhalter
       if (query.isEmpty()) {
          graphics.text(font, placeholder, x + 20, y + (height - 8) / 2, COLOR_TEXT_FAINT);
       } else {
          graphics.text(font, query, x + 20, y + (height - 8) / 2, COLOR_TEXT_WHITE);
-         // Cursor
          if (focused && (System.currentTimeMillis() / 500) % 2 == 0) {
             int cursorX = x + 20 + font.width(query) + 1;
-            graphics.fill(cursorX, y + 4, cursorX + 1, y + height - 4, COLOR_CYAN);
+            if (cursorX < x + width - 18) {
+               graphics.fill(cursorX, y + 4, cursorX + 1, y + height - 4, COLOR_CYAN);
+            }
          }
+
+         int clearX = x + width - 14;
+         int clearY = y + (height - 8) / 2;
+         graphics.text(font, "✕", clearX, clearY, COLOR_TEXT_MUTED);
       }
+   }
+
+   public static boolean isSearchClearHovered(double mouseX, double mouseY, int searchX, int searchY, int searchWidth, int searchHeight) {
+      return mouseX >= searchX + searchWidth - 18 && mouseX <= searchX + searchWidth - 2
+         && mouseY >= searchY && mouseY < searchY + searchHeight;
+   }
+
+   public record DistributionSegment(String label, double percentage, int color) {}
+
+   /**
+    * Gestapelte Verteilungsleiste für Wahrscheinlichkeiten und Anteile.
+    * Gibt das überfahrene Segment zurück, falls der Mauszeiger darauf liegt.
+    */
+   public static DistributionSegment drawStackedDistributionBar(GuiGraphicsExtractor graphics, Font font, int x, int y,
+                                                               int width, int height, List<DistributionSegment> segments,
+                                                               double mouseX, double mouseY) {
+      if (segments == null || segments.isEmpty() || width <= 4) {
+         return null;
+      }
+
+      graphics.fill(x, y, x + width, y + height, 0xFF10141E);
+      graphics.horizontalLine(x, x + width - 1, y, COLOR_CARD_BORDER);
+      graphics.horizontalLine(x, x + width - 1, y + height - 1, COLOR_CARD_BORDER);
+      graphics.verticalLine(x, y, y + height - 1, COLOR_CARD_BORDER);
+      graphics.verticalLine(x + width - 1, y, y + height - 1, COLOR_CARD_BORDER);
+
+      int innerW = width - 2;
+      int curX = x + 1;
+      DistributionSegment hoveredSeg = null;
+
+      for (int i = 0; i < segments.size(); i++) {
+         DistributionSegment seg = segments.get(i);
+         if (seg.percentage() <= 0.0) continue;
+         int segW = Math.max(1, (int) Math.round(seg.percentage() / 100.0 * innerW));
+         if (curX + segW > x + width - 1 || i == segments.size() - 1) {
+            segW = (x + width - 1) - curX;
+         }
+         if (segW <= 0) break;
+
+         boolean hovered = mouseX >= curX && mouseX < curX + segW && mouseY >= y && mouseY < y + height;
+         if (hovered) {
+            hoveredSeg = seg;
+         }
+
+         int col = hovered ? ((seg.color() & 0x00FFFFFF) | 0xFF000000) : ((seg.color() & 0x00FFFFFF) | 0xCC000000);
+         graphics.fill(curX, y + 1, curX + segW, y + height - 1, col);
+         if (hovered) {
+            graphics.horizontalLine(curX, curX + segW - 1, y + 1, 0xAAFFFFFF);
+         }
+         curX += segW;
+      }
+
+      return hoveredSeg;
+   }
+
+   // -- Audio-Feedback Hilfsmethoden ----------------------------------------
+
+   public static void playUiClickSound() {
+      Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.0F));
+   }
+
+   public static void playTabSwitchSound() {
+      Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 1.3F));
+   }
+
+   public static void playItemGiveSound() {
+      Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.ARMOR_EQUIP_GENERIC.value(), 1.2F, 0.65F));
+   }
+
+   public static void playActionSound() {
+      Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.EXPERIENCE_ORB_PICKUP, 1.1F, 0.4F));
+   }
+
+   public static void playClearSound() {
+      Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(SoundEvents.UI_BUTTON_CLICK, 0.85F));
+   }
+
+   public static void playSliderTickSound(float ratio) {
+      Minecraft.getInstance().getSoundManager().play(SimpleSoundInstance.forUI(
+         SoundEvents.NOTE_BLOCK_HAT.value(), 1.35F + Math.clamp(ratio, 0.0F, 1.0F) * 0.55F, 0.16F));
    }
 
    /**
@@ -386,16 +466,13 @@ public final class OsokWidgets {
       if (overflow <= 0) {
          return;
       }
-      // Dieselben Formeln wie beim Ziehen; sonst säße der Schieber nicht dort, wo er gegriffen wird.
       int barHeight = scrollThumbHeight(contentLength, visibleHeight);
       int barY = scrollThumbY(trackY, visibleHeight, contentLength, scroll);
 
-      // Track-Hintergrund (halbtransparent dunkel mit zarter Kante)
       graphics.fill(trackX, trackY, trackX + 4, trackY + trackHeight, 0x440B0E14);
       graphics.horizontalLine(trackX, trackX + 3, trackY, 0x22FFFFFF);
       graphics.horizontalLine(trackX, trackX + 3, trackY + trackHeight - 1, 0x22000000);
 
-      // Thumb (Schieber)
       graphics.fill(trackX, barY, trackX + 4, barY + barHeight, thumbColor);
       graphics.fill(trackX + 1, barY + 1, trackX + 3, barY + barHeight - 1, (thumbColor & 0x00FFFFFF) | 0xDD000000);
    }
@@ -416,9 +493,6 @@ public final class OsokWidgets {
       graphics.fill(trackX, barY, trackX + 4, barY + barHeight, thumbColor);
    }
 
-   /**
-    * Sauberes Alert- / Warn-Banner im Cyber-Stil mit Icon, Text und Akzentfarbe.
-    */
    public static void alertBanner(GuiGraphicsExtractor graphics, Font font, int x, int y, int width, int height,
                                   ItemStack icon, String text, int accent) {
       int bg = (accent & 0x00FFFFFF) | 0x22000000;

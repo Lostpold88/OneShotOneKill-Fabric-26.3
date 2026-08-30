@@ -696,30 +696,44 @@ public final class OsokPayloads {
     * <p>
     * {@code remainingTicks < 0} bricht ab, {@code isGo} ist der Startschuss.
     */
-   public record MatchCountdownPayload(int remainingTicks, boolean isGo) implements CustomPacketPayload {
+   public record MatchCountdownPayload(int remainingTicks, boolean isGo, String arenaName, String gameMode) implements CustomPacketPayload {
       public static final Type<MatchCountdownPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("match_countdown"));
-   
+
       public static final StreamCodec<ByteBuf, MatchCountdownPayload> STREAM_CODEC = StreamCodec.composite(
          ByteBufCodecs.VAR_INT, MatchCountdownPayload::remainingTicks,
          ByteBufCodecs.BOOL, MatchCountdownPayload::isGo,
+         ByteBufCodecs.STRING_UTF8, MatchCountdownPayload::arenaName,
+         ByteBufCodecs.STRING_UTF8, MatchCountdownPayload::gameMode,
          MatchCountdownPayload::new);
-   
+
       public static MatchCountdownPayload cancelled() {
-         return new MatchCountdownPayload(-1, false);
+         return new MatchCountdownPayload(-1, false, "", "");
       }
-   
-      public static MatchCountdownPayload go() {
-         return new MatchCountdownPayload(0, true);
+
+      public static MatchCountdownPayload go(String arenaName, String gameMode) {
+         return new MatchCountdownPayload(0, true, arenaName, gameMode);
       }
-   
+
+      public static MatchCountdownPayload of(int remainingTicks, String arenaName, String gameMode) {
+         return new MatchCountdownPayload(remainingTicks, false, arenaName, gameMode);
+      }
+
       public int getRemainingTicks() {
          return remainingTicks;
       }
-   
+
       public boolean isGo() {
          return isGo;
       }
-   
+
+      public String getArenaName() {
+         return arenaName;
+      }
+
+      public String getGameMode() {
+         return gameMode;
+      }
+
       @Override
       public Type<MatchCountdownPayload> type() {
          return TYPE;

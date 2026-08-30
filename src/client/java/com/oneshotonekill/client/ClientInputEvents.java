@@ -157,7 +157,11 @@ public final class ClientInputEvents {
     * danach selbst.
     */
    public static float modifyDetachedCameraDistance(float cameraDistance) {
-      return MatchStartState.INSTANCE.isCountdownActive() ? COUNTDOWN_CAMERA_DISTANCE : cameraDistance;
+      if (MatchStartState.INSTANCE.isCountdownActive()) {
+         float partial = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
+         return MatchStartState.INSTANCE.getCameraDistance(partial);
+      }
+      return cameraDistance;
    }
 
    /**

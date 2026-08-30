@@ -11,6 +11,7 @@ import net.minecraft.client.resources.sounds.SimpleSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Util;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 
 /**
@@ -106,51 +107,85 @@ public final class MatchHudLayers {
             );
          }
 
-         // 1. Hintergrund-Verdunklung & Filmische Letterbox-Balken
+         // 1. Hintergrund-Verdunklung & Filmische Letterbox-Balken mit Telemetrie
          graphics.fill(0, 0, width, height, SCRIM);
-         drawLetterbox(graphics, Minecraft.getInstance().font, width, height, overall, accent);
+         drawHoloScanlines(graphics, width, height, accent);
+         drawLetterbox(graphics, Minecraft.getInstance().font, width, height, overall, second, accent, state);
 
          // 2. Weicher Hintergrundschein (Radial Glow)
          drawRadialGlow(graphics, centreX, centreY, accent);
 
-         // 3. Taktisches Tech-HUD (Gegenläufige Ringe, Sweep & Klammern)
+         // 3. Taktisches Tech-HUD (Gegenläufige Ringe, Sci-Fi Hexagon, Sweep & Klammern)
          drawTechRings(graphics, centreX, centreY, remaining, overall, withinSecond, accent);
 
          // 4. Stoßwellen-Puls bei jedem Sekundenwechsel
          drawShockwave(graphics, centreX, centreY, withinSecond, accent);
 
-         // 5. 7-Segment Ziffer mit Punch & Ghosting
+         // 5. 7-Segment Ziffer mit Punch, RGB-Split Glitch & Ghosting
          drawDigit(graphics, centreX, centreY, second, withinSecond, accent);
 
          // 6. Taktische Beschriftungen
          drawLabels(graphics, Minecraft.getInstance().font, centreX, centreY, second, accent);
       }
 
+      /** Holografische Scanlines und wandernder Sweep-Laserstrahl */
+      private static void drawHoloScanlines(GuiGraphicsExtractor graphics, int width, int height, int accent) {
+         int scanCol = 0x07000000 | (accent & 0x00FFFFFF);
+         for (int y = 0; y < height; y += 4) {
+            graphics.horizontalLine(0, width - 1, y, scanCol);
+         }
+
+         long now = Util.getMillis();
+         float sweepRatio = (now % 1800L) / 1800.0F;
+         int sweepY = (int) (sweepRatio * height);
+         int laserAlpha = (int) (35 + 25 * Math.sin(sweepRatio * Math.PI));
+         int laserCol = (laserAlpha << 24) | (accent & 0x00FFFFFF);
+         graphics.fill(0, sweepY - 1, width, sweepY + 2, laserCol);
+      }
+
       /** Filmische Widescreen-Letterbox Balken oben und unten mit Telemetrie */
-      private static void drawLetterbox(GuiGraphicsExtractor graphics, Font font, int width, int height, float overall, int accent) {
+      private static void drawLetterbox(GuiGraphicsExtractor graphics, Font font, int width, int height,
+                                       float overall, int second, int accent, MatchStartState state) {
          float introProgress = Math.min(1.0F, overall * 4.0F);
          int barH = Math.round(LETTERBOX_HEIGHT * introProgress);
          if (barH <= 0) return;
 
          // Oberer Balken
-         graphics.fill(0, 0, width, barH, 0xF2080A10);
-         graphics.horizontalLine(0, width - 1, barH - 1, (accent & 0x00FFFFFF) | 0x99000000);
-         graphics.fill(0, barH, width, barH + 1, 0x40000000);
+         graphics.fill(0, 0, width, barH, 0xF4070A10);
+         graphics.horizontalLine(0, width - 1, barH - 1, (accent & 0x00FFFFFF) | 0xAA000000);
+         graphics.fill(0, barH, width, barH + 1, 0x50000000);
 
          // Unterer Balken
-         graphics.fill(0, height - barH, width, height, 0xF2080A10);
-         graphics.horizontalLine(0, width - 1, height - barH, (accent & 0x00FFFFFF) | 0x99000000);
-         graphics.fill(0, height - barH - 1, width, height - barH, 0x40000000);
+         graphics.fill(0, height - barH, width, height, 0xF4070A10);
+         graphics.horizontalLine(0, width - 1, height - barH, (accent & 0x00FFFFFF) | 0xAA000000);
+         graphics.fill(0, height - barH - 1, width, height - barH, 0x50000000);
 
          // Telemetrie im oberen Balken
          if (barH >= LETTERBOX_HEIGHT - 4) {
-            graphics.text(font, "⚡ PROTOCOL: OSOK // ARENA COMBAT", 14, 9, 0xFF94A3B8);
-            String rightTag = "SYS.STATUS: ARMED";
+            String leftTag = "✦ PROTOCOL: OSOK // ARENA: " + state.getMapName().toUpperCase();
+            graphics.text(font, leftTag, 14, 9, 0xFFCBD5E1);
+
+            String statusBadge = switch (second) {
+               case 3 -> "INIT 🔴";
+               case 2 -> "ARMED 🟡";
+               default -> "LOCK-ON 🟢";
+            };
+            String rightTag = "SYS.STATUS: " + statusBadge + " // " + state.getGameModeName().toUpperCase();
             graphics.text(font, rightTag, width - 14 - font.width(rightTag), 9, accent);
 
-            // Text im unteren Balken
+            // Segment-Pips und Text im unteren Balken
+            String pips = switch (second) {
+               case 3 -> "[ ■ ■ ■ ] SYSTEM INITIALISIERUNG";
+               case 2 -> "[ ■ ■ □ ] WAFFEN SCHARF";
+               default -> "[ ■ □ □ ] ZIELERFASSUNG AKTIV";
+            };
+            graphics.text(font, pips, 14, height - barH + 9, accent);
+
             String bottomMsg = "[ BEWEGUNG GESPERRT · WAFFEN-SCHARFMACHUNG ]";
             graphics.centeredText(font, Component.literal(bottomMsg), width / 2, height - barH + 9, 0xFFE2E8F0);
+
+            String timerTag = "T-MINUS 00:0" + second;
+            graphics.text(font, timerTag, width - 14 - font.width(timerTag), height - barH + 9, 0xFF94A3B8);
          }
       }
 
@@ -166,13 +201,12 @@ public final class MatchHudLayers {
          }
       }
 
-      /** Gegenläufig rotierende Ringe, Grad-Ticks und Zielfokus-Klammern */
+      /** Gegenläufig rotierende Ringe, Sci-Fi Hexagon, Grad-Ticks und Zielfokus-Klammern */
       private static void drawTechRings(GuiGraphicsExtractor graphics, int centreX, int centreY,
                                         float remainingTicks, float overall, float withinSecond, int accent) {
          // A. Äußerer Tech-Kompass-Ring (rotiert gegenläufig)
          float techAngleOffset = -remainingTicks * 0.04F;
          for (int segment = 0; segment < 48; segment++) {
-            // 4 Lücken für Tech-Optik
             if (segment % 12 == 0 || segment % 12 == 1) continue;
 
             float angle = (float) (segment * (Math.PI * 2.0) / 48.0 + techAngleOffset);
@@ -184,14 +218,36 @@ public final class MatchHudLayers {
          // 4 Haupt-Grad-Ticks auf dem Außenring
          for (int i = 0; i < 4; i++) {
             float angle = (float) (i * Math.PI / 2.0 + techAngleOffset);
-            int x0 = centreX + Math.round(Mth.cos(angle) * (OUTER_TECH_RADIUS - 4));
-            int y0 = centreY + Math.round(Mth.sin(angle) * (OUTER_TECH_RADIUS - 4));
-            int x1 = centreX + Math.round(Mth.cos(angle) * (OUTER_TECH_RADIUS + 4));
-            int y1 = centreY + Math.round(Mth.sin(angle) * (OUTER_TECH_RADIUS + 4));
+            int x0 = centreX + Math.round(Mth.cos(angle) * (OUTER_TECH_RADIUS - 5));
+            int y0 = centreY + Math.round(Mth.sin(angle) * (OUTER_TECH_RADIUS - 5));
+            int x1 = centreX + Math.round(Mth.cos(angle) * (OUTER_TECH_RADIUS + 5));
+            int y1 = centreY + Math.round(Mth.sin(angle) * (OUTER_TECH_RADIUS + 5));
             graphics.fill(Math.min(x0, x1) - 1, Math.min(y0, y1) - 1, Math.max(x0, x1) + 2, Math.max(y0, y1) + 2, accent);
          }
 
-         // B. Mittlerer 3-Sekunden-Fortschrittsring
+         // B. Sci-Fi Hexagon-Fokusrahmen (6 Ecken, pulsiert mit Takt)
+         float hexAngleOffset = remainingTicks * 0.025F;
+         int hexRadius = Math.round(OUTER_TECH_RADIUS - 8 + 4 * (1.0F - withinSecond));
+         int hexColor = withAlpha(accent, 0x88);
+         for (int side = 0; side < 6; side++) {
+            float a0 = (float) (side * Math.PI / 3.0 + hexAngleOffset);
+            float a1 = (float) ((side + 1) * Math.PI / 3.0 + hexAngleOffset);
+            int x0 = centreX + Math.round(Mth.cos(a0) * hexRadius);
+            int y0 = centreY + Math.round(Mth.sin(a0) * hexRadius);
+            int x1 = centreX + Math.round(Mth.cos(a1) * hexRadius);
+            int y1 = centreY + Math.round(Mth.sin(a1) * hexRadius);
+
+            graphics.fill(x0 - 2, y0 - 2, x0 + 3, y0 + 3, accent);
+
+            for (int step = 1; step < 8; step++) {
+               float t = step / 8.0F;
+               int lx = Math.round(x0 + t * (x1 - x0));
+               int ly = Math.round(y0 + t * (y1 - y0));
+               graphics.fill(lx - 1, ly - 1, lx + 1, ly + 1, hexColor);
+            }
+         }
+
+         // C. Mittlerer 3-Sekunden-Fortschrittsring
          int usedSegments = Math.round(RING_SEGMENTS * Mth.clamp(overall, 0.0F, 1.0F));
          for (int segment = 0; segment < RING_SEGMENTS; segment++) {
             float angle = (float) (segment * (Math.PI * 2.0) / RING_SEGMENTS - Math.PI / 2.0);
@@ -202,7 +258,7 @@ public final class MatchHudLayers {
             graphics.fill(x - size / 2, y - size / 2, x + size / 2 + 1, y + size / 2 + 1, spent ? DIM : accent);
          }
 
-         // C. Innerer Ladering (läuft je Sekunde einmal herum mit Leuchtschweif)
+         // D. Innerer Ladering (läuft je Sekunde einmal herum mit Leuchtschweif)
          for (int trail = 0; trail < SWEEP_LENGTH; trail++) {
             float angle = (float) ((withinSecond - trail * 0.015F) * Math.PI * 2.0 - Math.PI / 2.0);
             int x = centreX + Math.round(Mth.cos(angle) * SWEEP_RADIUS);
@@ -211,9 +267,9 @@ public final class MatchHudLayers {
             graphics.fill(x - 1, y - 1, x + 2, y + 2, withAlpha(accent, alpha));
          }
 
-         // D. 4 Taktische Fokus-Klammern
-         int distance = Math.round(100 - 22 * Mth.clamp(overall, 0.0F, 1.0F));
-         int bracketColor = withAlpha(accent, 0xDD);
+         // E. 4 Taktische Zielfokus-Klammern (schließen sich dynamisch zusammen)
+         int distance = Math.round(112 - 34 * Mth.clamp(overall, 0.0F, 1.0F));
+         int bracketColor = withAlpha(accent, 0xEE);
          for (int side = -1; side <= 1; side += 2) {
             for (int vertical = -1; vertical <= 1; vertical += 2) {
                int x = centreX + side * distance;
@@ -241,7 +297,7 @@ public final class MatchHudLayers {
          }
       }
 
-      /** Ziffer als Segmentanzeige mit dynamischem Punch */
+      /** Ziffer als Segmentanzeige mit dynamischem Punch & RGB-Split Glitch */
       private static void drawDigit(GuiGraphicsExtractor graphics, int centreX, int centreY,
                                     int digit, float withinSecond, int accent) {
          float punch = 1.0F + PUNCH * Math.max(0.0F, 1.0F - withinSecond * 3.2F);
@@ -249,6 +305,20 @@ public final class MatchHudLayers {
          int width = Math.round(DIGIT_WIDTH * punch);
          int thickness = Math.max(3, Math.round(DIGIT_THICKNESS * punch));
 
+         // RGB-Split Glitch Effekt bei Beat-Eintritt
+         if (withinSecond < 0.25F) {
+            float glitchFactor = 1.0F - withinSecond / 0.25F;
+            int glitchOffset = Math.round(glitchFactor * 5.0F);
+            if (glitchOffset > 0) {
+               drawSingleDigit(graphics, centreX - glitchOffset, centreY, width, height, thickness, digit, withAlpha(OsokWidgets.COLOR_CYAN, (int) (glitchFactor * 160)));
+               drawSingleDigit(graphics, centreX + glitchOffset, centreY, width, height, thickness, digit, withAlpha(OsokWidgets.COLOR_CRIMSON, (int) (glitchFactor * 160)));
+            }
+         }
+         drawSingleDigit(graphics, centreX, centreY, width, height, thickness, digit, accent);
+      }
+
+      private static void drawSingleDigit(GuiGraphicsExtractor graphics, int centreX, int centreY,
+                                          int width, int height, int thickness, int digit, int colour) {
          int left = centreX - width / 2;
          int top = centreY - height / 2;
          int right = left + width;
@@ -259,15 +329,15 @@ public final class MatchHudLayers {
 
          for (int segment = 0; segment < 7; segment++) {
             boolean lit = (mask & (1 << segment)) != 0;
-            int colour = lit ? accent : withAlpha(accent, GHOST_ALPHA);
+            int segCol = lit ? colour : withAlpha(colour, GHOST_ALPHA);
             switch (segment) {
-               case 0 -> graphics.fill(left + thickness, top, right - thickness, top + thickness, colour);
-               case 1 -> graphics.fill(right - thickness, top + thickness, right, middle - half, colour);
-               case 2 -> graphics.fill(right - thickness, middle + half, right, bottom - thickness, colour);
-               case 3 -> graphics.fill(left + thickness, bottom - thickness, right - thickness, bottom, colour);
-               case 4 -> graphics.fill(left, middle + half, left + thickness, bottom - thickness, colour);
-               case 5 -> graphics.fill(left, top + thickness, left + thickness, middle - half, colour);
-               default -> graphics.fill(left + thickness, middle - half, right - thickness, middle + half, colour);
+               case 0 -> graphics.fill(left + thickness, top, right - thickness, top + thickness, segCol);
+               case 1 -> graphics.fill(right - thickness, top + thickness, right, middle - half, segCol);
+               case 2 -> graphics.fill(right - thickness, middle + half, right, bottom - thickness, segCol);
+               case 3 -> graphics.fill(left + thickness, bottom - thickness, right - thickness, bottom, segCol);
+               case 4 -> graphics.fill(left, middle + half, left + thickness, bottom - thickness, segCol);
+               case 5 -> graphics.fill(left, top + thickness, left + thickness, middle - half, segCol);
+               default -> graphics.fill(left + thickness, middle - half, right - thickness, middle + half, segCol);
             }
          }
       }
@@ -280,22 +350,22 @@ public final class MatchHudLayers {
          graphics.centeredText(font, Component.literal(sub), centreX, centreY + OUTER_TECH_RADIUS + 14, 0xFFF1F5F9);
       }
 
-      /** Kinetischer Startschuss mit Flash, Speedlines und großem "MATCH START" Banner */
+      /** Kinetischer Startschuss mit Flash, Speedlines, Doppel-Druckwelle und "MATCH START" Banner */
       private static void drawGoScreen(GuiGraphicsExtractor graphics, Font font, int centreX, int centreY,
                                        int width, int height, float goProgress) {
-         // 1. Weiß-Goldener Flash
-         int flashAlpha = (int) (goProgress * 210);
+         // 1. Dual Flash (Gold-Weiß)
+         int flashAlpha = (int) (goProgress * 230);
          graphics.fill(0, 0, width, height, flashAlpha << 24 | 0x00FFFFFF);
 
-         // 2. Kinetische Speedlines
-         int lineAlpha = (int) (goProgress * 240);
+         // 2. Kinetische 32-Speedlines
+         int lineAlpha = (int) (goProgress * 255);
          int lineCol = lineAlpha << 24 | 0x00FFD700;
          float expand = (1.0F - goProgress);
 
-         for (int i = 0; i < 16; i++) {
-            float angle = (float) (i * Math.PI / 8.0);
-            int innerDist = Math.round(50 + expand * 160);
-            int outerDist = Math.round(innerDist + 40 + goProgress * 60);
+         for (int i = 0; i < 32; i++) {
+            float angle = (float) (i * Math.PI / 16.0);
+            int innerDist = Math.round(40 + expand * 180);
+            int outerDist = Math.round(innerDist + 50 + goProgress * 80);
 
             int x0 = centreX + Math.round(Mth.cos(angle) * innerDist);
             int y0 = centreY + Math.round(Mth.sin(angle) * innerDist);
@@ -305,26 +375,39 @@ public final class MatchHudLayers {
             graphics.fill(Math.min(x0, x1), Math.min(y0, y1), Math.max(x0, x1) + 2, Math.max(y0, y1) + 2, lineCol);
          }
 
-         // 3. Expandierender Druckwellen-Ring
-         int shockRadius = Math.round(30 + expand * 240);
+         // 3. Expandierende Doppel-Druckwellen-Ringe (Gold & Cyan)
+         int shock1 = Math.round(20 + expand * 260);
+         int shock2 = Math.max(0, shock1 - 25);
          for (int seg = 0; seg < RING_SEGMENTS; seg++) {
             float angle = (float) (seg * (Math.PI * 2.0) / RING_SEGMENTS);
-            int x = centreX + Math.round(Mth.cos(angle) * shockRadius);
-            int y = centreY + Math.round(Mth.sin(angle) * shockRadius);
-            graphics.fill(x - 1, y - 1, x + 2, y + 2, lineAlpha << 24 | 0x0000F0FF);
+            int x = centreX + Math.round(Mth.cos(angle) * shock1);
+            int y = centreY + Math.round(Mth.sin(angle) * shock1);
+            graphics.fill(x - 1, y - 1, x + 2, y + 2, lineAlpha << 24 | 0x00FFD700);
+
+            if (shock2 > 0) {
+               int x2 = centreX + Math.round(Mth.cos(angle) * shock2);
+               int y2 = centreY + Math.round(Mth.sin(angle) * shock2);
+               graphics.fill(x2 - 1, y2 - 1, x2 + 2, y2 + 2, (lineAlpha / 2) << 24 | 0x0000F0FF);
+            }
          }
 
-         // 4. Zentrales "MATCH START" Banner
-         int bannerAlpha = Math.min(255, (int) (goProgress * 280));
+         // 4. Zentrales "MATCH START" Banner mit RGB-Split Schatten
+         int bannerAlpha = Math.min(255, (int) (goProgress * 290));
          int goldText = bannerAlpha << 24 | 0x00FFD700;
          int whiteText = bannerAlpha << 24 | 0x00FFFFFF;
+         int cyanGlitch = (bannerAlpha / 2) << 24 | 0x0000F0FF;
+         int redGlitch = (bannerAlpha / 2) << 24 | 0x00FF2244;
 
-         // Doppelter Schatten für plastischen Look
-         graphics.centeredText(font, Component.literal("⚔ MATCH START ⚔"), centreX + 1, centreY - 11, 0xDD000000);
-         graphics.centeredText(font, Component.literal("⚔ MATCH START ⚔"), centreX, centreY - 12, goldText);
+         if (goProgress > 0.4F) {
+            graphics.centeredText(font, Component.literal("⚔ MATCH START ⚔"), centreX - 3, centreY - 14, cyanGlitch);
+            graphics.centeredText(font, Component.literal("⚔ MATCH START ⚔"), centreX + 3, centreY - 14, redGlitch);
+         }
 
-         graphics.centeredText(font, Component.literal("FEUER FREI!"), centreX + 1, centreY + 4, 0xDD000000);
-         graphics.centeredText(font, Component.literal("FEUER FREI!"), centreX, centreY + 3, whiteText);
+         graphics.centeredText(font, Component.literal("⚔ MATCH START ⚔"), centreX + 1, centreY - 13, 0xDD000000);
+         graphics.centeredText(font, Component.literal("⚔ MATCH START ⚔"), centreX, centreY - 14, goldText);
+
+         graphics.centeredText(font, Component.literal("/// FEUER FREI! ///"), centreX + 1, centreY + 5, 0xDD000000);
+         graphics.centeredText(font, Component.literal("/// FEUER FREI! ///"), centreX, centreY + 4, whiteText);
       }
 
       private static int withAlpha(int colour, int alpha) {
