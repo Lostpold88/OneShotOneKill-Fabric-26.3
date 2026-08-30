@@ -9,8 +9,8 @@
 - Nach externen Datei- oder Strukturänderungen durch Agenten wird das Dateisystem mit der IDE synchronisiert.
 - Zielplattform: **Java 25, Minecraft 26.2, Fabric Loader 0.19.5, Fabric API 0.158.0+26.2, Fabric Loom 1.17-SNAPSHOT, Gradle 9.5.1**. Alle Versionen stehen in `gradle.properties`.
 - Mod-ID `oneshotonekill`, Package `com.oneshotonekill`.
-- Geteilte Source-Sets: `src/main/java` läuft auf Server und Client, `src/client/java` ausschließlich auf dem Client.
 - Build und Deployment laufen über [`.\build.ps1`](file:///E:/OneShotOneKill/MOD/build.ps1) (bzw. die verknüpfte IntelliJ Run Configuration `BUILD`).
+- **Client-Start:** Der Minecraft Client wird **immer direkt aus IntelliJ IDEA heraus über das Debugger-MCP im Debug-Modus** gestartet (`execute_run_configuration` mit `name: "Minecraft Client", mode: "debug"`). Niemals als getrennter Terminal-Prozess ohne Debugger-Anbindung!
 
 ---
 
@@ -37,11 +37,12 @@ Die Anbindung an den Debugger erfolgt über das **jetbrains-debugger MCP** (`htt
 > - **[`jetbrains-debugger/references/tool-reference.md`](jetbrains-debugger/references/tool-reference.md):** Vollständige Referenz aller Debugger-Werkzeuge (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, etc.).
 >
 > **Kernregeln für Debugging:**
-> 1. Breakpoints **vor** dem Starten der Session setzen (`set_breakpoint`).
-> 2. Nach Stepping (`step_over`, `step_into`, etc.) oder `resume_execution` immer mit `wait_for_pause` auf die Pause warten.
-> 3. Dateipfade für Breakpoints müssen **absolut** sein, Zeilennummern **1-basiert**.
-> 4. Zur Status- und Variableninspektion primär `get_debug_session_status` nutzen (bündelt Stack, Variablen, Code und Lokation in einem Aufruf).
-> 5. Nach Abschluss der Untersuchung die Session immer sauber mit `stop_debug_session` beenden.
+> 1. **Client-Start via IntelliJ Debugger MCP:** Den Minecraft Client immer über `execute_run_configuration` mit `name: "Minecraft Client", mode: "debug"` (oder `start_debug_session(configuration_name: "Minecraft Client")`) starten, damit die JVM-Instanz dauerhaft im Debugger eingeklinkt ist.
+> 2. Breakpoints **vor** dem Auslösen der Aktion setzen (`set_breakpoint`).
+> 3. Nach Stepping (`step_over`, `step_into`, etc.) oder `resume_execution` immer mit `wait_for_pause` auf die Pause warten.
+> 4. Dateipfade für Breakpoints müssen **absolut** sein, Zeilennummern **1-basiert**.
+> 5. Zur Status- und Variableninspektion primär `get_debug_session_status` nutzen (bündelt Stack, Variablen, Code und Lokation in einem Aufruf).
+> 6. Nach Abschluss der Untersuchung die Session immer sauber mit `stop_debug_session` beenden.
 
 ---
 
