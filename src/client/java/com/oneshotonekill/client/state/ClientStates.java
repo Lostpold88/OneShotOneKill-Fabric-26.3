@@ -380,11 +380,11 @@ public final class ClientStates {
       public Set<UUID> activePlayers() {
          return activePlayers;
       }
-   
+
       public void handle(GlidingPlayersPayload payload) {
          activePlayers = Set.copyOf(payload.players());
       }
-   
+
       public void clear() {
          activePlayers = Set.of();
       }
@@ -487,7 +487,10 @@ public final class ClientStates {
             return null;
          }
 
-         Vec3 anchor = pull.previousHook.lerp(pull.hook, Math.clamp(partialTick, 0.0F, 1.0F));
+         Vec3 anchor = hookPosition(entity.getUUID(), partialTick);
+         if (anchor == null) {
+            return null;
+         }
          Vec3 delta = anchor.subtract(entity.getEyePosition(partialTick));
          double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
          if (delta.lengthSqr() < 1.0E-6) {
@@ -540,20 +543,20 @@ public final class ClientStates {
    /** Clientkopie der weltweit sichtbaren, aktiven Pfeilmagnet-Felder. */
    public static final class MagnetFieldState {
       public static final MagnetFieldState INSTANCE = new MagnetFieldState();
-   
+
       private Set<UUID> activePlayers = Set.of();
-   
+
       private MagnetFieldState() {
       }
-   
+
       public Set<UUID> activePlayers() {
          return activePlayers;
       }
-   
+
       public void handle(MagnetFieldsPayload payload) {
          activePlayers = Set.copyOf(payload.players());
       }
-   
+
       public void clear() {
          activePlayers = Set.of();
       }

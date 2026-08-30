@@ -2,7 +2,6 @@ package com.oneshotonekill.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.oneshotonekill.client.effect.TimeDistortionEffects;
-import com.oneshotonekill.client.model.OsokClientModels.GrapplingHookModel;
 import com.oneshotonekill.client.screen.AirstrikeTargetScreen;
 import com.oneshotonekill.client.state.ClientStates.AbilityStatusState;
 import com.oneshotonekill.client.state.ClientStates.GlideState;
@@ -99,10 +98,6 @@ public final class ClientInputEvents {
          return InteractionResult.PASS;
       }
       ItemStack held = player.getItemInHand(hand);
-      if (held.is(ModItems.GRAPPLING_HOOK) && !player.getCooldowns().isOnCooldown(held)) {
-         // Der geladene Pömpel verschwindet noch vor dem Server-Roundtrip aus dem Handmodell.
-         GrapplingHookModel.beginLaunch(hand);
-      }
       if (held.is(ModItems.SLOW_MOTION)) {
          TimeDistortionEffects.INSTANCE.beginUse();
       }

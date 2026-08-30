@@ -4,6 +4,7 @@ import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.blaze3d.vertex.VertexConsumer;
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.client.state.ClientStates.GrapplePullState;
+import com.oneshotonekill.registry.ModItems;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -20,6 +21,7 @@ import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.rendertype.RenderTypes;
 import net.minecraft.client.renderer.special.SpecialModelRenderer;
 import net.minecraft.client.renderer.state.level.LevelRenderState;
+import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
@@ -33,20 +35,12 @@ import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
 /**
- * Das Seil des Grappling Hooks als Bestandteil desselben sichtbaren Schusses wie der Haken.
+ * Das Seil des Grappling Hooks.
  * <p>
- * <p>Der Hakenpunkt kommt vom Server. Die Mündung wird dagegen nicht mehr aus Augenposition und
- * geschätzten Offsets gewonnen: Ein unsichtbarer {@link SpecialModelRenderer} sitzt als weitere
- * Ebene im Grappler-Item und liest die echte Modellmatrix am lokalen Rohrmund aus. Damit wirken
- * automatisch First-Person-Transformation, Hand-Bobbing, F5-Armhaltung und die Grappler-Neigung
- * auf denselben Punkt.</p>
- * <p>
- * <p>Das Kabel selbst bleibt im Weltpass. First-Person-Gegenstände werden nach der Welt mit
- * geleertem Tiefenpuffer gezeichnet; dort ein 38 Meter langes Seil zu zeichnen ließe es durch
- * Wände scheinen. Deshalb speichert der Spezial-Layer nur die unveränderliche Messung, und der
- * nächste Welt-Frame setzt sie relativ zur aktuellen Kamera beziehungsweise Spielerposition ein.</p>
+ * Die Mündung wird direkt aus der gerenderten Modellmatrix des tatsächlich gehaltenen Items
+ * ausgelesen. Der Hakenpunkt wird bildgenau interpoliert und mit dem 3D-verdrillten Seil verbunden.
  */
-@SuppressWarnings({"NullableProblems", "resource"})
+@SuppressWarnings({"NullableProblems", "SameParameterValue", "resource", "unused"})
 public final class GrapplingHookRenderer implements SpecialModelRenderer<GrapplingHookRenderer.CaptureArgument> {
    public static final GrapplingHookRenderer INSTANCE = new GrapplingHookRenderer();
 
@@ -59,7 +53,7 @@ public final class GrapplingHookRenderer implements SpecialModelRenderer<Grappli
    private static final float RADIUS = 0.028F;
    private static final float SECTION_LENGTH = 0.58F;
    private static final double FIRST_PERSON_WORLD_DISTANCE = 1.05;
-   private static final long CAPTURE_MAX_AGE_NANOS = 250_000_000L;
+   private static final long CAPTURE_MAX_AGE_NANOS = 1_000_000_000L;
    /** Hintere Seilbuchse des 0,60 Blöcke langen Hakenmodells, vom Modellmittelpunkt aus. */
    private static final double HOOK_SOCKET_OFFSET = 0.285;
    private static final float[] ROPE_DARK = {0.035F, 0.040F, 0.045F};
@@ -80,16 +74,58 @@ public final class GrapplingHookRenderer implements SpecialModelRenderer<Grappli
    }
 
    /**
+    * Ermittelt die exakte 3D-Weltposition der Waffenmündung aus dem letzten Capture
+    * oder berechnet den zuverlässigen geometrischen Fallback.
+    */
+   public static Vec3 calculateMuzzle(LivingEntity player, float partialTick) {
+      Minecraft client = Minecraft.getInstance();
+      var cameraState = client.gameRenderer.gameRenderState().levelRenderState.cameraRenderState;
+      Vec3 camera = cameraState.pos;
+      boolean localFirstPerson = player == client.player
+         && client.options.getCameraType().isFirstPerson();
+      CapturedMuzzle capture = CAPTURES.get(player.getUUID());
+
+      if (capture != null && Util.getNanos() - capture.capturedAt <= CAPTURE_MAX_AGE_NANOS) {
+         if (localFirstPerson && capture.firstPerson) {
+            float worldFov = client.options.fov().get().floatValue();
+            float handFov = cameraState.hudFov;
+            double fovScale = Math.tan(Math.toRadians(worldFov * 0.5))
+               / Math.tan(Math.toRadians(handFov * 0.5));
+            Vector3f cameraRay = new Vector3f(
+               (float) (capture.offset.x * fovScale),
+               (float) (capture.offset.y * fovScale),
+               (float) capture.offset.z);
+            Matrix4f inverseView = new Matrix4f(cameraState.viewRotationMatrix).invert();
+            inverseView.transformDirection(cameraRay).normalize().mul((float) FIRST_PERSON_WORLD_DISTANCE);
+            return camera.add(cameraRay.x, cameraRay.y, cameraRay.z);
+         } else if (!localFirstPerson && !capture.firstPerson) {
+            double x = Mth.lerp(partialTick, player.xo, player.getX());
+            double y = Mth.lerp(partialTick, player.yo, player.getY());
+            double z = Mth.lerp(partialTick, player.zo, player.getZ());
+            return new Vec3(x, y, z).add(capture.offset);
+         }
+      }
+
+      Vec3 look = player.getViewVector(partialTick).normalize();
+      Vec3 up = player.getUpVector(partialTick).normalize();
+      Vec3 weaponSide = player.getHandHoldingItemAngle(ModItems.GRAPPLING_HOOK);
+      return player.getEyePosition(partialTick)
+         .add(look.scale(0.89))
+         .add(weaponSide.scale(0.55))
+         .add(up.scale(-0.34));
+   }
+
+   /**
     * Baut die unveränderlichen Angaben für den Matrix-Capture-Layer des tatsächlich gehaltenen
-    * Grapplers. Bei GUI-, Boden- und falscher Handlage gibt es bewusst keinen Layer.
+    * Grapplers. Sobald der Grappler in der Hand liegt, wird die Mündung laufend erfasst.
     */
    public static @Nullable CaptureArgument captureArgument(LivingEntity holder, ItemDisplayContext context) {
-      if (!isHeldContext(context) || !GrapplePullState.INSTANCE.isGrappleActive(holder.getUUID())) {
+      if (!isHeldContext(context)) {
          return null;
       }
 
-      boolean itemOnlyInOffhand = holder.getOffhandItem().is(com.oneshotonekill.registry.ModItems.GRAPPLING_HOOK)
-         && !holder.getMainHandItem().is(com.oneshotonekill.registry.ModItems.GRAPPLING_HOOK);
+      boolean itemOnlyInOffhand = holder.getOffhandItem().is(ModItems.GRAPPLING_HOOK)
+         && !holder.getMainHandItem().is(ModItems.GRAPPLING_HOOK);
       HumanoidArm itemArm = itemOnlyInOffhand ? holder.getMainArm().getOpposite() : holder.getMainArm();
       if (context.leftHand() != (itemArm == HumanoidArm.LEFT)) {
          return null;
@@ -114,8 +150,6 @@ public final class GrapplingHookRenderer implements SpecialModelRenderer<Grappli
       Vector3f renderedMuzzle = new Vector3f(MODEL_MUZZLE).mulPosition(poseStack.last().pose());
       long capturedAt = Util.getNanos();
       if (argument.firstPerson) {
-         // Der Item-PoseStack beginnt mit der inversen Weltansicht. Zurück in Kameraachsen
-         // bleibt deshalb nur die echte Bildschirmposition der Modellmündung übrig.
          Vector3f cameraLocal = argument.viewRotation.transformPosition(renderedMuzzle);
          CAPTURES.put(argument.player, CapturedMuzzle.firstPerson(cameraLocal, capturedAt));
       } else {
@@ -147,51 +181,12 @@ public final class GrapplingHookRenderer implements SpecialModelRenderer<Grappli
             continue;
          }
 
-         CapturedMuzzle capture = CAPTURES.get(player.getUUID());
-         if (capture == null || Util.getNanos() - capture.capturedAt > CAPTURE_MAX_AGE_NANOS) {
-            continue;
-         }
-         boolean localFirstPerson = player == Minecraft.getInstance().player
-            && Minecraft.getInstance().options.getCameraType().isFirstPerson();
-         if (capture.firstPerson != localFirstPerson) {
-            continue;
-         }
-
-         Vec3 muzzle;
-         if (localFirstPerson) {
-            // Hand und Welt können verschiedene FOVs besitzen. Nur X/Y werden umgerechnet;
-            // anschließend wird der Bildschirmstrahl durch die aktuelle Kamera zurück in die
-            // Welt gedreht. So bleibt der Anschluss auch bei Sprint-FOV und Kamerarolle deckungsgleich.
-            float worldFov = context.camera().getFov();
-            float handFov = Minecraft.getInstance().gameRenderer.gameRenderState()
-               .levelRenderState.cameraRenderState.hudFov;
-            double fovScale = Math.tan(Math.toRadians(worldFov * 0.5))
-               / Math.tan(Math.toRadians(handFov * 0.5));
-            Vector3f cameraRay = new Vector3f(
-               (float) (capture.offset.x * fovScale),
-               (float) (capture.offset.y * fovScale),
-               (float) capture.offset.z);
-            Matrix4f inverseView = new Matrix4f(Minecraft.getInstance().gameRenderer.gameRenderState()
-               .levelRenderState.cameraRenderState.viewRotationMatrix).invert();
-            inverseView.transformDirection(cameraRay).normalize().mul((float) FIRST_PERSON_WORLD_DISTANCE);
-            muzzle = camera.add(cameraRay.x, cameraRay.y, cameraRay.z);
-         } else {
-            double x = net.minecraft.util.Mth.lerp(partialTick, player.xo, player.getX());
-            double y = net.minecraft.util.Mth.lerp(partialTick, player.yo, player.getY());
-            double z = net.minecraft.util.Mth.lerp(partialTick, player.zo, player.getZ());
-            muzzle = new Vec3(x, y, z).add(capture.offset);
-         }
+         Vec3 muzzle = calculateMuzzle(player, partialTick);
          Vec3 toHook = hook.subtract(muzzle);
-         if (toHook.lengthSqr() < 0.0025) {
-            continue;
-         }
-         // Der synchronisierte Punkt ist das Zentrum des Pömpelmodells. Das Kabel gehört an
-         // dessen hintere Buchse, also auf der Spielerseite – nicht mitten in die rote Schüssel.
-         Vec3 socket = hook.subtract(toHook.normalize().scale(HOOK_SOCKET_OFFSET));
+         Vec3 socket = toHook.lengthSqr() > 0.0025
+            ? hook.subtract(toHook.normalize().scale(HOOK_SOCKET_OFFSET))
+            : muzzle;
          Vec3 delta = socket.subtract(muzzle);
-         if (delta.lengthSqr() < 0.0025) {
-            continue;
-         }
 
          frames.add(new RopeFrame(
             (float) (muzzle.x - camera.x),
@@ -212,11 +207,13 @@ public final class GrapplingHookRenderer implements SpecialModelRenderer<Grappli
 
       PoseStack poseStack = context.poseStack();
       for (RopeFrame frame : frames) {
-         poseStack.pushPose();
-         poseStack.translate(frame.x, frame.y, frame.z);
-         context.submitNodeCollector().submitCustomGeometry(poseStack, RenderTypes.debugQuads(),
-            (pose, buffer) -> renderRope(pose.pose(), buffer, frame));
-         poseStack.popPose();
+         if (frame.dx * frame.dx + frame.dy * frame.dy + frame.dz * frame.dz >= 0.0025F) {
+            poseStack.pushPose();
+            poseStack.translate(frame.x, frame.y, frame.z);
+            context.submitNodeCollector().submitCustomGeometry(poseStack, RenderTypes.debugQuads(),
+               (pose, buffer) -> renderRope(pose.pose(), buffer, frame));
+            poseStack.popPose();
+         }
       }
    }
 
@@ -237,8 +234,6 @@ public final class GrapplingHookRenderer implements SpecialModelRenderer<Grappli
       for (int section = 0; section < sections; section++) {
          double from = section / (double) sections;
          double to = (section + 1) / (double) sections;
-         // Die geringe Drehung je Abschnitt lässt die acht Längsflächen wie ein geflochtenes
-         // schwarzes Seil lesen, ohne eine lange Textur über dutzende Blöcke zu strecken.
          double phaseFrom = from * length * 2.4;
          double phaseTo = to * length * 2.4;
          Vec3 centerFrom = axis.scale(from);
@@ -280,7 +275,7 @@ public final class GrapplingHookRenderer implements SpecialModelRenderer<Grappli
          .setColor(colour[0], colour[1], colour[2], 1.0F);
    }
 
-   /** Startpunkt relativ zur Kamera und Delta bis zum Haken. */
+   /** Startpunkt relativ zur Kamera und Delta bis zur Buchse. */
    private record RopeFrame(float x, float y, float z, float dx, float dy, float dz) {
    }
 

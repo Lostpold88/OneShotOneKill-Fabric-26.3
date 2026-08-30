@@ -27,8 +27,6 @@ import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.client.resources.model.sprite.TextureSlots;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Util;
-import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.ItemOwner;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.item.ItemDisplayContext;
@@ -41,7 +39,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Sammelklasse aller benutzerdefinierten Client-Itemmodelle und Modell-Bedingungen.
  */
-@SuppressWarnings("NullableProblems")
+@SuppressWarnings({"NullableProblems", "unused"})
 public final class OsokClientModels {
    private OsokClientModels() {
    }
@@ -164,12 +162,6 @@ public final class OsokClientModels {
     * ihn wieder ein. Es gibt hier bewusst keine zweite Ausfahr- oder Nachladebewegung.</p>
     */
    public static final class GrapplingHookModel implements ItemModel {
-      private static final long NO_LAUNCH = Long.MIN_VALUE;
-      private static final long PREDICTION_NANOS = 750_000_000L;
-
-      private static long predictionEndsNanos = NO_LAUNCH;
-      private static InteractionHand launchHand = InteractionHand.MAIN_HAND;
-
       private final Part frame;
       private final Part loadedHead;
       private final Matrix4fc baseTransform;
@@ -178,16 +170,6 @@ public final class OsokClientModels {
          this.frame = frame;
          this.loadedHead = loadedHead;
          this.baseTransform = baseTransform;
-      }
-
-      /** Startet die rein optische Vorhersage noch im selben Client-Eingabebild. */
-      public static void beginLaunch(InteractionHand hand) {
-         launchHand = hand;
-         predictionEndsNanos = Util.getNanos() + PREDICTION_NANOS;
-      }
-
-      public static void clearLaunch() {
-         predictionEndsNanos = NO_LAUNCH;
       }
 
       @Override
@@ -222,20 +204,7 @@ public final class OsokClientModels {
          if (holder == null || !isHeldContext(context)) {
             return false;
          }
-         if (GrapplePullState.INSTANCE.isGrappleActive(holder.getUUID())) {
-            return true;
-         }
-
-         return holder == Minecraft.getInstance().player
-            && predictionEndsNanos != NO_LAUNCH
-            && Util.getNanos() < predictionEndsNanos
-            && isLaunchHand(context, holder);
-      }
-
-      private static boolean isLaunchHand(ItemDisplayContext context, LivingEntity holder) {
-         HumanoidArm arm = launchHand == InteractionHand.MAIN_HAND
-            ? holder.getMainArm() : holder.getMainArm().getOpposite();
-         return context.leftHand() == (arm == HumanoidArm.LEFT);
+         return GrapplePullState.INSTANCE.isGrappleActive(holder.getUUID());
       }
 
       private static boolean isHeldContext(ItemDisplayContext context) {

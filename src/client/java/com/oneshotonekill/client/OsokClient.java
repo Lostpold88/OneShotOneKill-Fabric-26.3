@@ -283,7 +283,6 @@ public final class OsokClient implements ClientModInitializer {
       NukeSoundController.INSTANCE.stopAll();
       TimeDistortionSoundController.INSTANCE.stopAll();
       TimeDistortionEffects.INSTANCE.clear();
-      OsokClientModels.GrapplingHookModel.clearLaunch();
    }
 
    public static boolean isDetonateC4Key(KeyEvent event) {
