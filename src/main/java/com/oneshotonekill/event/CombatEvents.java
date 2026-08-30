@@ -196,11 +196,12 @@ public final class CombatEvents {
          if (!isArrowShot && !isSwordHit) {
             return false;
          }
+
+         KillFeed.Cause hitCause = isMinigunShot ? KillFeed.Cause.MINIGUN : isSwordHit ? KillFeed.Cause.SWORD : KillFeed.Cause.BOW;
    
          // Scharf gemachte Pfeile werden in CombatEvents am Einschlag ausgewertet, nicht hier –
          // sonst wirkten sie nur bei einem Direkttreffer.
-         if (StatusAbilities.INSTANCE.consumeShield(victim, attacker,
-            isMinigunShot ? KillFeed.Cause.MINIGUN : isSwordHit ? KillFeed.Cause.SWORD : KillFeed.Cause.BOW)) {
+         if (StatusAbilities.INSTANCE.consumeShield(victim, attacker, hitCause)) {
             return false;
          }
          // Beim Tod wird nur beendet, was ohne lebenden Spieler keinen Sinn ergibt. Ein scharf
@@ -227,11 +228,9 @@ public final class CombatEvents {
             }
          }
 
-         KillFeed.Cause killCause = isMinigunShot ? KillFeed.Cause.MINIGUN : isSwordHit ? KillFeed.Cause.SWORD : KillFeed.Cause.BOW;
-
          if (!attacker.equals(victim)) {
             if (MatchManager.INSTANCE.getCurrentGameMode() == GameMode.GUN_GAME) {
-               GunGameManager.INSTANCE.recordKill(attacker, victim, killCause);
+               GunGameManager.INSTANCE.recordKill(attacker, victim, hitCause);
                ScoreboardManager.INSTANCE.addKill(attacker.getUUID());
             } else {
                int newKills = ScoreboardManager.INSTANCE.addKill(attacker.getUUID());
@@ -250,7 +249,7 @@ public final class CombatEvents {
          ScoreboardManager.INSTANCE.addDeath(victim.getUUID());
          ScoreboardManager.INSTANCE.resetStreak(victim.getUUID());
          ScoreboardManager.INSTANCE.updateAllScoreboards();
-         KillFeed.kill(attacker, victim, killCause);
+         KillFeed.kill(attacker, victim, hitCause);
          RespawnSystem.INSTANCE.respawnInstant(victim, arena, victim.position(), true);
          return false;
       }
