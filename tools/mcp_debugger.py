@@ -167,7 +167,7 @@ class DebuggerMcpClient:
 
     def set_breakpoint(self, file, line, condition=None, log_message=None, suspend_policy="all", hit_count=None):
         args = {
-            "file": os.path.abspath(file),
+            "file_path": os.path.abspath(file),
             "line": int(line),
             "suspend_policy": suspend_policy
         }
@@ -226,7 +226,7 @@ class DebuggerMcpClient:
         return self.call("step_out", args)
 
     def run_to_line(self, file, line, session_id=None):
-        args = {"file": os.path.abspath(file), "line": int(line)}
+        args = {"file_path": os.path.abspath(file), "line": int(line)}
         if session_id:
             args["session_id"] = session_id
         return self.call("run_to_line", args)
@@ -256,13 +256,17 @@ class DebuggerMcpClient:
             args["session_id"] = session_id
         return self.call("set_variable", args)
 
-    def get_source_context(self, file, line, lines_before=5, lines_after=5):
+    def get_source_context(self, file=None, line=None, lines_before=5, lines_after=5, session_id=None):
         args = {
-            "file": os.path.abspath(file),
-            "line": int(line),
             "lines_before": int(lines_before),
             "lines_after": int(lines_after)
         }
+        if file:
+            args["file_path"] = os.path.abspath(file)
+        if line:
+            args["line"] = int(line)
+        if session_id:
+            args["session_id"] = session_id
         return self.call("get_source_context", args)
 
     def select_stack_frame(self, frame_index, session_id=None):

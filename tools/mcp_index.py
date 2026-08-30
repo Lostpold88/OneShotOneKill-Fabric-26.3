@@ -261,11 +261,11 @@ class IndexMcpClient:
         return self.call("ide_search_text", args)
 
     # --- 3. Hierarchies & Structure ---
-    def type_hierarchy(self, file=None, line=None, column=None, symbol=None, language="Java", direction="both"):
-        args = {"direction": direction}
-        if symbol:
-            args["symbol"] = symbol
-            args["language"] = language
+    def type_hierarchy(self, file=None, line=None, column=None, symbol=None, class_name=None, scope="project_files"):
+        args = {"scope": scope}
+        target_class = class_name or symbol
+        if target_class:
+            args["className"] = target_class
         else:
             args["file"] = file
             args["line"] = int(line)
@@ -443,13 +443,12 @@ def main():
     st_p.add_argument("--case-sensitive", action="store_true", help="Case sensitive search")
     st_p.add_argument("--mask", help="File mask (e.g. *.java)")
 
-    # Hierarchies & Structure
     th_p = subparsers.add_parser("type-hierarchy", help="Get type hierarchy (supertypes/subtypes)")
     th_p.add_argument("--symbol", help="Qualified symbol name")
     th_p.add_argument("--file", help="File path")
     th_p.add_argument("--line", type=int, help="1-based line")
     th_p.add_argument("--col", type=int, default=1, help="1-based column")
-    th_p.add_argument("--dir", default="both", choices=["supertypes", "subtypes", "both"])
+    th_p.add_argument("--scope", default="project_files", choices=["project_files", "project_and_libraries"])
 
     ch_p = subparsers.add_parser("call-hierarchy", help="Get call hierarchy (callers/callees)")
     ch_p.add_argument("--symbol", help="Qualified symbol name")
@@ -565,7 +564,7 @@ def main():
     elif args.command == "search-text":
         result = client.search_text(args.query, is_regex=args.regex, case_sensitive=args.case_sensitive, file_mask=args.mask)
     elif args.command == "type-hierarchy":
-        result = client.type_hierarchy(file=args.file, line=args.line, column=args.col, symbol=args.symbol, direction=args.dir)
+        result = client.type_hierarchy(file=args.file, line=args.line, column=args.col, symbol=args.symbol, scope=args.scope)
     elif args.command == "call-hierarchy":
         result = client.call_hierarchy(file=args.file, line=args.line, column=args.col, symbol=args.symbol, direction=args.dir)
     elif args.command == "implementations":
