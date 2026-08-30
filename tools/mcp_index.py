@@ -1,13 +1,29 @@
 #!/usr/bin/env python3
 """
 IntelliJ Index MCP CLI & Comprehensive Client Library
-Exposes the complete feature set of the IntelliJ Index MCP Server (36+ tools):
-- Inspection & Status: status, sync, diagnostics, scan-project, project-diagnostics
-- Semantic Navigation: find-def, find-refs, find-class, find-file, find-symbol, symbol-info, search-text
-- Hierarchies: type-hierarchy, call-hierarchy, implementations, super-methods, structure
-- Refactoring: rename, move, safe-delete, reformat
-- Editor & Build: read-file, open-file, active-file, build, reload, list-tests, run-tests
-- Generic invocation: call <tool> [json_args]
+Exposes the complete feature set of the IntelliJ Index MCP Server (Port 29170):
+
+Active Tools (100% Covered):
+1.  ide_index_status           -> status
+2.  ide_project_status         -> project-status
+3.  ide_sync_files             -> sync [paths...]
+4.  ide_diagnostics            -> diagnostics [--file F] [--severity S] [--build-errors] [--test-results]
+5.  ide_find_definition        -> find-def [--symbol S] [--file F --line L --col C] [--full-preview]
+6.  ide_find_references        -> find-refs [--symbol S] [--file F --line L --col C] [--scope S]
+7.  ide_find_class             -> find-class <query> [--scope S] [--match-mode M]
+8.  ide_find_file              -> find-file <pattern> [--scope S]
+9.  ide_search_text            -> search-text <query> [--regex] [--case-sensitive] [--mask M] [--paths P...]
+10. ide_find_implementations   -> implementations [--symbol S] [--file F --line L --col C] [--scope S]
+11. ide_find_super_methods     -> super-methods [--symbol S] [--file F --line L --col C]
+12. ide_call_hierarchy         -> call-hierarchy [--symbol S] [--file F --line L --col C] [--dir callers|callees] [--depth N]
+13. ide_type_hierarchy         -> type-hierarchy [--symbol S] [--file F --line L --col C] [--scope S]
+14. ide_refactor_rename        -> rename <new_name> --file F [--line L --col C] [--target-type symbol|file]
+15. ide_move_file              -> move <file> <destination_directory>
+16. ide_refactor_safe_delete   -> safe-delete [--symbol S] [--file F --line L --col C]
+
+Composite Tools:
+17. scan-project               -> Iterates across all project Java files for complete diagnostic scan
+18. call                       -> Generic invocation for any MCP tool and arbitrary JSON arguments
 
 Endpoint: http://127.0.0.1:29170/index-mcp/streamable-http
 """
@@ -141,20 +157,29 @@ class IndexMcpClient:
         except Exception as e:
             return {"error": str(e), "isError": True}
 
-    # --- 1. Inspection & Diagnostics ---
+    # ==========================================
+    # 1. Inspection & Project Status
+    # ==========================================
     def status(self):
+        """Check index status, smart/dumb mode, indexing state."""
         return self.call("ide_index_status")
 
+    def project_status(self):
+        """Check project open status and model state."""
+        return self.call("ide_project_status")
+
     def sync_files(self, paths=None):
+        """Notify IntelliJ IDEA to refresh external filesystem changes."""
         args = {}
         if paths:
             args["paths"] = paths
         return self.call("ide_sync_files", args)
 
     def diagnostics(self, file=None, severity="all", include_build_errors=False, include_test_results=False, start_line=None, end_line=None):
+        """Retrieve code inspections, lint warnings, and compiler errors."""
         args = {"severity": severity}
         if file:
-            args["file"] = file
+            args["file"] = file.replace("\\", "/")
         if include_build_errors:
             args["includeBuildErrors"] = True
         if include_test_results:
@@ -165,13 +190,8 @@ class IndexMcpClient:
             args["endLine"] = int(end_line)
         return self.call("ide_diagnostics", args)
 
-    def project_diagnostics(self, severity="all", paths=None, include_build_errors=True):
-        args = {"severity": severity, "includeBuildErrors": include_build_errors}
-        if paths:
-            args["paths"] = paths
-        return self.call("ide_project_diagnostics", args)
-
     def scan_project_diagnostics(self, src_dir="E:/OneShotOneKill/MOD/src"):
+        """Scan all project Java files sequentially for zero warnings/errors."""
         java_files = []
         for root, _, files in os.walk(src_dir):
             for f in files:
@@ -196,63 +216,55 @@ class IndexMcpClient:
             "problemsByFile": problematic
         }
 
-    # --- 2. Code Navigation & Search ---
+    # ==========================================
+    # 2. Semantic Navigation & Search
+    # ==========================================
     def find_definition(self, file=None, line=None, column=None, symbol=None, language="Java", full_preview=False):
+        """Navigate to definition of a symbol by qualified name or file location."""
         args = {}
         if symbol:
             args["symbol"] = symbol
             args["language"] = language
         else:
-            args["file"] = file
+            args["file"] = file.replace("\\", "/") if file else None
             args["line"] = int(line)
             args["column"] = int(column) if column else 1
         if full_preview:
             args["fullElementPreview"] = True
         return self.call("ide_find_definition", args)
 
-    def find_references(self, file=None, line=None, column=None, symbol=None, language="Java", scope="project_files", include_generated=True):
-        args = {"scope": scope, "includeGenerated": include_generated}
+    def find_references(self, file=None, line=None, column=None, symbol=None, language="Java", scope="project_files", include_generated=True, page_size=100):
+        """Find all usages and references of a symbol or position."""
+        args = {"scope": scope, "includeGenerated": include_generated, "pageSize": page_size}
         if symbol:
             args["symbol"] = symbol
             args["language"] = language
         else:
-            args["file"] = file
+            args["file"] = file.replace("\\", "/") if file else None
             args["line"] = int(line)
             args["column"] = int(column) if column else 1
         return self.call("ide_find_references", args)
 
-    def find_class(self, query, scope="project_and_libraries", language=None, match_mode="substring"):
-        args = {"query": query, "scope": scope, "matchMode": match_mode}
+    def find_class(self, query, scope="project_and_libraries", language=None, match_mode="substring", page_size=50):
+        """Find class or interface by name across project and dependency JARs."""
+        args = {"query": query, "scope": scope, "matchMode": match_mode, "pageSize": page_size}
         if language:
             args["language"] = language
         return self.call("ide_find_class", args)
 
-    def find_file(self, pattern, scope="project_and_libraries", include_generated=False):
-        return self.call("ide_find_file", {"query": pattern, "scope": scope, "includeGenerated": include_generated})
+    def find_file(self, pattern, scope="project_and_libraries", include_generated=False, page_size=50):
+        """Find files matching name or glob in project and libraries."""
+        return self.call("ide_find_file", {"query": pattern, "scope": scope, "includeGenerated": include_generated, "pageSize": page_size})
 
-    def find_symbol(self, query, scope="project_files", language=None):
-        args = {"query": query, "scope": scope}
-        if language:
-            args["language"] = language
-        return self.call("ide_find_symbol", args)
-
-    def symbol_info(self, file=None, line=None, column=None, symbol=None, language="Java", include_doc=True):
-        args = {"includeDoc": include_doc}
-        if symbol:
-            args["symbol"] = symbol
-            args["language"] = language
-        else:
-            args["file"] = file
-            args["line"] = int(line)
-            args["column"] = int(column) if column else 1
-        return self.call("ide_symbol_info", args)
-
-    def search_text(self, query, case_sensitive=False, is_regex=False, file_mask=None, scope="project_files", paths=None):
+    def search_text(self, query, case_sensitive=False, is_regex=False, file_mask=None, scope="project_files", paths=None, context="all", page_size=100):
+        """Search text using IntelliJ's Find in Files index."""
         args = {
             "query": query,
             "caseSensitive": case_sensitive,
             "regex": is_regex,
-            "scope": scope
+            "scope": scope,
+            "context": context,
+            "pageSize": page_size
         }
         if file_mask:
             args["filePattern"] = file_mask
@@ -260,131 +272,105 @@ class IndexMcpClient:
             args["paths"] = paths
         return self.call("ide_search_text", args)
 
-    # --- 3. Hierarchies & Structure ---
-    def type_hierarchy(self, file=None, line=None, column=None, symbol=None, class_name=None, scope="project_files"):
-        args = {"scope": scope}
+    # ==========================================
+    # 3. Hierarchies & Relationships
+    # ==========================================
+    def type_hierarchy(self, file=None, line=None, column=None, symbol=None, class_name=None, scope="project_files", include_generated=True):
+        """Inspect supertypes and subtypes of a class or interface."""
+        args = {"scope": scope, "includeGenerated": include_generated}
         target_class = class_name or symbol
         if target_class:
             args["className"] = target_class
         else:
-            args["file"] = file
+            args["file"] = file.replace("\\", "/") if file else None
             args["line"] = int(line)
             args["column"] = int(column) if column else 1
         return self.call("ide_type_hierarchy", args)
 
-    def call_hierarchy(self, file=None, line=None, column=None, symbol=None, language="Java", direction="callers", scope="project_files"):
-        args = {"direction": direction, "scope": scope}
+    def call_hierarchy(self, file=None, line=None, column=None, symbol=None, language="Java", direction="callers", depth=3, scope="project_files"):
+        """Inspect callers or callees of a method up to depth N."""
+        args = {"direction": direction, "depth": int(depth), "scope": scope}
         if symbol:
             args["symbol"] = symbol
             args["language"] = language
         else:
-            args["file"] = file
+            args["file"] = file.replace("\\", "/") if file else None
             args["line"] = int(line)
             args["column"] = int(column) if column else 1
         return self.call("ide_call_hierarchy", args)
 
-    def find_implementations(self, file=None, line=None, column=None, symbol=None, language="Java", scope="project_files"):
-        args = {"scope": scope}
+    def find_implementations(self, file=None, line=None, column=None, symbol=None, language="Java", scope="project_files", page_size=100):
+        """Find polymorphic implementations of an interface or abstract method."""
+        args = {"scope": scope, "pageSize": page_size}
         if symbol:
             args["symbol"] = symbol
             args["language"] = language
         else:
-            args["file"] = file
+            args["file"] = file.replace("\\", "/") if file else None
             args["line"] = int(line)
             args["column"] = int(column) if column else 1
         return self.call("ide_find_implementations", args)
 
     def find_super_methods(self, file=None, line=None, column=None, symbol=None, language="Java"):
+        """Find parent methods that a method overrides or implements."""
         args = {}
         if symbol:
             args["symbol"] = symbol
             args["language"] = language
         else:
-            args["file"] = file
+            args["file"] = file.replace("\\", "/") if file else None
             args["line"] = int(line)
             args["column"] = int(column) if column else 1
         return self.call("ide_find_super_methods", args)
 
-    def file_structure(self, file):
-        return self.call("ide_file_structure", {"file": file})
-
-    # --- 4. Refactoring & Code Modification ---
-    def rename(self, new_name, file=None, line=None, column=None, symbol=None, language="Java"):
-        args = {"newName": new_name}
-        if symbol:
-            args["symbol"] = symbol
-            args["language"] = language
-        else:
-            args["file"] = file
+    # ==========================================
+    # 4. Refactoring & Code Modification
+    # ==========================================
+    def rename(self, new_name, file, line=None, column=None, target_type="symbol", override_strategy="rename_base", related_renaming_strategy="all"):
+        """Perform semantic rename of symbol or file across whole project."""
+        args = {
+            "file": file.replace("\\", "/"),
+            "newName": new_name,
+            "targetType": target_type,
+            "overrideStrategy": override_strategy,
+            "relatedRenamingStrategy": related_renaming_strategy
+        }
+        if line is not None:
             args["line"] = int(line)
-            args["column"] = int(column) if column else 1
+        if column is not None:
+            args["column"] = int(column)
         return self.call("ide_refactor_rename", args)
 
     def move_file(self, file, destination_directory):
-        return self.call("ide_move_file", {"file": file, "destinationDirectory": destination_directory})
+        """Safely move a file updating packages and imports."""
+        return self.call("ide_move_file", {
+            "file": file.replace("\\", "/"),
+            "destinationDirectory": destination_directory.replace("\\", "/")
+        })
 
-    def safe_delete(self, file=None, line=None, column=None, symbol=None, language="Java", search_in_comments=True):
-        args = {"searchInComments": search_in_comments}
+    def safe_delete(self, file=None, line=None, column=None, symbol=None, language="Java", search_in_comments=True, search_for_text_occurrences=True):
+        """Safely delete symbol checking for usages across project."""
+        args = {
+            "searchInComments": search_in_comments,
+            "searchForTextOccurrences": search_for_text_occurrences
+        }
         if symbol:
             args["symbol"] = symbol
             args["language"] = language
         else:
-            args["file"] = file
+            args["file"] = file.replace("\\", "/") if file else None
             args["line"] = int(line)
             args["column"] = int(column) if column else 1
         return self.call("ide_refactor_safe_delete", args)
 
-    def reformat_code(self, file, start_line=None, end_line=None):
-        args = {"file": file}
-        if start_line is not None:
-            args["startLine"] = int(start_line)
-        if end_line is not None:
-            args["endLine"] = int(end_line)
-        return self.call("ide_reformat_code", args)
-
-    # --- 5. Files, Editor & Tests ---
-    def read_file(self, file, start_line=None, end_line=None):
-        args = {"file": file}
-        if start_line is not None:
-            args["startLine"] = int(start_line)
-        if end_line is not None:
-            args["endLine"] = int(end_line)
-        return self.call("ide_read_file", args)
-
-    def open_file(self, file, line=1, column=1):
-        return self.call("ide_open_file", {"file": file, "line": int(line), "column": int(column)})
-
-    def get_active_file(self):
-        return self.call("ide_get_active_file")
-
-    def build_project(self):
-        return self.call("ide_build_project")
-
-    def reload_project(self):
-        return self.call("ide_reload_project")
-
-    def list_tests(self, file=None, scope="project_files"):
-        args = {"scope": scope}
-        if file:
-            args["file"] = file
-        return self.call("ide_list_tests", args)
-
-    def run_tests(self, file=None, class_name=None, method_name=None):
-        args = {}
-        if file:
-            args["file"] = file
-        if class_name:
-            args["className"] = class_name
-        if method_name:
-            args["methodName"] = method_name
-        return self.call("ide_run_tests", args)
 
 def main():
     parser = argparse.ArgumentParser(description="IntelliJ Index MCP CLI & Comprehensive Client")
     subparsers = parser.add_subparsers(dest="command")
 
-    # Status & Diagnostics
+    # 1. Inspection & Status
     subparsers.add_parser("status", help="Get index status (dumb mode, progress)")
+    subparsers.add_parser("project-status", help="Get project open status")
     
     sync_p = subparsers.add_parser("sync", help="Synchronize file changes with IDE")
     sync_p.add_argument("paths", nargs="*", help="Optional specific paths to sync")
@@ -400,10 +386,7 @@ def main():
     diag_p.add_argument("--start-line", type=int, help="Filter start line")
     diag_p.add_argument("--end-line", type=int, help="Filter end line")
 
-    pdiag_p = subparsers.add_parser("project-diagnostics", help="Project-wide diagnostics via IDE")
-    pdiag_p.add_argument("--severity", default="all", choices=["all", "errors", "warnings"])
-
-    # Search & Navigation
+    # 2. Search & Navigation
     fc_p = subparsers.add_parser("find-class", help="Find class by name/query in project and libraries")
     fc_p.add_argument("query", help="Class name or substring")
     fc_p.add_argument("--scope", default="project_and_libraries", choices=["project_files", "project_and_libraries", "project_production_files", "project_test_files"])
@@ -412,10 +395,6 @@ def main():
     ff_p = subparsers.add_parser("find-file", help="Find file by pattern")
     ff_p.add_argument("pattern", help="File pattern / glob")
     ff_p.add_argument("--scope", default="project_and_libraries")
-
-    fs_p = subparsers.add_parser("find-symbol", help="Find any symbol (class, method, field)")
-    fs_p.add_argument("query", help="Symbol query")
-    fs_p.add_argument("--scope", default="project_files")
 
     def_p = subparsers.add_parser("find-def", help="Go to definition")
     def_p.add_argument("--symbol", help="Qualified symbol name")
@@ -431,20 +410,16 @@ def main():
     ref_p.add_argument("--col", type=int, default=1, help="1-based column")
     ref_p.add_argument("--scope", default="project_files")
 
-    sym_p = subparsers.add_parser("symbol-info", help="Get resolved signature, modifiers and doc comment")
-    sym_p.add_argument("--symbol", help="Qualified symbol name")
-    sym_p.add_argument("--file", help="File path")
-    sym_p.add_argument("--line", type=int, help="1-based line")
-    sym_p.add_argument("--col", type=int, default=1, help="1-based column")
-
     st_p = subparsers.add_parser("search-text", help="Semantic text search in IDE index")
     st_p.add_argument("query", help="Search text")
     st_p.add_argument("--regex", action="store_true", help="Treat query as regex")
     st_p.add_argument("--case-sensitive", action="store_true", help="Case sensitive search")
     st_p.add_argument("--mask", help="File mask (e.g. *.java)")
+    st_p.add_argument("--paths", nargs="*", help="Path filter globs")
 
+    # 3. Hierarchies & Relationships
     th_p = subparsers.add_parser("type-hierarchy", help="Get type hierarchy (supertypes/subtypes)")
-    th_p.add_argument("--symbol", help="Qualified symbol name")
+    th_p.add_argument("--symbol", help="Qualified symbol / class name")
     th_p.add_argument("--file", help="File path")
     th_p.add_argument("--line", type=int, help="1-based line")
     th_p.add_argument("--col", type=int, default=1, help="1-based column")
@@ -456,12 +431,14 @@ def main():
     ch_p.add_argument("--line", type=int, help="1-based line")
     ch_p.add_argument("--col", type=int, default=1, help="1-based column")
     ch_p.add_argument("--dir", default="callers", choices=["callers", "callees"])
+    ch_p.add_argument("--depth", type=int, default=3, help="Max depth (1-5)")
 
     impl_p = subparsers.add_parser("implementations", help="Find implementations of interface/method")
     impl_p.add_argument("--symbol", help="Qualified symbol name")
     impl_p.add_argument("--file", help="File path")
     impl_p.add_argument("--line", type=int, help="1-based line")
     impl_p.add_argument("--col", type=int, default=1, help="1-based column")
+    impl_p.add_argument("--scope", default="project_files")
 
     super_p = subparsers.add_parser("super-methods", help="Find parent methods overridden/implemented")
     super_p.add_argument("--symbol", help="Qualified symbol name")
@@ -469,16 +446,13 @@ def main():
     super_p.add_argument("--line", type=int, help="1-based line")
     super_p.add_argument("--col", type=int, default=1, help="1-based column")
 
-    struct_p = subparsers.add_parser("structure", help="Get file structure (classes, methods, fields)")
-    struct_p.add_argument("file", help="File path")
-
-    # Refactoring
-    ren_p = subparsers.add_parser("rename", help="Rename symbol across entire project")
-    ren_p.add_argument("new_name", help="New symbol name")
-    ren_p.add_argument("--symbol", help="Qualified symbol name")
-    ren_p.add_argument("--file", help="File path")
+    # 4. Refactoring
+    ren_p = subparsers.add_parser("rename", help="Rename symbol or file across entire project")
+    ren_p.add_argument("new_name", help="New symbol or file name")
+    ren_p.add_argument("--file", required=True, help="File path")
     ren_p.add_argument("--line", type=int, help="1-based line")
     ren_p.add_argument("--col", type=int, default=1, help="1-based column")
+    ren_p.add_argument("--target-type", default="symbol", choices=["symbol", "file"])
 
     mv_p = subparsers.add_parser("move", help="Move file safely with package and import updates")
     mv_p.add_argument("file", help="File to move")
@@ -489,35 +463,6 @@ def main():
     del_p.add_argument("--file", help="File path")
     del_p.add_argument("--line", type=int, help="1-based line")
     del_p.add_argument("--col", type=int, default=1, help="1-based column")
-
-    fmt_p = subparsers.add_parser("reformat", help="Reformat code according to IDE style")
-    fmt_p.add_argument("file", help="File to reformat")
-    fmt_p.add_argument("--start", type=int, help="Start line")
-    fmt_p.add_argument("--end", type=int, help="End line")
-
-    # Editor & Build
-    read_p = subparsers.add_parser("read-file", help="Read file/jar source with IDE resolution")
-    read_p.add_argument("file", help="File or jar:// URL")
-    read_p.add_argument("--start", type=int, help="Start line")
-    read_p.add_argument("--end", type=int, help="End line")
-
-    open_p = subparsers.add_parser("open-file", help="Open file in IDE editor")
-    open_p.add_argument("file", help="File path")
-    open_p.add_argument("--line", type=int, default=1)
-    open_p.add_argument("--col", type=int, default=1)
-
-    subparsers.add_parser("active-file", help="Get currently active file in IDE")
-    subparsers.add_parser("build", help="Build project in IDE")
-    subparsers.add_parser("reload", help="Reload project model in IDE")
-
-    # Tests
-    lt_p = subparsers.add_parser("list-tests", help="List unit/integration tests")
-    lt_p.add_argument("--file", help="Optional test file")
-
-    rt_p = subparsers.add_parser("run-tests", help="Run tests in IDE")
-    rt_p.add_argument("--file", help="Test file")
-    rt_p.add_argument("--class-name", help="Class name")
-    rt_p.add_argument("--method-name", help="Method name")
 
     # Raw Call
     call_p = subparsers.add_parser("call", help="Call any Index MCP tool directly")
@@ -534,6 +479,8 @@ def main():
     result = None
     if args.command == "status":
         result = client.status()
+    elif args.command == "project-status":
+        result = client.project_status()
     elif args.command == "sync":
         result = client.sync_files(args.paths if args.paths else None)
     elif args.command == "scan-project":
@@ -547,54 +494,30 @@ def main():
             start_line=args.start_line,
             end_line=args.end_line
         )
-    elif args.command == "project-diagnostics":
-        result = client.project_diagnostics(severity=args.severity)
     elif args.command == "find-class":
         result = client.find_class(args.query, scope=args.scope, match_mode=args.match_mode)
     elif args.command == "find-file":
         result = client.find_file(args.pattern, scope=args.scope)
-    elif args.command == "find-symbol":
-        result = client.find_symbol(args.query, scope=args.scope)
     elif args.command == "find-def":
         result = client.find_definition(file=args.file, line=args.line, column=args.col, symbol=args.symbol, full_preview=args.full_preview)
     elif args.command == "find-refs":
         result = client.find_references(file=args.file, line=args.line, column=args.col, symbol=args.symbol, scope=args.scope)
-    elif args.command == "symbol-info":
-        result = client.symbol_info(file=args.file, line=args.line, column=args.col, symbol=args.symbol)
     elif args.command == "search-text":
-        result = client.search_text(args.query, is_regex=args.regex, case_sensitive=args.case_sensitive, file_mask=args.mask)
+        result = client.search_text(args.query, is_regex=args.regex, case_sensitive=args.case_sensitive, file_mask=args.mask, paths=args.paths)
     elif args.command == "type-hierarchy":
         result = client.type_hierarchy(file=args.file, line=args.line, column=args.col, symbol=args.symbol, scope=args.scope)
     elif args.command == "call-hierarchy":
-        result = client.call_hierarchy(file=args.file, line=args.line, column=args.col, symbol=args.symbol, direction=args.dir)
+        result = client.call_hierarchy(file=args.file, line=args.line, column=args.col, symbol=args.symbol, direction=args.dir, depth=args.depth)
     elif args.command == "implementations":
-        result = client.find_implementations(file=args.file, line=args.line, column=args.col, symbol=args.symbol)
+        result = client.find_implementations(file=args.file, line=args.line, column=args.col, symbol=args.symbol, scope=args.scope)
     elif args.command == "super-methods":
         result = client.find_super_methods(file=args.file, line=args.line, column=args.col, symbol=args.symbol)
-    elif args.command == "structure":
-        result = client.file_structure(args.file)
     elif args.command == "rename":
-        result = client.rename(args.new_name, file=args.file, line=args.line, column=args.col, symbol=args.symbol)
+        result = client.rename(args.new_name, file=args.file, line=args.line, column=args.col, target_type=args.target_type)
     elif args.command == "move":
         result = client.move_file(args.file, args.dest)
     elif args.command == "safe-delete":
         result = client.safe_delete(file=args.file, line=args.line, column=args.col, symbol=args.symbol)
-    elif args.command == "reformat":
-        result = client.reformat_code(args.file, start_line=args.start, end_line=args.end)
-    elif args.command == "read-file":
-        result = client.read_file(args.file, start_line=args.start, end_line=args.end)
-    elif args.command == "open-file":
-        result = client.open_file(args.file, line=args.line, column=args.col)
-    elif args.command == "active-file":
-        result = client.get_active_file()
-    elif args.command == "build":
-        result = client.build_project()
-    elif args.command == "reload":
-        result = client.reload_project()
-    elif args.command == "list-tests":
-        result = client.list_tests(file=args.file)
-    elif args.command == "run-tests":
-        result = client.run_tests(file=args.file, class_name=args.class_name, method_name=args.method_name)
     elif args.command == "call":
         parsed_args = json.loads(args.args)
         result = client.call(args.tool, parsed_args)
