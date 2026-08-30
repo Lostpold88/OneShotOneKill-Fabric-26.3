@@ -341,26 +341,24 @@ class IndexMcpClient:
             args["column"] = int(column)
         return self.call("ide_refactor_rename", args)
 
-    def move_file(self, file, destination_directory):
+    def move_file(self, file, destination):
         """Safely move a file updating packages and imports."""
         return self.call("ide_move_file", {
             "file": file.replace("\\", "/"),
-            "destinationDirectory": destination_directory.replace("\\", "/")
+            "destination": destination.replace("\\", "/")
         })
 
-    def safe_delete(self, file=None, line=None, column=None, symbol=None, language="Java", search_in_comments=True, search_for_text_occurrences=True):
-        """Safely delete symbol checking for usages across project."""
+    def safe_delete(self, file, line=None, column=None, target_type="symbol", force=False):
+        """Safely delete symbol or file checking for usages across project."""
         args = {
-            "searchInComments": search_in_comments,
-            "searchForTextOccurrences": search_for_text_occurrences
+            "file": file.replace("\\", "/"),
+            "target_type": target_type,
+            "force": force
         }
-        if symbol:
-            args["symbol"] = symbol
-            args["language"] = language
-        else:
-            args["file"] = file.replace("\\", "/") if file else None
+        if line is not None:
             args["line"] = int(line)
-            args["column"] = int(column) if column else 1
+        if column is not None:
+            args["column"] = int(column)
         return self.call("ide_refactor_safe_delete", args)
 
 
@@ -459,10 +457,11 @@ def main():
     mv_p.add_argument("dest", help="Destination directory")
 
     del_p = subparsers.add_parser("safe-delete", help="Safely delete a symbol or file")
-    del_p.add_argument("--symbol", help="Qualified symbol name")
-    del_p.add_argument("--file", help="File path")
+    del_p.add_argument("--file", required=True, help="File path")
     del_p.add_argument("--line", type=int, help="1-based line")
     del_p.add_argument("--col", type=int, default=1, help="1-based column")
+    del_p.add_argument("--target-type", default="symbol", choices=["symbol", "file"])
+    del_p.add_argument("--force", action="store_true", help="Force deletion")
 
     # Raw Call
     call_p = subparsers.add_parser("call", help="Call any Index MCP tool directly")
@@ -517,7 +516,7 @@ def main():
     elif args.command == "move":
         result = client.move_file(args.file, args.dest)
     elif args.command == "safe-delete":
-        result = client.safe_delete(file=args.file, line=args.line, column=args.col, symbol=args.symbol)
+        result = client.safe_delete(file=args.file, line=args.line, column=args.col, target_type=args.target_type, force=args.force)
     elif args.command == "call":
         parsed_args = json.loads(args.args)
         result = client.call(args.tool, parsed_args)
