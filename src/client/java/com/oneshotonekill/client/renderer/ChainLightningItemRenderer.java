@@ -14,21 +14,22 @@ import org.joml.Vector3fc;
 
 /**
  * Prozedurales 3D-Modell des Kettenblitz-Items.
- *
+ * <p>
  * <p>Warum überhaupt ein eigener Renderer: Blockmodell-Elemente waren in der GUI unsichtbar und
  * ergaben bei schrägen Balken je nach Kontext Sterne oder Treppen. Hotbar, X-Menü, Hand und
  * Boden benutzen hier dieselbe Geometrie; nur die Anzeige-Transformation stammt aus dem
  * jeweiligen Item-Kontext.</p>
- *
+ * <p>
  * <p><b>Der Blitz ist jetzt ein Körper, keine Platte.</b> Vorher lag ein flacher Zickzack in der
  * XY-Ebene, der zwischen zwei festen Z-Werten ausgezogen war – von vorn ein Blitz, von der Seite
  * ein Brett. Jetzt läuft die Kette durch alle drei Achsen, und jedes Stück ist ein fünfseitiges
  * Prisma, das sich zu den Enden hin verjüngt. Aus jedem Winkel bleibt eine Zacke eine Zacke.</p>
- *
+ * <p>
  * <p>Beleuchtet wird nichts: {@code debugQuads} zeichnet reine Vertexfarben. Die Räumlichkeit
  * muss deshalb aus der Schattierung kommen, die {@link #sideShade} je Prismenseite selbst
  * aufträgt – ohne sie sähe der Körper flach aus, obwohl er keiner ist.</p>
  */
+@SuppressWarnings({"NullableProblems", "SameParameterValue"})
 public final class ChainLightningItemRenderer implements SpecialModelRenderer<Void> {
    private static final ChainLightningItemRenderer INSTANCE = new ChainLightningItemRenderer();
 
@@ -37,7 +38,7 @@ public final class ChainLightningItemRenderer implements SpecialModelRenderer<Vo
 
    /**
     * Die Kette in normierten Itemkoordinaten.
-    *
+    * <p>
     * Jeder Zug ist eine Folge von Knoten mit eigenem Radius. Die Tiefe schwankt bewusst um die
     * Mitte: liefe sie flach durch, wäre der Blitz von der Seite wieder ein Brett.
     */
@@ -96,7 +97,7 @@ public final class ChainLightningItemRenderer implements SpecialModelRenderer<Vo
 
    /**
     * Ein sich verjüngendes Prisma zwischen zwei Knoten.
-    *
+    * <p>
     * Die Querachsen werden aus der Achse selbst gewonnen: dazu wird derjenige Einheitsvektor
     * herangezogen, zu dem die Achse am wenigsten parallel steht. Nähme man immer denselben,
     * klappte der Querschnitt zusammen, sobald ein Stück zufällig in diese Richtung zeigt.
@@ -135,7 +136,7 @@ public final class ChainLightningItemRenderer implements SpecialModelRenderer<Vo
 
    /**
     * Helligkeit einer Prismenseite.
-    *
+    * <p>
     * {@code debugQuads} kennt kein Licht, also wird hier von Hand schattiert. Ohne diesen
     * Unterschied verschmelzen die Seitenflächen zu einer Fläche und der Körper wirkt flach.
     */

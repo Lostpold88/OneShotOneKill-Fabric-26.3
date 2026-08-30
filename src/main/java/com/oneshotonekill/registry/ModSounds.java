@@ -11,7 +11,7 @@ public final class ModSounds {
    public static final SoundEvent MINIGUN = register("items.minigun");
    /**
     * Die Ansage zum Matchende – das Original aus Call of Duty.
-    *
+    * <p>
     * Sie gibt den Takt der ganzen Sequenz vor: Der Einschlag liegt bei 12,031 Sekunden in der
     * Aufnahme, und {@code NukePhase.DETONATION} ist genau darauf gelegt. Abgespielt wird sie
     * clientseitig ohne Abstandsdämpfung, siehe {@code client/sound/NukeSoundController}.

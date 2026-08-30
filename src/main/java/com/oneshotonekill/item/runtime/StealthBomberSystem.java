@@ -1,7 +1,6 @@
 package com.oneshotonekill.item.runtime;
 
 import com.oneshotonekill.shared.Hologram;
-import com.oneshotonekill.shared.Blast;
 import com.oneshotonekill.shared.Feedback;
 import com.oneshotonekill.match.ScoreboardManager;
 
@@ -47,15 +46,16 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 /**
  * Setzt einen Bomber auf einen Gegner an, der ihm folgt und dabei Bomben abwirft.
- *
+ * <p>
  * Bomber und Bomben sind keine Mobs, sondern reine Serverobjekte mit einer
  * {@link Display.ItemDisplay} als Körper: sie können niemanden rammen, sind nicht abschießbar
  * und brauchen keine Wegfindung. Die Abwurfhöhe respektiert die Decke der Karte.
- *
+ * <p>
  * Die Bomben reißen echte Krater, die über {@link ArenaDemolition} wieder zuwachsen – dieselbe
  * Buchführung wie beim Luftangriff. Sie sind aber deutlich kleiner als dessen Krater, denn ein
  * Bomber wirft ein Dutzend davon: mit Luftangriffsradius bliebe von der Karte nichts übrig.
  */
+@SuppressWarnings({"ConstantValue", "resource"})
 public final class StealthBomberSystem {
    public static final StealthBomberSystem INSTANCE = new StealthBomberSystem();
 
@@ -73,13 +73,13 @@ public final class StealthBomberSystem {
    private static final double FLIGHT_HEIGHT = 14.0;
    /**
     * Anteil der Reststrecke, den der Bomber je Tick aufholt – und die Obergrenze dafür.
-    *
+    * <p>
     * Nur mit dem Anteil allein ginge beides nicht zusammen: hoch genug, um einem laufenden
     * Spieler wirklich zu folgen, wäre der Anflug aus der Ferne nach einer halben Sekunde
     * vorbei. Die Deckelung macht daraus zwei Verhaltensweisen aus einer Regel – weiter weg als
     * {@code MAX_SPEED / FOLLOW_SPEED} Blöcke fliegt er mit voller Geschwindigkeit geradeaus,
     * näher dran zieht er weich nach.
-    *
+    * <p>
     * {@value #MAX_SPEED} Blöcke je Tick sind rund 22 Blöcke in der Sekunde und damit etwa das
     * Vierfache eines sprintenden Spielers; abschütteln lässt er sich also nicht.
     */
@@ -87,7 +87,7 @@ public final class StealthBomberSystem {
    private static final double MAX_SPEED = 1.1;
    /**
     * Nachbrenner, wenn das Ziel plötzlich woanders steht.
-    *
+    * <p>
     * Der Sofort-Respawn setzt einen Getroffenen quer über die Karte, und zwar bewusst weit vom
     * Sterbeort weg. Mit der normalen Reisegeschwindigkeit bräuchte der Bomber dafür mehrere
     * Sekunden und käme praktisch nie wieder zum Werfen. Erkannt wird der Sprung daran, dass
@@ -99,11 +99,11 @@ public final class StealthBomberSystem {
    private static final float BOMBER_SCALE = 2.2F;
    /**
     * Der Bomber kreist über seinem Ziel, statt darüber zu stehen.
-    *
+    * <p>
     * Zwei Gründe: ein stehendes Flugzeug sieht falsch aus und hätte gar keine Flugrichtung,
     * nach der es sich ausrichten könnte. Und die Ladungen fallen so über einen Ring verteilt
     * statt alle auf denselben Punkt – wer sich bewegt, kann ihnen dadurch entgehen.
-    *
+    * <p>
     * Der Radius bleibt kleiner als der Wirkungsradius einer Ladung; sonst könnte ein Ziel
     * mitten im Ring stehen und würde nie getroffen.
     */
@@ -123,7 +123,7 @@ public final class StealthBomberSystem {
    private static final int BOMB_MAX_FLIGHT_TICKS = 120;
    /**
     * Anteil der Zielbewegung, den die Bombe vorhält.
-    *
+    * <p>
     * Bei 1 träfe sie einen gleichmäßig laufenden Spieler jedes Mal – das nähme ihm jede Chance.
     * Knapp darunter landet sie dicht vor ihm, wer die Richtung wechselt, kommt davon.
     */
@@ -155,7 +155,7 @@ public final class StealthBomberSystem {
 
    /**
     * Der Bomber tötet ausdrücklich nicht mit einem Treffer.
-    *
+    * <p>
     * Er wirft im festen Takt und zielt dabei nicht – ein Sofort-Kill pro Ladung machte jeden
     * Aufenthalt unter ihm zum Todesurteil. Erst drei Treffer innerhalb des Zeitfensters
     * eliminieren, wie beim Geschützturm.
@@ -251,7 +251,7 @@ public final class StealthBomberSystem {
 
    /**
     * Der Auftakt: Titel, Sirene und ein fernes Grollen aus der Anflugrichtung.
-    *
+    * <p>
     * Bewusst dreistufig – der Anfordernde bekommt eine Freigabe, das Ziel eine Warnung, alle
     * anderen nur das Geräusch. Wer nicht gemeint ist, soll den Bomber hören, bevor er ihn sieht.
     */
@@ -300,7 +300,7 @@ public final class StealthBomberSystem {
 
    /**
     * Wer sich anvisieren lässt – der Anfordernde ausdrücklich eingeschlossen.
-    *
+    * <p>
     * Sich selbst zu bombardieren ist keine Panne, sondern gewollt: nur so lässt sich der Bomber
     * allein auf dem Server ausprobieren, und im Gefecht ist ein Angriff auf die eigene Position
     * eine legitime, wenn auch teure Notbremse.
@@ -378,7 +378,7 @@ public final class StealthBomberSystem {
 
    /**
     * Erkennt, dass das Ziel versetzt wurde, und schaltet den Nachbrenner zu.
-    *
+    * <p>
     * Beim ersten Tick eines Bombers gibt es noch keinen Vergleichswert – dort wird nur gemerkt,
     * nicht ausgelöst, sonst zündete der Anflug seinen eigenen Nachbrenner.
     */
@@ -399,12 +399,12 @@ public final class StealthBomberSystem {
          return FLIGHT_HEIGHT;
       }
       // Auf überdachten Karten bleibt der Bomber einen Block unter der Decke.
-      return Math.max(3.0, Math.min(FLIGHT_HEIGHT, arena.getCeilingY() - 1.0 - target.getY()));
+      return Math.clamp(arena.getCeilingY() - 1.0 - target.getY(), 3.0, FLIGHT_HEIGHT);
    }
 
    /**
     * Dreht den Rumpf in die Flugrichtung.
-    *
+    * <p>
     * Der Gierwinkel ist {@code atan2(x, z)} der Bewegung und nicht dessen Gegenteil, obwohl das
     * Modell mit der Nase nach -Z gebaut ist. Grund ist eine Drehung, die man dem Modell nicht
     * ansieht: {@code DisplayRenderer.ItemDisplayRenderer#submitInner} legt vor dem Zeichnen ein
@@ -441,7 +441,7 @@ public final class StealthBomberSystem {
 
    /**
     * Klinkt eine Bombe aus und richtet sie auf den Punkt, an dem das Ziel gleich stehen wird.
-    *
+    * <p>
     * Senkrecht fallen zu lassen wäre einfacher, träfe aber niemanden: der Bomber kreist, hinkt
     * dem Ziel nach, und in der halben Sekunde Fallzeit ist ein laufender Spieler längst
     * woanders. Aus der Fallzeit und der Zielgeschwindigkeit ergibt sich der Vorhaltepunkt; die
@@ -471,7 +471,7 @@ public final class StealthBomberSystem {
 
    /**
     * Wie lange die Bombe bis zum Ziel braucht – die Umkehrung des Fallwegs.
-    *
+    * <p>
     * Aus {@code h = v0*t + g*t²/2} folgt die positive Lösung der quadratischen Gleichung. Die
     * Endgeschwindigkeit bleibt außen vor: auf den üblichen zwölf bis vierzehn Blöcken wird sie
     * gar nicht erreicht.
@@ -523,12 +523,12 @@ public final class StealthBomberSystem {
 
    /**
     * Richtet die Bombe entlang ihrer Flugbahn aus und zeichnet, was sie ankündigt.
-    *
+    * <p>
     * Die Nase folgt der Geschwindigkeit, statt einer festen Kippkurve: seit die Bombe schräg
     * fliegt, wäre jede vorgegebene Neigung falsch. Aus dem Modell (Nase nach -Z) und der
     * 180-Grad-Drehung des Renderers ergibt sich der Gierwinkel als {@code atan2(x, z)} und die
     * Neigung als Arkussinus der senkrechten Komponente.
-    *
+    * <p>
     * Dazu drei Ankündigungen: eine Rauchfahne, ein Pfeifen, das mit dem Fall höher wird, und
     * ein Ring am Boden, der sich um den Einschlagpunkt zusammenzieht. Der Ring ist kein
     * Zierrat – ohne ihn wäre der Bomber reines Glück, mit ihm kann man weglaufen.
@@ -583,7 +583,7 @@ public final class StealthBomberSystem {
 
    /**
     * Wirkung einer einzelnen Ladung: Krater, Wucht und Rückstoß, aber kein Sofort-Kill.
-    *
+    * <p>
     * Getroffene sammeln Treffer auf ein Konto; erst der dritte innerhalb von acht Sekunden
     * eliminiert. Der Getroffene sieht seinen Stand, damit die Gefahr lesbar bleibt.
     */
@@ -648,7 +648,7 @@ public final class StealthBomberSystem {
 
    /**
     * Der sichtbare und hörbare Einschlag.
-    *
+    * <p>
     * Drei Schichten, weil eine einzelne Partikelwolke aus der Nähe nur als Nebel ankommt: ein
     * kurzer Blitz, der den Bildschirm überstrahlt, der Feuerball darüber, und eine Druckwelle,
     * die flach über den Boden nach außen läuft. Erst die Welle gibt dem Einschlag eine Größe –
@@ -691,7 +691,7 @@ public final class StealthBomberSystem {
 
    /**
     * Erdklumpen aus dem tatsächlich getroffenen Block.
-    *
+    * <p>
     * Ein fester Partikeltyp sähe auf jeder Karte gleich aus; der echte Blockzustand bindet den
     * Einschlag an den Boden, auf dem er passiert – Sand stiebt anders als Stein.
     */

@@ -28,6 +28,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
  * Taktisches Orbital-Command Terminal (C2): Live-Geländescan, Polar-Radar mit Kompass,
  * holographischer Lock-On Reticle, 4-Kachel Telemetriedeck und Cyber-Buttons.
  */
+@SuppressWarnings({"Convert2MethodRef", "MathClampMigration", "NullableProblems", "SameParameterValue", "unused"})
 public final class AirstrikeTargetScreen extends Screen {
    private static final Identifier RADAR_TEXTURE = OneShotOneKill.INSTANCE.id("dynamic/airstrike_radar");
 
@@ -54,7 +55,6 @@ public final class AirstrikeTargetScreen extends Screen {
    private static final int ENEMY_CRIMSON = 0xFFFF3366;
    private static final int DANGER_PULSE = 0xFFFF0033;
    private static final int TEXT_MUTED = 0xFF8B9BB4;
-   private static final int TEXT_WHITE = 0xFFF0F6FC;
 
    private static final int SWEEP_TRAIL = 16;
    private static final float SWEEP_TRAIL_STEP = 0.045F;

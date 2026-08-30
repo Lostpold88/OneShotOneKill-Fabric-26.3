@@ -1,6 +1,5 @@
 package com.oneshotonekill.client.hud;
 
-import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.client.screen.OsokWidgets;
 import com.oneshotonekill.client.state.ClientStates.*;
 import static com.oneshotonekill.client.state.ClientStates.*;
@@ -21,6 +20,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 /**
  * Epische HUD-Ebenen für das OneShotOneKill Endgame (DEFCON-1 Countdown, Detonation & Championship Siegerehrung).
  */
+@SuppressWarnings({"NullableProblems", "unused"})
 public final class NukeHudLayers {
    private NukeHudLayers() {}
 

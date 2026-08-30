@@ -10,12 +10,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Liefert dem OneShot-Bogen virtuelle Munition.
- *
+ * <p>
  * <p>Fabric API kennt kein Gegenstück zu NeoForges {@code LivingGetProjectileEvent}. Der
  * Bogen soll ohne Pfeil im Inventar schießen, und das lässt sich weder über ein Ereignis noch
  * über einen Access Widener erreichen: {@code Player#getProjectile} ist bereits öffentlich,
  * gebraucht wird ein anderer Rückgabewert.</p>
- *
+ * <p>
  * <p>Der Mixin sitzt auf {@code Player} und wirkt damit auf beiden Seiten. Das ist Absicht:
  * {@code BowItem#use} fragt clientseitig dasselbe ab, und eine nur serverseitige Antwort
  * ließe den Bogen auf dem Client stumm bleiben.</p>

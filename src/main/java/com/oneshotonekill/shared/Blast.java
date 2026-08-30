@@ -2,7 +2,6 @@ package com.oneshotonekill.shared;
 
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
-import com.oneshotonekill.shared.ArenaDemolition;
 import com.oneshotonekill.arena.ArenaWorlds;
 import com.oneshotonekill.event.KillFeed;
 import com.oneshotonekill.event.CombatEvents.DamageListener;
@@ -19,23 +18,24 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 /**
  * Gemeinsame Sprengwirkung für Explosiv-Schuss, C4 und Bomberladungen.
- *
+ * <p>
  * Es wird bewusst keine Vanilla-Explosion ausgelöst: Die Eliminierung läuft über dieselbe
  * Buchführung wie jeder andere Kill, und der Auslöser wird ausdrücklich mitgetroffen – wer
  * die Ladung zu nah setzt, geht mit hoch.
- *
+ * <p>
  * Ein {@link Crater} reißt zusätzlich ein Loch in die Karte. Das läuft über
  * {@link ArenaDemolition} und **nicht** über eigenes {@code setBlock}: die Klasse merkt sich zu
  * jedem gesprengten Block seinen Ursprungszustand und setzt ihn nach einer Weile wieder ein.
  * Ein Krater ohne Weg zurück kann dadurch gar nicht erst entstehen. Wer keinen Krater will,
  * ruft die kurze Fassung ohne ihn auf.
- *
+ * <p>
  * Sichtbar und spürbar wird die Explosion an drei Stellen: {@link BlastEffect} baut den
  * Feuerball aus Modellen, ein {@link ExplosionShakePayload} schüttelt jedem in der Arena die
  * Kamera, und ein paar Partikel legen das Flimmern darüber, das Modelle nicht können. Alles
  * drei folgt dem Sprengradius, damit derselbe Aufruf für einen Explosivpfeil wie für eine
  * C4-Ladung passt.
  */
+@SuppressWarnings("ConstantValue")
 public final class Blast {
    /** Wie weit der Schlag noch zu spüren ist, im Verhältnis zum Sprengradius. */
    private static final float SHAKE_REACH = 3.6F;
@@ -44,7 +44,7 @@ public final class Blast {
 
    /**
     * Das Loch, das eine Explosion in die Karte reißt.
-    *
+    * <p>
     * @param depthOffset wie weit die Kugelmitte unter dem Einschlag liegt. Erst dadurch wird aus
     *                    der Kugel eine Schüssel statt eines Lochs mit Überhang. Ein negativer
     *                    Wert hebt sie an – das braucht eine Ladung, die unter einer Decke klebt.
@@ -54,7 +54,7 @@ public final class Blast {
 
    /**
     * Anteil des Kraterradius, um den die Kugelmitte unter dem Einschlag liegt.
-    *
+    * <p>
     * Derselbe Wert, mit dem der Luftangriff seit jeher arbeitet – dort steht er als 2,25 bei
     * Radius 9 im Quelltext.
     */

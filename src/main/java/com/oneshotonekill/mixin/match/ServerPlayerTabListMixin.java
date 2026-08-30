@@ -10,13 +10,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Setzt den Namen in der Tabellenliste auf die Zeile aus {@link ScoreboardManager}.
- *
+ * <p>
  * <p>Fabric API bietet dafür weder Ereignis noch Registry: Weder das Lifecycle- noch das
  * Entity-Event-Modul kennt einen Rückruf zur Anzeigezeile eines Spielers, und die
  * Netzwerkmodule setzen nur Pakete zusammen, statt ihren Inhalt zu bestimmen. Ein Access
  * Widener hilft ebenfalls nicht, denn {@code ServerPlayer#getTabListDisplayName} ist bereits
  * öffentlich – es fehlt kein Zugriff, sondern ein anderer Rückgabewert.</p>
- *
+ * <p>
  * <p>Vanilla gibt hier {@code null} zurück, worauf {@code ClientboundPlayerInfoUpdatePacket}
  * auf den Profilnamen zurückfällt. Genau diesen Rückfall ersetzt der Mixin.</p>
  */

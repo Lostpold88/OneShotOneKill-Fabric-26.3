@@ -6,14 +6,14 @@ import net.minecraft.world.item.component.DyedItemColor;
 
 /**
  * Die blinkenden Anzeigen der Handgeräte.
- *
+ * <p>
  * Funkgerät, Peilsender und Gleitflug tragen alle dieselbe Bauart: ein fast weißes
  * Anzeigefeld im Modell, das über {@code tintindex} eingefärbt wird, und ein Muster, das die
  * Farbe Tick für Tick setzt. Drei Kopien derselben acht Zeilen wären der sichere Weg dazu, dass
  * sie irgendwann auseinanderlaufen.
- *
+ * <p>
  * <p>Zwei Dinge sind dabei nicht offensichtlich und stehen deshalb hier:</p>
- *
+ * <p>
  * <ul>
  *   <li><b>Nur bei echter Änderung setzen.</b> Jeder Wechsel geht als Inventarpaket zum Client.
  *       Die Muster haben lange Ruhephasen, und {@link #set} vergleicht davor.</li>
@@ -25,6 +25,7 @@ import net.minecraft.world.item.component.DyedItemColor;
  *       {@link #allowsReequipAnimation()} zurück.</li>
  * </ul>
  */
+@SuppressWarnings("RedundantCast")
 public final class DeviceLights {
    /** Länge des Ruhemusters: zweimal kurz, dann lange Pause. */
    private static final int BEACON_CYCLE = 40;
@@ -34,7 +35,7 @@ public final class DeviceLights {
 
    /**
     * Ruhemuster: zwei kurze Blitze, dann eine lange Pause.
-    *
+    * <p>
     * Für Geräte, die nur bereitstehen. Ein Dauerblinken zöge über eine ganze Runde mehr
     * Aufmerksamkeit auf sich als das Gerät wert ist.
     */
@@ -45,7 +46,7 @@ public final class DeviceLights {
 
    /**
     * Wechselblinken mit fester Taktlänge – für Geräte, die scharf sind.
-    *
+    * <p>
     * Je kürzer die Taktlänge, desto dringlicher wirkt es; darüber steuern die Aufrufer ihre
     * Dringlichkeit, ohne ein eigenes Muster zu schreiben.
     */
@@ -66,7 +67,7 @@ public final class DeviceLights {
 
    /**
     * Antwort für {@code FabricItem#allowComponentsUpdateAnimation}: nie nachgreifen.
-    *
+    * <p>
     * <p>Siehe den Klassenkommentar – ohne das ruckelt jedes blinkende Gerät in der Hand. Unter
     * NeoForge musste dieselbe Antwort noch den Slot- und den Itemwechsel von der reinen
     * Komponentenänderung unterscheiden. Fabric fragt gar nicht erst danach: Der Rückruf läuft

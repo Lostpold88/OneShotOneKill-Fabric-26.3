@@ -22,17 +22,18 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Krater schlagen und wieder zuwachsen lassen.
- *
+ * <p>
  * Die Mod rührt die Karte sonst nirgends an – alles Abgestellte ist eine Display-Entity, und
  * Explosionen laufen über die eigene Eliminierungs-Buchführung statt über {@code Level#explode}.
  * Diese Klasse ist die eine bewusste Ausnahme: Luftangriff und Bomber dürfen Löcher reißen, weil
  * jedes Loch hier gleich mitsamt seinem Weg zurück verwaltet wird. Der ursprüngliche Zustand
  * jedes Blocks wird gemerkt und nach einer Wartezeit tickweise wieder eingesetzt.
- *
+ * <p>
  * Vorher stand das nur im Luftangriff. Für den Bomber ein zweites Mal zu schreiben hieße, zwei
  * Buchhaltungen darüber zu führen, was der Karte gerade fehlt – und die erste vergessene
  * Wiederherstellung beschädigt die Arena dauerhaft.
  */
+@SuppressWarnings({"ForLoopReplaceableByForEach", "UnusedReturnValue", "unused"})
 public final class ArenaDemolition {
    public static final ArenaDemolition INSTANCE = new ArenaDemolition();
 
@@ -42,7 +43,7 @@ public final class ArenaDemolition {
 
    /**
     * Die unversehrte Karte je Arena, abgeschrieben beim Serverstart.
-    *
+    * <p>
     * Sie ist der einzige Weg, der im laufenden Betrieb zuverlaessig zurueckfuehrt – siehe
     * {@link ArenaSnapshot}, warum weder das Kartenarchiv noch die Buchfuehrung unten dafuer
     * reichen.
@@ -64,7 +65,7 @@ public final class ArenaDemolition {
 
    /**
     * Sprengt eine Kugel aus der Arena und meldet sie zur Wiederherstellung an.
-    *
+    * <p>
     * @param impact       Einschlagpunkt an der Oberfläche
     * @param radius       Kraterradius in Blöcken
     * @param depthOffset  wie weit die Kugelmitte unter dem Einschlag liegt – erst dadurch wird
@@ -92,7 +93,7 @@ public final class ArenaDemolition {
     * Radiert einen Ring um den Einschlag aus – schlägt eine gewaltige, unregelmäßige
     * Kraterschüssel mit geschmolzenem Kern (Lava, Magma, Obsidian) und Brandherden.
     * Pulverisiert Bedrock, Dächer, Gebäude und Außengelände organisch.
-    *
+    * <p>
     * @return wie viele Blöcke verschwunden sind
     */
    public int obliterate(ServerLevel level, Arena arena, Vec3 centre, double innerRadius, double outerRadius,
@@ -219,7 +220,7 @@ public final class ArenaDemolition {
 
    /**
     * Nimmt die Abschrift einer Arena ab – gedacht fuer den Moment nach dem Auspacken.
-    *
+    * <p>
     * Ein zweiter Aufruf ueberschreibt die vorhandene. Das ist Absicht: Wer sie erneuert,
     * erklaert damit den aktuellen Zustand zum Sollzustand, und genau das will man nach einem
     * frischen Auspacken.
@@ -238,14 +239,14 @@ public final class ArenaDemolition {
 
    /**
     * Setzt eine Arena auf ihren Sollzustand zurueck – ganz gleich, was ihr zugestossen ist.
-    *
+    * <p>
     * <p>Das ist der Weg, den der Reset-Knopf geht. Er fragt nicht nach der Ursache: TNT,
     * Nuke, Luftangriff oder ein Spieler mit Spitzhacke enden alle hier, weil verglichen wird
     * und nicht Buch gefuehrt.</p>
-    *
+    * <p>
     * <p>Fehlt die Abschrift, bleibt der alte Weg ueber die Buchfuehrung. Der deckt weniger ab,
     * ist aber besser als nichts.</p>
-    *
+    * <p>
     * @return wie viele Bloecke geaendert wurden
     */
    public int restoreArena(ServerLevel level, Arena arena) {
@@ -307,7 +308,7 @@ public final class ArenaDemolition {
 
    /**
     * Füllt alles Offene sofort auf, statt auf die Wartezeit zu warten.
-    *
+    * <p>
     * Beim Serverstart gerufen: ein halb gesprengter Krater darf nicht stehen bleiben, nur weil
     * niemand mehr auf seine Wiederherstellung wartet.
     */

@@ -31,19 +31,19 @@ import org.joml.Quaternionf;
 
 /**
  * Die Tragflächen des Gleitflugs – auf jedem Client gezeichnet, nicht als Entity.
- *
+ * <p>
  * <p>Vorher hingen zwei {@code Display.ItemDisplay} am Spieler. Jede Entity läuft über eigene
  * Positionspakete und wird zwischen zwei Ticks interpoliert; bei Fluggeschwindigkeit hinkten die
  * Flügel dadurch sichtbar hinterher. Hier setzt sie jeder Client unmittelbar an die
  * interpolierte Position des Spielers – sie kleben, egal wie schnell er ist.</p>
- *
+ * <p>
  * <p>Gebaut wie das Magnetfeld nebenan: {@link LevelExtractionEvents#END_EXTRACTION} sammelt je
  * sichtbarem Spieler ein paar Zahlen ein, {@link LevelRenderEvents#COLLECT_SUBMITS} zeichnet daraus.
  * Zwischen beiden liegt der Wechsel in den Renderthread, deshalb wandern nur unveränderliche
  * Daten hinüber und keine Spielerobjekte.</p>
- *
+ * <p>
  * <h2>Aufbau</h2>
- *
+ * <p>
  * <p>Gezeichnet wird in zwei Durchgängen, und das ist der Kern der Sache. Der erste legt mit
  * {@code debugQuads} den festen Körper hin: Rückeneinheit, Holm, Rippen, Randbogen und die
  * Triebwerksgondeln. Der zweite setzt mit {@code lightning} das Leuchtende darüber –
@@ -51,11 +51,12 @@ import org.joml.Quaternionf;
  * mischt additiv, seine Flächen hellen also auf, statt zu verdecken, und genau daran erkennt
  * man ein Kraftfeld statt eines bemalten Bretts. Dafür ist dort die Rückseitenverwerfung an,
  * weshalb jede leuchtende Fläche zweimal geschrieben wird – einmal je Umlaufrichtung.</p>
- *
+ * <p>
  * <p>Die Flügel sind nicht starr: Sie tragen eine V-Stellung, atmen langsam auf und ab und
  * ziehen ihre Pfeilung mit der Geschwindigkeit nach hinten. Ein Flügel, der bei Tempo 0 und bei
  * Tempo 1,4 gleich aussieht, wirkt wie ein Aufkleber.</p>
  */
+@SuppressWarnings({"resource", "SameParameterValue"})
 public final class GliderWingRenderer {
    private static final RenderStateDataKey<List<WingFrame>> FRAMES =
       RenderStateDataKey.create(() -> OneShotOneKill.MOD_ID + ":glider_wings");
@@ -130,7 +131,7 @@ public final class GliderWingRenderer {
 
    /**
     * Hängt die Tragflächen in den Renderdurchlauf ein.
-    *
+    * <p>
     * {@code END_EXTRACTION} entspricht NeoForges {@code ExtractLevelRenderStateEvent} und
     * sammelt am Ende der Zustandserfassung die unveränderlichen Zahlen dieses Bildes ein;
     * {@code COLLECT_SUBMITS} entspricht {@code SubmitCustomGeometryEvent} und zeichnet daraus.
@@ -166,7 +167,7 @@ public final class GliderWingRenderer {
 
    /**
     * Die Schräglage folgt der Kurve – wie bei allem, was fliegt.
-    *
+    * <p>
     * Gemessen wird die Gierdrehung des Körpers seit dem letzten Tick; daraus wird ein Zielwinkel
     * und der wird nachgezogen, statt ihn direkt zu setzen. Ohne dieses Nachziehen zappelten die
     * Flügel bei jeder Mausbewegung. Der Zustand liegt hier und nicht im Zeichenschritt, weil
@@ -301,7 +302,7 @@ public final class GliderWingRenderer {
 
    /**
     * Holm, Rippen und Randbogen – alles, was am Flügel Material ist.
-    *
+    * <p>
     * Der Holm liegt an der Vorderkante und nimmt nur den vorderen Teil der Tiefe ein; dahinter
     * spannt sich die Energiehaut, die {@link #membrane} zeichnet. Diese Aufteilung ist der
     * Grund, warum der Flügel überhaupt wie ein Gerät aussieht und nicht wie ein Brett.
@@ -376,7 +377,7 @@ public final class GliderWingRenderer {
 
    /**
     * Die Energiehaut zwischen Holm und Hinterkante.
-    *
+    * <p>
     * Sie läuft nach außen und nach hinten durchsichtiger aus und trägt eine wandernde Welle –
     * ein gleichmäßig eingefärbtes Feld sähe aus wie farbiges Glas. Die Hinterkante bekommt zum
     * Schluss noch einen schmalen, fast weißen Streifen; der zeichnet die Silhouette nach.
@@ -413,7 +414,7 @@ public final class GliderWingRenderer {
 
    /**
     * Die Düsenflamme: ein Kegel nach hinten, dessen Länge am Tempo hängt.
-    *
+    * <p>
     * Vorn weiß und dicht, hinten blau und offen – und mit einem Flackern, das für beide Seiten
     * unterschiedlich läuft. Zwei gleich atmende Flammen sehen sofort nach Kopie aus.
     */
@@ -452,7 +453,7 @@ public final class GliderWingRenderer {
 
    /**
     * Ein Schnitt durch den Flügel an der Stelle {@code share} zwischen Wurzel und Spitze.
-    *
+    * <p>
     * Hier steckt die ganze Form: Pfeilung mit dem Tempo, V-Stellung samt langsamem Auf und Ab,
     * Verjüngung der Tiefe und das Auslaufen der Dicke. Wer die Silhouette ändern will, ändert
     * diese Methode und sonst nichts.
@@ -510,7 +511,7 @@ public final class GliderWingRenderer {
 
    /**
     * Dieselbe Fläche in beiden Umlaufrichtungen.
-    *
+    * <p>
     * {@code RenderPipelines.LIGHTNING} verwirft Rückseiten, und eine Tragfläche wird von beiden
     * Seiten gesehen. Auch im festen Durchgang steht das für alles, was nur eine Fläche dick ist
     * – Rippen und Randbogen haben keine Rückseite, an der sich eine Umlaufrichtung festmachen

@@ -14,13 +14,14 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 
 /**
  * Einsatzfreigabe des Tarnkappenbombers: eine Liste der Gegner in der Arena.
- *
+ * <p>
  * Vorher suchte sich der Bomber sein Ziel selbst – wer am nächsten an der Blickachse lag, bekam
  * ihn. Das war schnell, aber blind: hinter einer Wand oder im Rücken stehende Gegner waren
  * unerreichbar, und wen man wirklich getroffen hatte, sah man erst hinterher. Die Liste kommt
  * vom Server und nennt Entfernung, Richtung und laufende Killserie jedes Gegners, damit die
  * Wahl auf etwas beruht.
  */
+@SuppressWarnings("ConstantValue")
 public final class BomberTargetScreen extends Screen {
    private static final int OVERLAY = 0xB8000000;
    private static final int PANEL = 0xF0191B1D;
@@ -139,10 +140,10 @@ public final class BomberTargetScreen extends Screen {
 
    /**
     * Richtung zum Ziel, bezogen auf die eigene Blickrichtung.
-    *
+    * <p>
     * Ein Winkel in Grad wäre genauer, aber im Gefecht nicht lesbar; „vorne rechts“ genügt, um
     * einen Eintrag der Liste einem Gegner im Blickfeld zuzuordnen.
-    *
+    * <p>
     * Minecraft misst den Gierwinkel von Süden aus und steigend nach Westen – die Richtung zu
     * einem Punkt ist deshalb {@code atan2(-dx, dz)}, und ein positiver Unterschied zur eigenen
     * Blickrichtung liegt rechts von einem.

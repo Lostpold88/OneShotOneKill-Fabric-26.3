@@ -2,12 +2,8 @@ package com.oneshotonekill.item.types;
 import com.oneshotonekill.item.StopUsingAware;
 import com.oneshotonekill.shared.SpecialItemRules;
 
-import com.oneshotonekill.OneShotOneKill;
-import com.oneshotonekill.item.SpecialItem;
 import com.oneshotonekill.item.runtime.Deployables;
 import com.oneshotonekill.shared.DeviceLights;
-import com.oneshotonekill.shared.Feedback;
-import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.item.runtime.RailgunSystem;
 import com.oneshotonekill.registry.ModDataComponents;
@@ -16,8 +12,6 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.sounds.SoundEvents;
-import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.InteractionHand;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Entity;
@@ -37,6 +31,7 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Klassensammlung aller schweren Spezial-Waffen (Minigun, Railgun, C4).
  */
+@SuppressWarnings("NullableProblems")
 public final class WeaponItems {
    private WeaponItems() {}
 
@@ -121,7 +116,7 @@ public final class WeaponItems {
    
       /**
        * Stichflamme und Funken fahren in Schussrichtung aus dem Lauf, statt an der Mündung zu stehen.
-       *
+       * <p>
        * Bei einer Stückzahl von null gilt der Richtungsvektor als Geschwindigkeit – so bekommt der
        * Blitz eine Richtung, ohne dass dafür ein eigener Partikeltyp nötig wäre.
        */
@@ -139,8 +134,8 @@ public final class WeaponItems {
    // --- RailgunItem.java ---
    /**
     * Aufladen und loslassen – aber erst die volle Ladung schießt.
-    *
-    * Sie baut deshalb nicht auf {@link SpecialAbilityItem} auf – der verbraucht das Item schon
+    * <p>
+    * Sie baut deshalb nicht auf {@link AbilityItems.SpecialAbilityItem} auf – der verbraucht das Item schon
     * beim Drücken, hier fällt die Entscheidung aber erst beim Loslassen. Wer zu früh loslässt,
     * behält seine Railgun: ein Fehlversuch soll nichts kosten, sonst traut sich niemand, das
     * Aufladen überhaupt auszuprobieren.
@@ -186,11 +181,11 @@ public final class WeaponItems {
    
       /**
        * Bricht das Laden ab, wenn der Spieler die Waffe wegsteckt.
-       *
+       * <p>
        * Geschossen wird dabei ausdrücklich nicht: {@code releaseUsing} kommt nur, wenn der Client
        * das Loslassen meldet, {@code stopUsingItem} dagegen auch beim Waffenwechsel. Ohne diesen
        * Griff bliebe die Waffe mit weißglühenden Spulen im Inventar liegen.
-       *
+       * <p>
        * Vanilla fragt an dieser Stelle keinen Gegenstand; den Aufruf stellt
        * {@code LivingEntityStopUsingMixin} über {@link StopUsingAware} wieder her.
        */
@@ -201,7 +196,7 @@ public final class WeaponItems {
    
       /**
        * Lässt die Anzeigen der Waffe auch dann blinken, wenn niemand lädt.
-       *
+       * <p>
        * Nur in der Haupthand: {@code inventoryTick} läuft für jeden Gegenstand in jedem Inventar,
        * und eine Railgun tief in der Tasche muss niemandem etwas anzeigen.
        */
@@ -214,7 +209,7 @@ public final class WeaponItems {
    
       /**
        * Verhindert, dass die Waffe bei jedem Blinken neu in die Hand genommen wird.
-       *
+       * <p>
        * Vanilla vergleicht die beiden Stäpel über die Objektgleichheit
        * ({@code IItemExtension#shouldCauseReequipAnimation} gibt {@code oldStack != newStack}
        * zurück). Jede Farbänderung erzeugt clientseitig einen neuen Stapel und gälte damit als
@@ -247,12 +242,12 @@ public final class WeaponItems {
    // --- C4Item.java ---
    /**
     * Haftladung und Zünder in einem Gegenstand.
-    *
-    * Anders als Frost-Falle und Geschützturm baut die Ladung nicht auf {@link PlacedSpecialItem}
+    * <p>
+    * Anders als Frost-Falle und Geschützturm baut die Ladung nicht auf {@link DeployableItems.PlacedSpecialItem}
     * auf. Zwei Gründe: Sie braucht die angeklickte Fläche, um sich richtig herum daran zu drehen,
     * und sie darf ausdrücklich auch nach unten – eine Ladung unter einer Decke oder an einer Wand
     * ist der halbe Reiz an ihr, und genau das schließt die gemeinsame Basis aus.
-    *
+    * <p>
     * <p>Der Fernzünder als eigener Gegenstand ist weg. Er belegte einen zweiten Platz in einer
     * ohnehin knappen Leiste und hatte ohne Ladung keine Funktion; jetzt bedient das C4 sich
     * selbst. Sein <em>Modell</em> ist dagegen geblieben und sitzt nun auf diesem Gegenstand: Was
@@ -260,7 +255,7 @@ public final class WeaponItems {
     * {@code tools/generate_field_gear_3d.py}. Die Sprengladung sieht anders aus, weil sie etwas
     * anderes ist – sie klebt an der Wand und trägt das Modell von
     * {@code ModItems.C4_CHARGE}.</p>
-    *
+    * <p>
     * <ul>
     *   <li><b>Auf einen Block:</b> die Ladung klebt dort. Der Gegenstand bleibt dabei in der Hand –
     *       er ist ja der Zünder. Verbraucht wird er erst beim Zünden.</li>
@@ -272,7 +267,7 @@ public final class WeaponItems {
    public static final class C4Item extends Item {
       /**
        * Das Statusband des Zündkastens: ruhiges Bernstein ohne Ladung, hektisches Rot mit.
-       *
+       * <p>
        * Der Takt hängt an der Zahl der scharfen Ladungen – je mehr, desto schneller. Damit sagt
        * das Gerät auf einen Blick, ob überhaupt etwas zu zünden ist.
        */
@@ -286,7 +281,7 @@ public final class WeaponItems {
    
       /**
        * Lässt die Anzeige blinken, solange das Gerät in der Hand liegt.
-       *
+       * <p>
        * Nur in der Haupthand: {@code inventoryTick} läuft für jeden Gegenstand in jedem Inventar,
        * und ein Gerät tief in der Tasche muss niemandem etwas anzeigen.
        */
@@ -311,7 +306,7 @@ public final class WeaponItems {
    
       /**
        * Rechtsklick auf einen Block: kleben – geschlichen dagegen zünden.
-       *
+       * <p>
        * Das Schleichen ist der zweite Weg zum Zünden neben dem Klick ins Leere. Ohne ihn stünde,
        * wer in einem Gang vor einer Wand steht, ohne Auslöser da: Sein Blick trifft von dort aus
        * überall einen Block.
@@ -362,7 +357,7 @@ public final class WeaponItems {
    
       /**
        * Rechtsklick ins Leere: zünden.
-       *
+       * <p>
        * Der Rückgabewert ist auch dann kein {@code PASS}, wenn nichts scharf ist. Sonst ginge der
        * Klick an die Zweithand weiter – und dort steckt der Bogen.
        */

@@ -1,6 +1,5 @@
 package com.oneshotonekill.shared;
 
-import com.oneshotonekill.arena.Arena;
 
 import com.oneshotonekill.registry.ModItems;
 import java.util.ArrayList;
@@ -19,17 +18,17 @@ import org.joml.Vector3f;
 
 /**
  * Die Explosion einer einzelnen Ladung – als Körper, nicht als Partikelwolke.
- *
- * Der kleine Bruder von {@link MushroomCloud} und aus demselben Grund entstanden: ein
+ * <p>
+ * Der kleine Bruder von {@link com.oneshotonekill.nuke.MushroomCloud} und aus demselben Grund entstanden: ein
  * Partikelstoß ist nach einem Sechzigstel der Zeit vorbei, die man braucht, um hinzusehen, und
  * verblasst mit dem Abstand. Hier wachsen stattdessen ein Feuerball, ein Kranz Rauchballen und
  * ein paar Erdbrocken über gut zwei Sekunden auseinander.
- *
+ * <p>
  * Die Modelle sind dieselben wie beim Atompilz ({@code tools/generate_blast_3d.py}), nur in
  * anderer Choreografie – ein zweiter Satz Modelle wäre dieselbe Geometrie unter neuem Namen.
  * Alle Maße folgen dem Sprengradius, damit derselbe Effekt vom Explosiv-Schuss bis zur
  * C4-Ladung trägt.
- *
+ * <p>
  * Gezündet wird über {@link Blast#detonate}; getickt wird aus {@code ServerEvents}.
  */
 public final class BlastEffect {
@@ -265,7 +264,7 @@ public final class BlastEffect {
          part.colour = stepped;
          ItemStack stack = new ItemStack(part.shape);
          stack.set(DataComponents.DYED_COLOR, new DyedItemColor(stepped));
-         part.display.getSlot(0).set(stack);
+         Hologram.setItem(part.display, stack);
       }
 
       private double fade() {

@@ -22,11 +22,11 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
 
 /**
  * Meldet alle Pakete bei Fabric an.
- *
+ * <p>
  * Die Paketklassen selbst sind reines Vanilla ({@code CustomPacketPayload} mit
  * {@code StreamCodec}) und stehen unverändert weiter unten in dieser Datei. Fabric trennt
  * dagegen dreierlei, was NeoForge in einem Aufruf zusammenfasst:
- *
+ * <p>
  * <ol>
  *   <li>Der <em>Typ</em> samt Codec wird je Richtung in {@link PayloadTypeRegistry} eingetragen.
  *       Das muss auf Client und Server gleich laufen, deshalb steht es hier im gemeinsamen
@@ -36,11 +36,12 @@ import net.minecraft.network.RegistryFriendlyByteBuf;
  *       {@code com.oneshotonekill.client.network.OsokClientHandlers}. Sie fassen Bildschirme und
  *       Klangregler an, die es auf einem dedizierten Server nicht gibt.</li>
  * </ol>
- *
+ * <p>
  * Eine Protokollversion wie unter NeoForge gibt es nicht. Fabric lehnt eine Verbindung nicht
  * wegen fehlender Kanäle ab; die Pakete dieser Mod sind aber auf beiden Seiten Pflicht, weil
  * Client und Server dieselbe Mod-Fassung laden müssen.
  */
+@SuppressWarnings({"NullableProblems", "unused"})
 public final class OsokPayloads {
    private OsokPayloads() {
    }
@@ -95,7 +96,7 @@ public final class OsokPayloads {
 
    /**
     * Trägt alle Pakettypen ein und hängt die Empfänger der Richtung Client → Server ein.
-    *
+    * <p>
     * Aufgerufen aus dem {@code ModInitializer}, also auf beiden Seiten. Der Empfänger läuft
     * bereits auf dem Server-Thread: Fabrics {@code AbstractChanneledNetworkAddon} stellt ein
     * Paket, das auf dem Netzwerk-Thread ankäme, mit {@code RunningOnDifferentThreadException}
@@ -153,11 +154,11 @@ public final class OsokPayloads {
    // --- AbilityStatusPayload.java ---
    /**
     * Die laufenden Spezial-Item-Wirkungen eines Spielers für sein HUD.
-    *
+    * <p>
     * Der Client kann keine davon selbst ermitteln – Schild, scharfer Schuss und Ladungszahl sind
     * reine Serverzustände. Gesendet wird nur bei Änderung, nicht in jedem Tick.
     */
-   public static record AbilityStatusPayload(boolean shield, int vanishTicks, int magnetTicks, int glideTicks, int frozenTicks,
+   public record AbilityStatusPayload(boolean shield, int vanishTicks, int magnetTicks, int glideTicks, int frozenTicks,
                                       String armedShot, int charges, int traps, int turrets) implements CustomPacketPayload {
        public static final Type<AbilityStatusPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("ability_status"));
        public static final AbilityStatusPayload EMPTY = new AbilityStatusPayload(false, 0, 0, 0, 0, "", 0, 0, 0);
@@ -185,13 +186,13 @@ public final class OsokPayloads {
    // --- DeployableMarkersPayload.java ---
    /**
     * Die eigenen abgestellten Geräte eines Spielers für seine HUD-Peilung.
-    *
+    * <p>
     * Der Client sieht zwar die Display-Entities, kann aus ihnen aber weder den Besitzer ablesen
     * noch eine getarnte Frost-Falle finden – die ist für Gegner absichtlich unsichtbar. Wer was
     * aufgestellt hat, weiß nur der Server, deshalb kommt die Liste von dort. Sie enthält
     * ausschließlich die Geräte des Empfängers.
     */
-   public static record DeployableMarkersPayload(List<Marker> markers) implements CustomPacketPayload {
+   public record DeployableMarkersPayload(List<Marker> markers) implements CustomPacketPayload {
       public static final Type<DeployableMarkersPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("deployable_markers"));
       public static final DeployableMarkersPayload EMPTY = new DeployableMarkersPayload(List.of());
 
@@ -245,16 +246,16 @@ public final class OsokPayloads {
 
       /**
        * Ein abgestelltes Gerät.
-       *
+       * <p>
        * {@code alerted} meldet den erhöhten Zustand: eine scharfe C4 blinkt schneller, sobald der
        * Zünder in der Hand liegt, und ein Turm, der ein Ziel hat, feuert gerade.
        */
-      public static record Marker(Kind kind, double x, double y, double z, boolean alerted) {
+      public record Marker(Kind kind, double x, double y, double z, boolean alerted) {
       }
    }
 
    // --- AdjustSpecialItemWeightPayload.java ---
-   public static record AdjustSpecialItemWeightPayload(String itemId, int adjustment) implements CustomPacketPayload {
+   public record AdjustSpecialItemWeightPayload(String itemId, int adjustment) implements CustomPacketPayload {
        public static final Type<AdjustSpecialItemWeightPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("adjust_special_item_weight"));
        public static final StreamCodec<ByteBuf, AdjustSpecialItemWeightPayload> STREAM_CODEC = StreamCodec.composite(ByteBufCodecs.STRING_UTF8, AdjustSpecialItemWeightPayload::itemId, ByteBufCodecs.VAR_INT, AdjustSpecialItemWeightPayload::adjustment, AdjustSpecialItemWeightPayload::new);
        public String getItemId() { return itemId; } public int getAdjustment() { return adjustment; }
@@ -267,7 +268,7 @@ public final class OsokPayloads {
     * damit das HUD die Flugbahn selbst interpolieren kann statt sie tickweise zu übertragen.
     * {@code warningTicks == 0} bedeutet: die Bombe ist eingeschlagen.
     */
-   public static record AirstrikeAlarmPayload(double targetX, double targetZ, double launchY, double impactY, int warningTicks)
+   public record AirstrikeAlarmPayload(double targetX, double targetZ, double launchY, double impactY, int warningTicks)
            implements CustomPacketPayload {
        public static final Type<AirstrikeAlarmPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("airstrike_alarm"));
        public static final StreamCodec<ByteBuf, AirstrikeAlarmPayload> STREAM_CODEC = StreamCodec.composite(
@@ -293,7 +294,7 @@ public final class OsokPayloads {
    }
 
    // --- ArenaMenuStatePayload.java ---
-   public static record ArenaMenuStatePayload(
+   public record ArenaMenuStatePayload(
        boolean open,
        String activeArenaId,
        String playerArenaId,
@@ -371,12 +372,12 @@ public final class OsokPayloads {
    // --- BomberTargetsPayload.java ---
    /**
     * Die Gegner, auf die ein Bomber angesetzt werden kann – vom Server zusammengestellt.
-    *
+    * <p>
     * Der Client könnte die Liste im Prinzip aus seiner eigenen Welt ablesen, aber nur für Spieler
     * innerhalb seiner Verfolgungsreichweite. Wer weit genug weg steht, fehlte dann im Menü, obwohl
     * er in derselben Arena kämpft. Die Auswahl kommt deshalb vom Server, der alle kennt.
     */
-   public static record BomberTargetsPayload(List<Target> targets) implements CustomPacketPayload {
+   public record BomberTargetsPayload(List<Target> targets) implements CustomPacketPayload {
       public static final Type<BomberTargetsPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("bomber_targets"));
    
       public static final StreamCodec<ByteBuf, BomberTargetsPayload> STREAM_CODEC = new StreamCodec<>() {
@@ -416,7 +417,7 @@ public final class OsokPayloads {
       }
    
       /** Ein wählbarer Gegner samt allem, was das Menü über ihn anzeigt. */
-      public static record Target(UUID id, String name, double x, double y, double z, int killstreak) {
+      public record Target(UUID id, String name, double x, double y, double z, int killstreak) {
       }
    }
 
@@ -424,7 +425,7 @@ public final class OsokPayloads {
    /**
     * Live-Telemetrie und Kameradaten des Tarnkappenbombers für das PiP-Aufklärungs-HUD.
     */
-   public static record BomberCameraPayload(
+   public record BomberCameraPayload(
       boolean active,
       UUID targetId,
       String targetName,
@@ -511,12 +512,12 @@ public final class OsokPayloads {
    // --- TimeDistortionPayload.java ---
    /**
     * Exakter Echtzeitzustand des Zeitverzerrers für den großen Client-Effekt.
-    *
+    * <p>
     * <p>Vanillas Tickratenpaket sagt nur, dass acht TPS gelten. Dieses Paket ergänzt den
     * räumlichen Ursprung der Druckwelle, die verbleibende Echtzeit und ob ein später
     * beigetretener Spieler den Startimpuls noch sehen soll.</p>
     */
-   public static record TimeDistortionPayload(boolean active, boolean burst, double x, double y,
+   public record TimeDistortionPayload(boolean active, boolean burst, double x, double y,
                                                double z, int remainingMillis)
       implements CustomPacketPayload {
       public static final Type<TimeDistortionPayload> TYPE =
@@ -562,7 +563,7 @@ public final class OsokPayloads {
    // --- ExplosionShakePayload.java ---
    /**
     * Lässt den Bildschirm bei einer Explosion wackeln.
-    *
+    * <p>
     * Der Luftangriff bekommt sein Wackeln als Nebenwirkung der Alarmmeldung, die zusätzlich die
     * Einschlagsanzeige im HUD steuert. Für alles andere – Bomben des Tarnkappenbombers zum Beispiel –
     * wäre diese Anzeige falsch, deshalb gibt es hier ein Paket, das nichts weiter tut als
@@ -641,7 +642,7 @@ public final class OsokPayloads {
    }
 
    // --- GiveSpecialItemPayload.java ---
-   public static record GiveSpecialItemPayload(String itemId) implements CustomPacketPayload {
+   public record GiveSpecialItemPayload(String itemId) implements CustomPacketPayload {
        public static final Type<GiveSpecialItemPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("give_special_item"));
        public static final StreamCodec<ByteBuf, GiveSpecialItemPayload> STREAM_CODEC = StreamCodec.composite(ByteBufCodecs.STRING_UTF8, GiveSpecialItemPayload::itemId, GiveSpecialItemPayload::new);
        public String getItemId() { return itemId; }
@@ -651,7 +652,7 @@ public final class OsokPayloads {
    // --- GlideBoostPayload.java ---
    /**
     * Doppelter Druck auf die Sprungtaste: der Gleitflug startet neu.
-    *
+    * <p>
     * Das Paket ist leer, weil der Server ohnehin alles nachprüft – ob überhaupt ein Flug läuft und
     * ob die Sperre gegen doppelte Auslösung abgelaufen ist. Der Client schickt es nur dann, wenn er
     * den eigenen Spieler in {@code client/state/GlideState} findet; damit bleibt es bei zwei
@@ -674,13 +675,13 @@ public final class OsokPayloads {
    // --- GrapplePullPayload.java ---
    /**
     * Vollständiger sichtbarer Zustand eines Grappler-Schusses.
-    *
+    * <p>
     * <p>Die Hakenposition kommt einmal je Servertick. Der Client interpoliert zwischen zwei
     * Stützstellen und benutzt denselben Punkt für Flugmodell, Seil, Körperneigung und Kamera.
     * {@code active} bleibt deshalb vom Abschuss bis zum vollständigen Einzug gesetzt;
     * {@code pulling} bezeichnet nur die Phase, in der der Spieler zum Anker gezogen wird.</p>
     */
-   public static record GrapplePullPayload(UUID player, boolean active, boolean pulling,
+   public record GrapplePullPayload(UUID player, boolean active, boolean pulling,
                                            double hookX, double hookY, double hookZ)
       implements CustomPacketPayload {
       public static final Type<GrapplePullPayload> TYPE = new Type<>(
@@ -722,13 +723,13 @@ public final class OsokPayloads {
    // --- GlidingPlayersPayload.java ---
    /**
     * Alle Spieler, die gerade im Gleitflug sind.
-    *
+    * <p>
     * Mehr braucht der Client nicht: die Flügel zeichnet er selbst an die interpolierte Position
     * des jeweiligen Spielers. Als Display-Entities hinkten sie bei Tempo sichtbar hinterher, weil
     * jede Entity über eigene Positionspakete läuft und der Client zwischen zwei Ticks
     * interpoliert.
     */
-   public static record GlidingPlayersPayload(List<UUID> players) implements CustomPacketPayload {
+   public record GlidingPlayersPayload(List<UUID> players) implements CustomPacketPayload {
       public static final Type<GlidingPlayersPayload> TYPE = new Type<>(
          OneShotOneKill.INSTANCE.id("gliding_players"));
    
@@ -759,7 +760,7 @@ public final class OsokPayloads {
 
    // --- MagnetFieldsPayload.java ---
    /** Alle Spieler, deren Pfeilmagnet-Schutzfeld gerade aktiv und sichtbar ist. */
-   public static record MagnetFieldsPayload(List<UUID> players) implements CustomPacketPayload {
+   public record MagnetFieldsPayload(List<UUID> players) implements CustomPacketPayload {
       public static final Type<MagnetFieldsPayload> TYPE = new Type<>(
          OneShotOneKill.INSTANCE.id("magnet_fields"));
    
@@ -791,14 +792,14 @@ public final class OsokPayloads {
    // --- MatchCountdownPayload.java ---
    /**
     * Der Stand des Start-Countdowns.
-    *
+    * <p>
     * Übertragen werden Ticks, nicht Sekunden: der Client zählt sie selbst herunter und kann die
     * Anzeige zwischen den Ticks interpolieren. Käme nur einmal je Sekunde eine Zahl, ruckelte jede
     * Bewegung auf dem Bildschirm im Sekundentakt.
-    *
+    * <p>
     * {@code remainingTicks < 0} bricht ab, {@code isGo} ist der Startschuss.
     */
-   public static record MatchCountdownPayload(int remainingTicks, boolean isGo) implements CustomPacketPayload {
+   public record MatchCountdownPayload(int remainingTicks, boolean isGo) implements CustomPacketPayload {
       public static final Type<MatchCountdownPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("match_countdown"));
    
       public static final StreamCodec<ByteBuf, MatchCountdownPayload> STREAM_CODEC = StreamCodec.composite(
@@ -831,12 +832,12 @@ public final class OsokPayloads {
    // --- MinigunHudPayload.java ---
    /**
     * Meldungen des Servers an das Minigun-HUD.
-    *
+    * <p>
     * Neben dem Anlass trägt die Meldung eine Zahl. Bei {@link #HIT_CONFIRMED} steht dort, wie oft
     * das aktuelle Ziel schon getroffen wurde – anders könnte das HUD nicht anzeigen, wie viele
     * Treffer noch fehlen, denn die Buchführung darüber liegt auf dem Server.
     */
-   public static record MinigunHudPayload(String event, int value) implements CustomPacketPayload {
+   public record MinigunHudPayload(String event, int value) implements CustomPacketPayload {
        public static final String STARTED = "started", EXPIRING = "expiring",
            HIT_CONFIRMED = "hit_confirmed", KILL_CONFIRMED = "kill_confirmed";
    
@@ -867,17 +868,17 @@ public final class OsokPayloads {
    // --- NukeStatePayload.java ---
    /**
     * Der Stand der Nuke-Sequenz: ein Tickzähler und der Ort des Einschlags.
-    *
+    * <p>
     * <p>Es gibt bewusst nur dieses eine Paket statt je eines für Start, Blitz und Ende. Der Client
     * liest aus dem Tick über {@code NukePhase} ab, was gerade zu tun ist – Sirene, Countdown,
     * Blitz, Nebel, Abschlusstafel. Damit kann er nichts verpassen: Wer mitten in der Sequenz
     * verbindet oder ein Paket verliert, bekommt beim nächsten Abgleich denselben Tick und ist
     * sofort synchron. Bei getrennten Ereignispaketen müsste er verpasste Übergänge nachholen, und
     * genau daran gehen solche Abläufe kaputt.</p>
-    *
+    * <p>
     * <p>Ein Tick von {@code -1} bedeutet: keine Sequenz. Das ist zugleich das Aufräumsignal.</p>
     */
-   public static record NukeStatePayload(int tick, double x, double y, double z) implements CustomPacketPayload {
+   public record NukeStatePayload(int tick, double x, double y, double z) implements CustomPacketPayload {
       /** Der Zustand „nichts läuft" – zugleich das Signal zum Aufräumen. */
       public static final NukeStatePayload IDLE = new NukeStatePayload(-1, 0.0, 0.0, 0.0);
    
@@ -899,21 +900,21 @@ public final class OsokPayloads {
    // --- NukeVictoryPayload.java ---
    /**
     * Die Zahlen für die Abschlusstafel nach dem Einschlag.
-    *
+    * <p>
     * <p>Fertig aufbereitet und nicht als Rohdaten: Der Client soll die Tafel zeichnen, nicht die
     * Rangfolge ausrechnen. Wer gewonnen hat, entscheidet ohnehin der Server – ihn das zweimal tun
     * zu lassen, einmal für die Wertung und einmal fürs Bild, wäre die Art von Doppelung, aus der
     * später zwei verschiedene Sieger werden.</p>
-    *
+    * <p>
     * <p>Die Rangliste kommt als Liste statt als feste Zahl von Feldern. Damit hängt die Länge der
     * Tafel an der Zahl der Mitspieler und nicht an einer Annahme, die bei drei Leuten leere Zeilen
     * malt und bei zwanzig die Hälfte verschweigt.</p>
-    *
+    * <p>
     * <p>{@code winner} ist leer, wenn das Match unentschieden endete. {@code mvp} ist der Spieler
     * mit der höchsten Serie und darf ein anderer sein als der Sieger – das ist gewollt, denn beides
     * misst etwas anderes.</p>
     */
-   public static record NukeVictoryPayload(String winner, String reason, int matchSeconds,
+   public record NukeVictoryPayload(String winner, String reason, int matchSeconds,
                                     int totalKills, int totalDeaths, int playerCount,
                                     String mvp, int mvpStreak,
                                     String mostDeaths, int mostDeathsCount,
@@ -989,7 +990,7 @@ public final class OsokPayloads {
       }
    
       /** Eine Zeile der Rangliste. */
-      public static record Row(String name, int kills, int deaths, int bestStreak) {
+      public record Row(String name, int kills, int deaths, int bestStreak) {
          public String ratio() {
             return String.format(java.util.Locale.ROOT, "%.2f", deaths <= 0 ? (double) kills : kills / (double) deaths);
          }
@@ -1012,7 +1013,7 @@ public final class OsokPayloads {
    }
 
    // --- RequestAirstrikePayload.java ---
-   public static record RequestAirstrikePayload(double targetX, double targetZ) implements CustomPacketPayload {
+   public record RequestAirstrikePayload(double targetX, double targetZ) implements CustomPacketPayload {
        public static final Type<RequestAirstrikePayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("request_airstrike"));
        public static final StreamCodec<ByteBuf, RequestAirstrikePayload> STREAM_CODEC = StreamCodec.composite(ByteBufCodecs.DOUBLE, RequestAirstrikePayload::targetX, ByteBufCodecs.DOUBLE, RequestAirstrikePayload::targetZ, RequestAirstrikePayload::new);
        public double getTargetX() { return targetX; } public double getTargetZ() { return targetZ; }
@@ -1065,7 +1066,7 @@ public final class OsokPayloads {
    }
 
    // --- ResetArenaPayload.java ---
-   public static record ResetArenaPayload(String arenaId) implements CustomPacketPayload {
+   public record ResetArenaPayload(String arenaId) implements CustomPacketPayload {
        public static final Type<ResetArenaPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("reset_arena"));
        public static final StreamCodec<ByteBuf, ResetArenaPayload> STREAM_CODEC = StreamCodec.composite(ByteBufCodecs.STRING_UTF8, ResetArenaPayload::arenaId, ResetArenaPayload::new);
        public String getArenaId() { return arenaId; }
@@ -1088,7 +1089,7 @@ public final class OsokPayloads {
    }
 
    // --- SelectArenaPayload.java ---
-   public static record SelectArenaPayload(String arenaId) implements CustomPacketPayload {
+   public record SelectArenaPayload(String arenaId) implements CustomPacketPayload {
        public static final Type<SelectArenaPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("select_arena"));
        public static final StreamCodec<ByteBuf, SelectArenaPayload> STREAM_CODEC = StreamCodec.composite(ByteBufCodecs.STRING_UTF8, SelectArenaPayload::arenaId, SelectArenaPayload::new);
        public String getArenaId() { return arenaId; }
@@ -1097,7 +1098,7 @@ public final class OsokPayloads {
 
    // --- SelectBomberTargetPayload.java ---
    /** Der im Bomber-Menü gewählte Gegner. Der Server prüft die Wahl noch einmal komplett nach. */
-   public static record SelectBomberTargetPayload(UUID target) implements CustomPacketPayload {
+   public record SelectBomberTargetPayload(UUID target) implements CustomPacketPayload {
       public static final Type<SelectBomberTargetPayload> TYPE =
          new Type<>(OneShotOneKill.INSTANCE.id("select_bomber_target"));
    
@@ -1120,7 +1121,7 @@ public final class OsokPayloads {
    }
 
    // --- SetItemModePayload.java ---
-   public static record SetItemModePayload(String mode) implements CustomPacketPayload {
+   public record SetItemModePayload(String mode) implements CustomPacketPayload {
        public static final Type<SetItemModePayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("set_item_mode"));
        public static final StreamCodec<ByteBuf, SetItemModePayload> STREAM_CODEC = StreamCodec.composite(ByteBufCodecs.STRING_UTF8, SetItemModePayload::mode, SetItemModePayload::new);
        public String getMode() { return mode; }
@@ -1128,7 +1129,7 @@ public final class OsokPayloads {
    }
 
    // --- SetMatchTargetPayload.java ---
-   public static record SetMatchTargetPayload(String mode, int value) implements CustomPacketPayload {
+   public record SetMatchTargetPayload(String mode, int value) implements CustomPacketPayload {
        public static final Type<SetMatchTargetPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("set_match_target"));
        public static final StreamCodec<ByteBuf, SetMatchTargetPayload> STREAM_CODEC = StreamCodec.composite(
            ByteBufCodecs.STRING_UTF8, SetMatchTargetPayload::mode,
@@ -1204,7 +1205,7 @@ public final class OsokPayloads {
    }
 
    // --- SetGameModePayload.java ---
-   public static record SetGameModePayload(String gameMode) implements CustomPacketPayload {
+   public record SetGameModePayload(String gameMode) implements CustomPacketPayload {
       public static final Type<SetGameModePayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("set_game_mode"));
       public static final StreamCodec<ByteBuf, SetGameModePayload> STREAM_CODEC = StreamCodec.composite(
          ByteBufCodecs.STRING_UTF8, SetGameModePayload::gameMode,
@@ -1220,7 +1221,7 @@ public final class OsokPayloads {
    }
 
    // --- GunGameStatusPayload.java ---
-   public static record GunGameStatusPayload(
+   public record GunGameStatusPayload(
       boolean active,
       int currentTier,
       int totalTiers,

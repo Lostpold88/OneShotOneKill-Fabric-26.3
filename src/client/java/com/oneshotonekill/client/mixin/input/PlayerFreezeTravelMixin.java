@@ -11,12 +11,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Verhindert Schwerkraft, Absacken und physikalische Bewegung während des Einfrierens und Countdowns.
- *
+ * <p>
  * <p>{@link KeyboardInputMixin} schaltet die Tastendrücke (WASD, Springen) ab, aber die
  * Physikberechnung in {@code Player#travel} wendete auf dem Client weiterhin die Schwerkraft an.
  * Dadurch sackte der Spieler in der Luft ab, und der Server musste ihn per Teleport zurückziehen —
  * die Ursache für das Ruckeln (Rubberbanding) bei Frost-Fallen in der Luft.</p>
- *
+ * <p>
  * <p>Durch das Abbrechen von {@code travel} am {@code HEAD} und das Nullen von {@code deltaMovement}
  * bleibt der Spieler im Raum exakt an seiner 3D-Position stehen, ohne dass Schwerkraft oder
  * Rutschen greifen. Umschauen bleibt uneingeschränkt möglich.</p>

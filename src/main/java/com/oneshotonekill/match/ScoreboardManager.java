@@ -2,8 +2,6 @@ package com.oneshotonekill.match;
 
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.match.MatchManager.MatchState;
-import com.oneshotonekill.match.MatchManager;
-import com.oneshotonekill.match.MatchManager;
 import com.oneshotonekill.match.MatchManager.MatchTargetMode;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -33,6 +31,7 @@ import net.minecraft.world.scores.Team.Visibility;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria;
 import net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType;
 
+@SuppressWarnings({"ConstantValue", "resource", "UnusedReturnValue"})
 public final class ScoreboardManager {
    public static final ScoreboardManager INSTANCE = new ScoreboardManager();
    private static final String OBJECTIVE_NAME = "oneshot";
@@ -350,7 +349,7 @@ public final class ScoreboardManager {
 
    /**
     * Nimmt einem Ziel das Kopfgeld ab und meldet, ob es eines hatte.
-    *
+    * <p>
     * Die Ansage versprach zwei Bonus-Items, ausgezahlt wurden nie welche: die Menge diente
     * allein der Krone in der Tabelle. Wer den Tragäger erledigt, bekommt sie jetzt wirklich.
     */

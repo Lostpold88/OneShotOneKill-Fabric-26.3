@@ -10,6 +10,7 @@ import net.minecraft.world.entity.EntityType;
 import net.minecraft.world.entity.MobCategory;
 
 /** Serverseitig gefilterte Display-Typen der Mod. */
+@SuppressWarnings({"RedundantTypeArguments", "SameParameterValue"})
 public final class ModEntities {
    public static final EntityType<OwnerVisibleItemDisplay> OWNER_VISIBLE_ITEM_DISPLAY =
       register("owner_visible_item_display",

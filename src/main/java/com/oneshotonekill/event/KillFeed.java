@@ -10,12 +10,12 @@ import net.minecraft.server.level.ServerPlayer;
 
 /**
  * Wer wen womit ausgeschaltet hat – als Zeile im Chat.
- *
+ * <p>
  * Bisher erfuhr das nur, wer selbst beteiligt war: der Täter über einen Ton, das Opfer über den
  * Respawn. Wer daneben stand, sah gar nichts. Der Feed macht aus Einzelereignissen ein
  * mitlesbares Spielgeschehen und beantwortet die Frage, die im Gefecht am häufigsten aufkommt –
  * womit war das jetzt?
- *
+ * <p>
  * Die Todesursache wird ausdrücklich durchgereicht, statt sie aus der {@code DamageSource}
  * zurückzurechnen: die Spezial-Items töten über die eigene Buchführung, wo Vanilla gar keine
  * Schadensquelle mehr sieht.
@@ -93,7 +93,7 @@ public final class KillFeed {
 
    /**
     * Der Reflektor-Schild hat einen Treffer geschluckt.
-    *
+    * <p>
     * Bisher erfuhr das nur der Getroffene über eine Actionbar-Zeile. Für den Angreifer sah es
     * aus, als hätte er schlicht verfehlt – und fuer alle anderen war der wichtigste Moment des
     * Duells unsichtbar. Ein abgewehrter Luftangriff ist eine Nachricht wert.

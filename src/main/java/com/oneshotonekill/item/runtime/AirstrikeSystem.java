@@ -14,7 +14,6 @@ import com.oneshotonekill.event.CombatEvents.DamageListener;
 import com.oneshotonekill.network.OsokPayloads.*;
 import com.oneshotonekill.match.MatchManager.MatchState;
 import com.oneshotonekill.match.MatchManager;
-import com.oneshotonekill.match.MatchManager;
 import io.netty.buffer.ByteBuf;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -42,6 +41,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /** Server-authoritative missile strikes with controlled arena damage and server-fed tactical radar. */
+@SuppressWarnings({"BooleanMethodIsAlwaysInverted", "ForLoopReplaceableByForEach", "NullableProblems", "resource"})
 public final class AirstrikeSystem {
    public static final AirstrikeSystem INSTANCE = new AirstrikeSystem();
 
@@ -60,7 +60,7 @@ public final class AirstrikeSystem {
    private static final double CRATER_DEPTH_OFFSET = 2.25;
    /**
     * Höhe, mit der bei offenem Himmel gerechnet wird.
-    *
+    * <p>
     * Der Atompilz passt sich der freien Höhe an. Ohne Decke gibt es keine zu messen, und
     * großzügig gerechnet heißt hier schlicht: volle Größe.
     */

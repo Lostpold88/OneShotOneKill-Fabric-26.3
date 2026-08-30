@@ -39,11 +39,12 @@ import org.joml.Vector3f;
 
 /**
  * Geworfene Geräte: Rauchbombe, Teleport-Granate und Singularität.
- *
+ * <p>
  * Die Flugbahn wird serverseitig simuliert statt über eine Wurf-Entity abgebildet. Das gibt volle
  * Kontrolle über Bahn, Aussehen und Einschlagprüfung, ohne für drei Geräte drei Entity-Typen zu
  * registrieren – und die Bahn kann pro Gerät eine eigene Partikelspur zeichnen.
  */
+@SuppressWarnings({"resource", "SameParameterValue"})
 public final class ThrownDevices {
    public static final ThrownDevices INSTANCE = new ThrownDevices();
 
@@ -56,7 +57,7 @@ public final class ThrownDevices {
    private static final double TELEPORT_PUSH = 1.15;
    /**
     * Der Riss, den der Sprung an beiden Enden hinterlässt.
-    *
+    * <p>
     * Vorher war der Sprung ein Ton und eine Handvoll Portalpartikel – wer daneben stand,
     * bemerkte kaum, dass jemand verschwunden war. Jetzt steht an der alten Stelle ein Ring, der
     * in sich zusammenfällt, und an der neuen einer, der aufreißt; dazu Splitter, die aus dem
@@ -78,7 +79,7 @@ public final class ThrownDevices {
    private static final double WARP_SHARD_GIRTH_UNIT = 0.1188;
    /**
     * Die Rauchwand.
-    *
+    * <p>
     * Sie ist jetzt das ganze Gerät. Vorher versetzte die Granate ihren Werfer an eine zufällige
     * Stelle der Arena und der Rauch war Beiwerk – damit war sie eine Fluchttaste mit
     * Nebelwirkung. Jetzt bleibt jeder, wo er ist, und der Nebel muss allein tragen: dichter,
@@ -93,7 +94,7 @@ public final class ThrownDevices {
    private static final double SMOKE_HEIGHT = 4.0;
    /**
     * Wolkenballen, aus denen die Wand besteht.
-    *
+    * <p>
     * Partikel allein reichen nicht: sie sind halb durchsichtig und verschwinden mit dem Abstand.
     * Erst Körper machen aus dem Nebel eine Wand, durch die wirklich niemand hindurchsieht –
     * dieselben Ballen wie beim Atompilz, nur grau und träge.
@@ -105,7 +106,7 @@ public final class ThrownDevices {
    private static final float SMOKE_CANISTER_SCALE = 0.42F;
    /**
     * Wie lange die Blindheit nach dem letzten Auffrischen noch anhält.
-    *
+    * <p>
     * Sie wird nur alle paar Ticks erneuert, läuft aber deutlich länger – so kostet das Blenden
     * kaum Pakete, und wer aus der Wand heraustritt, sieht nach einem knappen Augenblick wieder.
     */
@@ -304,7 +305,7 @@ public final class ThrownDevices {
 
    /**
     * Die Dose bleibt liegen und fängt an zu brennen; um sie herum baut sich die Wand auf.
-    *
+    * <p>
     * Die Ballen hängen als eigene Entities an festen Stellen im Kreis und wachsen von dort aus
     * zusammen. Sie an der Wolkenmitte aufzuhängen und nur zu verschieben ginge auch, köstete
     * aber dieselbe Zahl Entities und nähme jedem Ballen seine eigene Sichtweitenprüfung.
@@ -345,7 +346,7 @@ public final class ThrownDevices {
 
    /**
     * Sucht am Einschlag einen Platz, an dem ein Spieler wirklich stehen kann.
-    *
+    * <p>
     * Geprüft werden der Punkt selbst und die beiden darüber – eine Granate, die an einer Wand
     * abprallt, liegt gern einen halben Block im Boden.
     */
@@ -362,13 +363,13 @@ public final class ThrownDevices {
 
    /**
     * Ein Riss: ein Ring und, an der Ankunftsseite, Splitter, die daraus hervorfahren.
-    *
+    * <p>
     * Beide Enden benutzen dasselbe Bild in verschiedener Richtung – an der Abflugseite fällt
     * der Ring zusammen, an der Ankunftsseite reißt er auf. Das macht auf einen Blick klar, wo
     * jemand verschwunden und wo er aufgetaucht ist.
     */
    private void openWarp(ServerLevel level, Vec3 at, boolean arrival) {
-      Warp warp = new Warp(at, arrival);
+      Warp warp = new Warp(arrival);
       warp.ring = Hologram.spawnEffect(level, at, warpRingStack(WARP_HOT), WARP_VIEW_RANGE);
       if (warp.ring != null) {
          Hologram.setPose(warp.ring, new Vector3f(), new Quaternionf(),
@@ -432,10 +433,10 @@ public final class ThrownDevices {
          if (colour != warp.tone) {
             warp.tone = colour;
             if (warp.ring != null) {
-               warp.ring.getSlot(0).set(warpRingStack(colour));
+               Hologram.setItem(warp.ring, warpRingStack(colour));
             }
             for (Display.ItemDisplay shard : warp.shards) {
-               shard.getSlot(0).set(warpShardStack(colour));
+               Hologram.setItem(shard, warpShardStack(colour));
             }
          }
       }
@@ -473,7 +474,7 @@ public final class ThrownDevices {
 
    /**
     * Setzt den Werfer an den Einschlag und stößt alle anderen im Umkreis weg.
-    *
+    * <p>
     * Der Ankunftspunkt wird geprüft, statt blind übernommen: die Granate kann an einer Decke
     * oder in einer Nische liegen bleiben, und ein Sprung mitten in einen Block setzte den Werfer
     * fest. Findet sich nichts Freies, bleibt er stehen, wo er ist – lieber kein Sprung als ein
@@ -588,7 +589,7 @@ public final class ThrownDevices {
 
    /**
     * Ein Tick Rauchwand: Ballen setzen, Dose glühen lassen, Partikel darüberlegen, blenden.
-    *
+    * <p>
     * Die Wolke ist damit dreierlei zugleich – Körper für die Deckung, Partikel für die Unruhe
     * und ein Blindheitseffekt für den, der wirklich darin steht. Keines der drei allein reicht:
     * Körper flimmern nicht, Partikel decken nicht, und ein Effekt ohne Bild wäre Willkür.
@@ -642,7 +643,7 @@ public final class ThrownDevices {
       if (colour != field.tone) {
          field.tone = colour;
          for (Display.ItemDisplay puff : field.puffs) {
-            puff.getSlot(0).set(puffStack(colour));
+            Hologram.setItem(puff, puffStack(colour));
          }
       }
    }
@@ -658,12 +659,12 @@ public final class ThrownDevices {
          return;
       }
       field.canisterGlow = colour;
-      field.display.getSlot(0).set(canisterStack(colour));
+      Hologram.setItem(field.display, canisterStack(colour));
    }
 
    /**
     * Blendet jeden, dessen Augen in der Wand stecken – auch den Werfer.
-    *
+    * <p>
     * Keine Ausnahme für ihn: eine Rauchwand, durch die nur einer hindurchsieht, ist keine
     * Deckung mehr, sondern ein Zielfernrohr. Wer sie wirft, wirft sie, um Sicht zu nehmen, nicht
     * um selbst welche zu haben.
@@ -862,7 +863,6 @@ public final class ThrownDevices {
 
    /** Ein Riss an einem Ende des Sprungs. */
    private static final class Warp {
-      private final Vec3 at;
       private final boolean arrival;
       private final List<Display.ItemDisplay> shards = new ArrayList<>();
       private final List<Quaternionf> shardAims = new ArrayList<>();
@@ -871,8 +871,7 @@ public final class ThrownDevices {
       private int tone = -1;
       private int age;
 
-      private Warp(Vec3 at, boolean arrival) {
-         this.at = at;
+      private Warp(boolean arrival) {
          this.arrival = arrival;
       }
 
@@ -896,10 +895,6 @@ public final class ThrownDevices {
       private int tone = -1;
       private int canisterGlow = -1;
       private int ticksLeft;
-
-      private Field(DeviceType type, Vec3 center, int ticksLeft, UUID owner) {
-         this(type, center, ticksLeft, owner, null);
-      }
 
       private Field(DeviceType type, Vec3 center, int ticksLeft, UUID owner, Display.ItemDisplay display) {
          this.type = type;

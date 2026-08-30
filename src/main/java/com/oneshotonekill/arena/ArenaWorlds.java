@@ -34,17 +34,8 @@ import net.minecraft.world.phys.Vec3;
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.item.box.SpecialItemManager;
 import com.oneshotonekill.shared.Hologram;
-import com.oneshotonekill.arena.ArenaWorlds;
-import java.nio.file.Files;
-import java.nio.file.Path;
 import java.util.EnumMap;
 import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import net.minecraft.core.BlockPos;
-import net.minecraft.resources.ResourceKey;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -53,21 +44,20 @@ import net.minecraft.world.entity.Relative;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.level.Level;
-import net.minecraft.world.level.storage.LevelResource;
 import net.minecraft.world.phys.AABB;
-import net.minecraft.world.phys.Vec3;
 
 /**
  * Verwaltet die Arena-Dimensionen und ihren Live-Reset.
- *
+ * <p>
  * Die drei Arenen sind Datapack-Dimensionen (siehe {@code data/oneshotonekill/dimension/}).
  * Beim Serverstart werden sie frisch aus dem Archiv ausgepackt und als unversehrter Sollzustand
  * in {@link ArenaSnapshot} erfasst.
- *
+ * <p>
  * Ein Reset zur Laufzeit läuft unterbrechungsfrei und synchron direkt im Arbeitsspeicher über
  * {@link ArenaDemolition#restoreArena}: Nur abweichende Blöcke werden aktualisiert, ohne dass
  * Spieler evakuiert oder Chunks entladen werden müssen.
  */
+@SuppressWarnings({"ConstantValue", "RedundantTypeArguments", "resource", "UnusedReturnValue", "unused"})
 public final class ArenaWorlds {
     public enum ResetOutcome {
         STARTED,
@@ -93,7 +83,7 @@ public final class ArenaWorlds {
 
     /**
      * Öffnet alle Arenen – und packt dabei jede einzelne frisch aus.
-     *
+     * <p>
      * <p>Der Serverstart ist der eine Zeitpunkt, an dem ein voller Reset von der Platte nichts kostet:
      * Es ist niemand verbunden, kein Match läuft, und keine Arena-Dimension hält Chunk-Tickets.</p>
      */
@@ -150,7 +140,7 @@ public final class ArenaWorlds {
 
     /**
      * Führt einen synchronen, unterbrechungsfreien Live-Reset der Arena im Speicher aus.
-     *
+     * <p>
      * <p>Setzt das Block-Delta gegen den beim Start genommenen {@link ArenaSnapshot} zurück,
      * bereinigt Fähigkeiten, Mobs, Drops und verwaiste Displays und setzt anwesende Spieler
      * sicher in die Lobby.</p>
@@ -215,12 +205,6 @@ public final class ArenaWorlds {
     }
 
     public void sendToLobby(ServerPlayer player, Arena arena, ServerLevel level) { teleport(player, level, arena.getLobby()); }
-
-    private void sendToOverworldSpawn(ServerPlayer player) {
-        ServerLevel overworld = server.overworld();
-        BlockPos spawn = overworld.getRespawnData().pos();
-        teleport(player, overworld, new Vec3(spawn.getX() + 0.5, spawn.getY(), spawn.getZ() + 0.5));
-    }
 
     private void teleport(ServerPlayer player, ServerLevel level, Vec3 target) {
         player.teleportTo(level, target.x, target.y, target.z, Set.<Relative>of(), LOBBY_YAW, LOBBY_PITCH, true);
@@ -385,7 +369,7 @@ public final class ArenaWorlds {
    
       /**
        * Meldet, ob diese Entity ein Mob ist und deshalb gar nicht erst in die Welt darf.
-       *
+       * <p>
        * Vorher wurde hier {@code discard()} gerufen. Das reicht nicht: das Beitrittsereignis feuert,
        * <em>bevor</em> die Entity in der Welt ist, und {@code PersistentEntitySectionManager#addEntity}
        * fügt sie unmittelbar danach trotzdem ein – nur eben als bereits entfernt markiert. Genau

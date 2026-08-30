@@ -70,17 +70,18 @@ import net.minecraft.resources.Identifier;
 
 /**
  * Clientseitiger Einstieg: Tastenbelegung, HUD-Ebenen, Modelle und der Client-Takt.
- *
+ * <p>
  * <p>Fabric ruft {@link #onInitializeClient()} nur auf dem Client auf. Der Einstiegspunkt steht
  * in {@code fabric.mod.json} unter {@code client}, und der ganze Zweig {@code src/client/java}
  * wird auf einem dedizierten Server gar nicht erst geladen – die Trennung ist damit schon zur
  * Bauzeit dicht und braucht keine Abfrage der Laufzeitumgebung.</p>
- *
+ * <p>
  * <p>Alle vierzehn HUD-Ebenen laufen über {@link HudElementRegistry}; gezeichnet wird derselbe
  * Code wie zuvor. Die vier Modellerweiterungen brauchen keine Fabric-API: Vanilla führt seine
  * Modelltypen, Modell-Bedingungen und Sonderrenderer in offenen {@code ID_MAPPER}-Tabellen, in
  * die sich ein eigener Eintrag unmittelbar einhängen lässt.</p>
  */
+@SuppressWarnings({"resource", "unused"})
 public final class OsokClient implements ClientModInitializer {
    public static final KeyMapping.Category OSOK_CATEGORY =
       KeyMapping.Category.register(Identifier.fromNamespaceAndPath(OneShotOneKill.MOD_ID, "main"));
@@ -117,7 +118,7 @@ public final class OsokClient implements ClientModInitializer {
 
    /**
     * Alle HUD-Ebenen der Mod.
-    *
+    * <p>
     * {@code addLast} hängt sie hinter das gesamte Vanilla-HUD – dasselbe Ergebnis wie das
     * frühere Einhängen am Ende von {@code Hud#extractRenderState}.
     */
@@ -155,7 +156,7 @@ public final class OsokClient implements ClientModInitializer {
 
    /**
     * Die eigenen Modellbausteine.
-    *
+    * <p>
     * <p>Ein Item-Modell ist von Haus aus starr, und eine Modell-Bedingung kennt nur, was Vanilla
     * mitbringt. Beides lässt sich ohne Mixin erweitern: {@code ItemModels},
     * {@code ConditionalItemModelProperties} und {@code SpecialModelRenderers} halten je eine
@@ -233,11 +234,11 @@ public final class OsokClient implements ClientModInitializer {
 
    /**
     * Doppelter Druck auf die Sprungtaste startet einen gelandeten Gleitflug neu.
-    *
+    * <p>
     * Geschickt wird nur, wenn der eigene Spieler gerade in der Liste der Flieger steht – das
     * ist dieselbe Liste, aus der die Tragflächen gezeichnet werden. Ohne diese Bedingung ginge
     * bei jedem Doppelsprung im Spiel ein Paket zum Server, und das sind viele.
-    *
+    * <p>
     * Gezählt wird der Tastendruck selbst, nicht der Sprung: Wer landet, drückt zweimal, und
     * beide Male soll zählen – auch der erste, bei dem der Spieler noch am Boden klebt.
     */

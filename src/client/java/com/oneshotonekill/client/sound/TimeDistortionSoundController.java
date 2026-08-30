@@ -6,7 +6,6 @@ import com.oneshotonekill.client.mixin.sound.SoundManagerAccessor;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.client.resources.sounds.SimpleSoundInstance;
-import net.minecraft.client.resources.sounds.SoundInstance.Attenuation;
 import net.minecraft.client.sounds.SoundEngine;
 import net.minecraft.client.sounds.SoundManager;
 import net.minecraft.sounds.SoundEvents;
@@ -16,7 +15,7 @@ import net.minecraft.util.Util;
 
 /**
  * Die eigene, ungedämpfte Tonspur über der per Mixin abgesenkten Welt.
- *
+ * <p>
  * <p>Alles hier läuft je Bild und auf {@link Util#getMillis()}, nicht je Tick: Während der
  * Zeitlupe übernimmt der Client die Serverfrequenz von acht Ticks je Sekunde, ein Tickablauf
  * hätte also nur noch 125 ms Auflösung. Der beschleunigende Herzschlag verkürzt sich am Ende auf
@@ -87,7 +86,7 @@ public final class TimeDistortionSoundController {
 
    /**
     * Zieht Lautstärke und Tonhöhe der bereits laufenden Klänge nach.
-    *
+    * <p>
     * <p>Ein Aufruf mit {@link SoundSource#MASTER} erfasst in {@code refreshCategoryVolume} jede
     * Instanz, unabhängig von ihrer Quelle – ein Durchlauf statt neun. Die Tonhöhe muss dagegen
     * selbst gesetzt werden; Vanilla frischt sie nur für tickende Klänge auf. Beides geschieht
@@ -132,7 +131,7 @@ public final class TimeDistortionSoundController {
 
    /**
     * Der Träger der Zeitlupe.
-    *
+    * <p>
     * <p>Lautstärke und Tonhöhe werden nicht mehr in {@code tick()} zwischengespeichert, sondern
     * bei jeder Abfrage aus der Echtzeit berechnet. So bleibt die 480-ms-Einblendung auch dann
     * stufenlos, wenn der Client währenddessen nur achtmal je Sekunde tickt.</p>

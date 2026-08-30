@@ -1,7 +1,6 @@
 package com.oneshotonekill.arena;
 
 import com.oneshotonekill.OneShotOneKill;
-import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.shared.ArenaDemolition;
 import com.oneshotonekill.shared.ArenaShape;
 import com.oneshotonekill.shared.OsokEffects;
@@ -23,6 +22,7 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
+@SuppressWarnings({"RedundantCast", "RedundantTypeArguments", "SuspiciousIndentAfterControlStatement", "unused"})
 public final class RandomTpSystem {
    public static final RandomTpSystem INSTANCE = new RandomTpSystem();
    private static final int GROUND_ITEM_SPAWN_ATTEMPTS = 200;
@@ -77,7 +77,7 @@ public final class RandomTpSystem {
 
    /**
     * Ein freier Standplatz für eine Item-Box – irgendwo auf der Karte, in jeder Höhe.
-    *
+    * <p>
     * <p>Die Spalte wird über die volle Höhe abgesucht, die die Arena überhaupt als „drinnen"
     * gelten lässt: von {@code minY} abzüglich der Bodentoleranz bis {@code maxY} zuzüglich des
     * Kopfraums, also genau die Spanne aus {@link ArenaShape#contains}. Früher lag darüber
@@ -85,10 +85,10 @@ public final class RandomTpSystem {
     * oberhalb des Erdgeschosses ab – Dächer, Brücken und obere Stockwerke blieben leer, obwohl
     * dort gekämpft wird. Wo die Karte ein Dach hat – auf Standard –,
     * bleibt die Suche darunter.</p>
-    *
+    * <p>
     * <p>Aus allen tragfähigen Höhen einer Spalte wird eine ausgewürfelt und nicht die unterste
     * genommen: sonst gewönne auf einer mehrstöckigen Karte immer der Boden.</p>
-    *
+    * <p>
     * @param occupied Stellen, an denen bereits eine Box steht. Die neue hält Abstand dazu –
     *                 zwei Boxen nebeneinander sind ein Fund, nicht zwei.
     */
@@ -250,7 +250,7 @@ public final class RandomTpSystem {
    
        /**
         * Setzt den Spieler sofort neu – die eine Stelle, durch die jeder Tod läuft.
-        *
+        * <p>
         * <p>{@code afterDeath} trennt einen echten Tod vom blossen Versetzen beim Beitritt oder
         * Match-Start: nur ein Tod hinterlässt Partikel am Sterbeort und einen Ton beim Gestorbenen.
         * Der Ton kommt bewusst <em>nach</em> dem Teleport und hängt am Spieler, denn die Spawnwahl

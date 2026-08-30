@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Unterdrückt Angriff, Benutzen und Pick-Block schon vor Handanimation und Netzwerkpaket.
- *
+ * <p>
  * <p>Fabric API kennt kein Gegenstück zu NeoForges {@code InputEvent.InteractionKeyMappingTriggered}.
  * {@code AttackEntityCallback} und Verwandte greifen erst, wenn der Client die Interaktion bereits
  * angestoßen und die Hand geschwungen hat – der eingefrorene Spieler sähe also weiter seine

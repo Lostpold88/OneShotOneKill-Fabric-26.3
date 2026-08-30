@@ -9,12 +9,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Hält die Wurftaste schon auf dem Client an, wenn der ausgewählte Slot geschützt ist.
- *
+ * <p>
  * <p>{@code ServerPlayerDropMixin} verhindert den Wurf serverseitig und legt den Gegenstand
  * zurück – für sich allein aber zu spät für das Auge: {@code LocalPlayer#drop} nimmt den Stapel
  * vorher aus dem Inventar und schickt erst dann das Paket. Der Gegenstand verschwand also kurz
  * aus der Hotbar und kam mit dem nächsten Inventarpaket zurück.</p>
- *
+ * <p>
  * <p>Derselbe Fehler wie beim Inventarklick, dieselbe Antwort: die Aktion dort abbrechen, wo sie
  * ausgelöst wird. Die serverseitige Prüfung bleibt als Auffanglinie bestehen.</p>
  */

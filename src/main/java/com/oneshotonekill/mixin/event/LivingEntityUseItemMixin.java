@@ -10,13 +10,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Verhindert den Beginn einer Item-Nutzung, wenn ein System der Mod sie sperrt.
- *
+ * <p>
  * <p>Fabric API kennt kein Gegenstück zu NeoForges {@code LivingEntityUseItemEvent.Start}.
  * {@code UseItemCallback} greift nur beim Rechtsklick und lässt alles durch, was die Nutzung
  * ohne diesen Weg startet – etwa ein Bogen, der über {@code BowItem#use} weiterreicht. Ein
  * Access Widener ändert nichts, weil {@code startUsingItem} bereits öffentlich ist: Es fehlt
  * kein Zugriff, sondern die Abbruchmöglichkeit.</p>
- *
+ * <p>
  * <p>Wer alles mitredet, steht in {@link InteractionGates}.</p>
  */
 @Mixin(LivingEntity.class)

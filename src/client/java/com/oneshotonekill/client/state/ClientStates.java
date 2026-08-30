@@ -1,14 +1,11 @@
 package com.oneshotonekill.client.state;
 
-import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.item.runtime.AirstrikeSystem;
-import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.network.OsokPayloads.*;
 import com.oneshotonekill.nuke.NukeSequenceManager.NukePhase;
 import com.oneshotonekill.registry.ModItems;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -26,6 +23,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Bündelt alle Client-seitigen Zustandshalter für HUDs, Effekte, Fähigkeiten und Animationen.
  */
+@SuppressWarnings({"BooleanMethodIsAlwaysInverted", "unused"})
 public final class ClientStates {
    private ClientStates() {}
 
@@ -34,7 +32,7 @@ public final class ClientStates {
    // =========================================================================
    /**
     * Der zuletzt gemeldete Stand der eigenen Spezial-Item-Wirkungen.
-    *
+    * <p>
     * Der Server meldet nur bei Änderung; die Restzeiten laufen hier clientseitig weiter, damit die
     * Balken gleichmäßig leerlaufen statt in Halbsekundenschritten zu springen.
     */
@@ -274,7 +272,7 @@ public final class ClientStates {
    
       /**
        * Löst ein Kamera-Wackeln relativ zu einer Explosionsposition aus.
-       *
+       * <p>
        * @param explosionX X-Koordinate der Explosion
        * @param explosionY Y-Koordinate der Explosion
        * @param explosionZ Z-Koordinate der Explosion
@@ -397,7 +395,7 @@ public final class ClientStates {
    // =========================================================================
    /**
     * Clientkopie des einen Grappler-Hakens pro Spieler.
-    *
+    * <p>
     * <p>Seil und leeres Handmodell hängen am gesamten Grapple-Zustand. Nur die Neigung von
     * Körper und Kamera wird mit der eigentlichen Zugphase weich ein- und ausgeblendet.</p>
     */
@@ -406,6 +404,8 @@ public final class ClientStates {
 
       private static final float ENTER_STEP = 0.20F;
       private static final float EXIT_STEP = 0.28F;
+      private static final float AIM_ENTER_STEP = 0.28F;
+      private static final float AIM_EXIT_STEP = 0.35F;
       private final Map<UUID, Pull> pulls = new HashMap<>();
 
       private GrapplePullState() {
@@ -434,10 +434,14 @@ public final class ClientStates {
          while (iterator.hasNext()) {
             Pull pull = iterator.next().getValue();
             pull.previousBlend = pull.blend;
+            pull.previousAimBlend = pull.aimBlend;
             float target = pull.pulling ? 1.0F : 0.0F;
             float step = pull.pulling ? ENTER_STEP : EXIT_STEP;
             pull.blend += Math.clamp(target - pull.blend, -step, step);
-            if (!pull.grappleActive && pull.blend <= 0.001F) {
+            float aimTarget = pull.grappleActive ? 1.0F : 0.0F;
+            float aimStep = pull.grappleActive ? AIM_ENTER_STEP : AIM_EXIT_STEP;
+            pull.aimBlend += Math.clamp(aimTarget - pull.aimBlend, -aimStep, aimStep);
+            if (!pull.grappleActive && pull.blend <= 0.001F && pull.aimBlend <= 0.001F) {
                iterator.remove();
             }
          }
@@ -460,11 +464,25 @@ public final class ClientStates {
 
       /** Winkel zur Ankerposition an der interpolierten Augenposition der Figur. */
       public @Nullable RenderPose pose(LivingEntity entity, float partialTick) {
+         return pose(entity, partialTick, false);
+      }
+
+      /**
+       * Blickrichtung zum fliegenden Haken, weich über dessen vollständige Lebenszeit eingeblendet.
+       * Anders als {@link #pose(LivingEntity, float)} beginnt diese Haltung bereits beim Abschuss.
+       */
+      public @Nullable RenderPose aimPose(LivingEntity entity, float partialTick) {
+         return pose(entity, partialTick, true);
+      }
+
+      private @Nullable RenderPose pose(LivingEntity entity, float partialTick, boolean aiming) {
          Pull pull = pulls.get(entity.getUUID());
          if (pull == null) {
             return null;
          }
-         float blend = Mth.lerp(partialTick, pull.previousBlend, pull.blend);
+         float blend = aiming
+            ? Mth.lerp(partialTick, pull.previousAimBlend, pull.aimBlend)
+            : Mth.lerp(partialTick, pull.previousBlend, pull.blend);
          if (blend <= 0.001F) {
             return null;
          }
@@ -505,6 +523,8 @@ public final class ClientStates {
          private boolean pulling;
          private float previousBlend;
          private float blend;
+         private float previousAimBlend;
+         private float aimBlend;
 
          private Pull(Vec3 hook, boolean pulling) {
             this.previousHook = hook;
@@ -544,7 +564,7 @@ public final class ClientStates {
    // =========================================================================
    /**
     * Die eigenen abgestellten Geräte für die HUD-Peilung.
-    *
+    * <p>
     * Reiner Empfangsspeicher: Der Server schickt die Liste bei jeder Änderung und im groben
     * Raster des {@code Broadcaster}. Eine leere Liste löscht die Peilung, ein eigenes Aufräumen
     * beim Verlassen der Arena braucht es deshalb nicht.
@@ -575,7 +595,7 @@ public final class ClientStates {
    // =========================================================================
    /**
     * Die Kamera- und Bildeffekte rund um den Match-Start.
-    *
+    * <p>
     * Der Countdown läuft hier lokal weiter: der Server meldet den Stand in Ticks, herunterzählen und
     * zwischen den Ticks interpolieren macht der Client. Nur so lässt sich die Anzeige flüssig
     * animieren, statt einmal je Sekunde umzuspringen.
@@ -685,7 +705,7 @@ public final class ClientStates {
    // =========================================================================
    /**
     * Hält die vom Server gemeldeten Minigun-Zustände für das HUD und zählt sie herunter.
-    *
+    * <p>
     * Die Drehzahl selbst steht nicht mehr hier: sie gilt für jeden sichtbaren Spieler und liegt
     * darum in {@link MinigunSpinState}. Damit zeigt das HUD genau die Drehzahl an, mit der sich
     * auch das Modell in der Hand dreht.
@@ -704,7 +724,7 @@ public final class ClientStates {
       private static int hitsOnTarget;
       /**
        * Standzeit der Trefferanzeige.
-       *
+       * <p>
        * Der Servertreffer selbst leuchtet nur sechs Ticks – zu kurz, um mitzuzählen. Die Anzeige
        * bleibt deshalb länger stehen und verfällt in derselben Zeitspanne wie die Trefferserie auf
        * dem Server, damit sie keinen Vorsprung verspricht, den es nicht mehr gibt.
@@ -817,13 +837,13 @@ public final class ClientStates {
    // =========================================================================
    /**
     * Drehzahl und Drehwinkel der Laufgruppe – für jeden sichtbaren Spieler, nicht nur den eigenen.
-    *
+    * <p>
     * Das Modell wird für jedes Bild neu aufgebaut und könnte den Winkel nicht selbst mitzählen;
     * hier läuft er im Takt der Ticks mit und wird beim Zeichnen dazwischen interpoliert.
-    *
+    * <p>
     * Beim Loslassen fällt die Drehzahl weich ab, statt abzuschneiden: die Läufe trudeln aus wie
     * der Klang, der dasselbe tut. Solange gefeuert wird, gilt die gemeinsame Kurve aus
-    * {@link MinigunSpin}, damit sich das Bündel genauso schnell dreht, wie der Server rechnet.
+    * {@link com.oneshotonekill.item.runtime.MinigunRuntime.Spin}, damit sich das Bündel genauso schnell dreht, wie der Server rechnet.
     */
    public static final class MinigunSpinState {
       public static final MinigunSpinState INSTANCE = new MinigunSpinState();
@@ -893,13 +913,13 @@ public final class ClientStates {
    // =========================================================================
    /**
     * Clientkopie der Nuke-Sequenz.
-    *
+    * <p>
     * <p>Der Server schickt seinen Tickzähler nur einmal je Sekunde; dazwischen zählt diese Klasse
     * selbst weiter. Das ist der einzige Weg zu einem Countdown, der flüssig läuft – zwanzig Pakete
     * je Sekunde für eine Zahl zu verschicken, die man auch addieren kann, wäre Verschwendung, und
     * ein Countdown, der nur im Sekundentakt aktualisiert, kann weder blinken noch weich ausblenden.
     * Der nächste Abgleich vom Server holt einen abgedrifteten Zähler jedes Mal wieder ein.</p>
-    *
+    * <p>
     * <p>Der Zwischenbildanteil wird mitgeführt, weil Blitz und Ausblenden schneller ablaufen als
     * ein Tick: Ohne ihn zuckte das weiße Bild in zwanzig Stufen, statt zu verlaufen.</p>
     */
@@ -932,7 +952,7 @@ public final class ClientStates {
    
       /**
        * Wird im Client-Takt aufgerufen und schiebt den Zähler zwischen zwei Abgleichen weiter.
-       *
+       * <p>
        * Am Ende der Sequenz bleibt er auf {@link NukePhase#TOTAL_TICKS} stehen. Das ist kein
        * Überlauf, sondern der Zustand „Sequenz vorbei, Fallout steht noch": Nebel, Bildschirmfilm
        * und Abschlusstafel hängen daran und bleiben, bis der Server das Match wirklich stoppt und
@@ -985,7 +1005,7 @@ public final class ClientStates {
    
       /**
        * Ob die Sequenz durch ist und nur noch der Fallout steht.
-       *
+       * <p>
        * Ab hier läuft kein Abschnitt mehr, aber der Zustand bleibt: Der Server schickt erst beim
        * Stoppen des Matches den leeren Zustand nach.
        */
@@ -1041,7 +1061,6 @@ public final class ClientStates {
       private int totalTicks;
       private int bombDropFlashTicks;
       private int impactGlitchTicks;
-      private boolean targetEliminated;
       private int eliminatedTicks;
       private float transitionProgress;
       private float previousTransitionProgress;

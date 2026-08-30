@@ -12,12 +12,13 @@ import net.minecraft.sounds.SoundEvents;
 
 /**
  * Globale Zeitlupe des Zeitverzerrers.
- *
+ * <p>
  * <p>Vanillas {@code ServerTickRateManager} ist die zentrale Zeitquelle des Servers und
  * synchronisiert Änderungen selbst an alle Clients. Die Dauer darf deshalb nicht in
  * Spielticks gezählt werden: Bei acht TPS würde eine Tickfrist weit länger als vorgesehen
  * dauern. Eine monotone Echtzeitfrist hält die zugesagten sieben Sekunden exakt ein.</p>
  */
+@SuppressWarnings({"ConstantValue", "resource"})
 public final class SlowMotionSystem {
    public static final SlowMotionSystem INSTANCE = new SlowMotionSystem();
 
@@ -26,7 +27,7 @@ public final class SlowMotionSystem {
 
    /**
     * Abstand der Zustandswiederholungen.
-    *
+    * <p>
     * <p>Ohne sie erfährt der Client die Restzeit genau zweimal – beim Start und beim Beitritt –
     * und zählt danach allein weiter. Ein regelmäßiger Abgleich hält beide Uhren zusammen, ohne
     * dass der Client auf seine Notfrist zurückfallen muss.</p>

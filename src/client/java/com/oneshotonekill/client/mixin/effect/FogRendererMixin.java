@@ -13,12 +13,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Legt den Fallout-Schleier nach dem Einschlag über die Welt.
- *
+ * <p>
  * <p>Fabric API kennt weder ein Gegenstück zu NeoForges {@code ViewportEvent.RenderFog} noch zu
  * {@code ComputeFogColor}. Ein Access Widener genügt nicht: {@code FogData} ist bereits
  * öffentlich, aber ohne Einstieg gäbe es keinen Zeitpunkt, an dem die fertigen Werte noch
  * erreichbar wären.</p>
- *
+ * <p>
  * <p>{@code setupFog} liefert am {@code RETURN} genau das eine Objekt, in dem Farbe und
  * Reichweite zusammenlaufen – damit deckt ein Einstieg beide NeoForge-Ereignisse ab.</p>
  */

@@ -5,12 +5,10 @@ import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.arena.ArenaWorlds;
 import com.oneshotonekill.shared.OsokEffects;
 import com.oneshotonekill.item.box.SpecialItemManager;
-import com.oneshotonekill.item.runtime.ArmedShots;
 import com.oneshotonekill.item.runtime.Deployables;
 import com.oneshotonekill.shared.Feedback;
 import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.item.runtime.StatusAbilities;
-import com.oneshotonekill.item.runtime.StealthBomberSystem;
 import com.oneshotonekill.item.runtime.ThrownDevices;
 import com.oneshotonekill.match.GunGameManager;
 import com.oneshotonekill.match.MatchManager;
@@ -31,11 +29,11 @@ import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 
+@SuppressWarnings({"ConstantValue", "RedundantCast", "resource", "unused"})
 public final class CombatEvents {
    private CombatEvents() {
    }
@@ -50,12 +48,12 @@ public final class CombatEvents {
 
    /**
     * Öffnet Vanillas Unverwundbarkeits-Vorprüfung für einen gültigen PvP-Treffer im Match.
-    *
+    * <p>
     * <p>Vanilla prüft Creative-, Spectator- und Entity-Unverwundbarkeit vor dem eigentlichen
     * Schadensereignis. NeoForge bietet dafür {@code EntityInvulnerabilityCheckEvent}; Fabric API
     * hat kein Gegenstück, deshalb ruft {@code ServerPlayerInvulnerabilityMixin} diese Methode
     * am Ende von {@code ServerPlayer#isInvulnerableTo} auf.</p>
-    *
+    * <p>
     * @return {@code true}, wenn die gemeldete Unverwundbarkeit für diesen Treffer nicht gelten soll
     */
    public static boolean overridesInvulnerability(ServerPlayer victim, DamageSource source) {
@@ -71,19 +69,19 @@ public final class CombatEvents {
 
    /**
     * Ersetzt {@code ServerPlayerDeathMixin}.
-    *
+    * <p>
     * Ein echter Tod in der Arena wird abgefangen und in einen Sofort-Respawn umgewandelt, damit
     * er über dieselbe Buchführung läuft wie eine reguläre Eliminierung.
-    *
+    * <p>
     * <p>Genau eine Ausnahme gibt es: die Nuke am Matchende. Dort <em>soll</em> gestorben
     * werden, und zwar endgültig – die Getroffenen werden anschließend zu Zuschauern und sehen
     * dem Pilz zu. Ohne diese Abfrage stünde jeder von ihnen im selben Tick wieder auf, und der
     * Einschlag wäre ein sehr lautes Nichts. Gezählt wird der Tod dabei auch nicht: Die
     * Abschlusstafel zeigt das Ergebnis des Matches, nicht das seiner Beendigung.</p>
-    *
+    * <p>
     * <p>{@code ALLOW_DEATH} stellt die Gesundheit nicht wieder her – das erledigt der
     * Sofort-Respawn, der den Spieler ohnehin auf volle Gesundheit setzt.</p>
-    *
+    * <p>
     * @return {@code false}, wenn dieser Tod nicht stattfinden soll
     */
    private static boolean allowDeath(LivingEntity entity) {
@@ -183,7 +181,7 @@ public final class CombatEvents {
             && arrow.getWeaponItem() != null
             && arrow.getWeaponItem().is(ModItems.MINIGUN);
          boolean isSwordHit = !attacker.equals(victim)
-            && attacker.equals(directEntity)
+            && directEntity == attacker
             && (attacker.getMainHandItem().is(Items.IRON_SWORD) || attacker.getMainHandItem().is(Items.GOLDEN_SWORD));
          if (isMinigunShot && !MinigunRuntime.INSTANCE.recordHit(attacker, victim)) {
             MinigunRuntime.INSTANCE.sendHitEffect(attacker);
@@ -273,9 +271,9 @@ public final class CombatEvents {
 
    /**
     * Die Aktionssperre für Spieler im Eiskäfig der Frost-Falle.
-    *
+    * <p>
     * <p>Gesperrt wird an zwei Stellen, und beide sind Mixins:</p>
-    *
+    * <p>
     * <ul>
     *   <li><b>Auf dem Client</b> sind Bewegung und Interaktion tot, bevor überhaupt etwas
     *       passiert – {@code KeyboardInputMixin} verwirft die Bewegungseingabe,

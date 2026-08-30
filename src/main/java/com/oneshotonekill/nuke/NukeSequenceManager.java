@@ -11,7 +11,6 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 
 
-import com.oneshotonekill.shared.Blast;
 
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
@@ -21,7 +20,6 @@ import com.oneshotonekill.arena.ArenaWorlds;
 import com.oneshotonekill.shared.OsokEffects;
 import com.oneshotonekill.item.box.SpecialItemManager;
 import com.oneshotonekill.shared.Hologram;
-import com.oneshotonekill.nuke.MushroomCloud;
 import com.oneshotonekill.match.MatchManager;
 import com.oneshotonekill.network.OsokPayloads.*;
 import com.oneshotonekill.registry.ModDamageTypes;
@@ -52,28 +50,29 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Das Matchende als Inszenierung: zehn Sekunden Countdown, ein Einschlag, zwölf Sekunden Nachlauf.
- *
+ * <p>
  * <h2>Warum eine eigene Zustandsmaschine</h2>
- *
+ * <p>
  * <p>Ein Matchende ist ein Moment, in dem sehr viele Systeme gleichzeitig etwas anderes tun
  * müssen als sonst: Der Match-Timer darf nicht weiterlaufen, Schaden darf nicht mehr zählen,
  * Item-Boxen dürfen nicht mehr erscheinen, und am Ende muss die Karte zurückgesetzt werden. Das
  * über Rückrufe zu verteilen hieße, dieselbe Bedingung an einem Dutzend Stellen zu wiederholen.
  * Stattdessen gibt es hier einen Tickzähler, und alle anderen Systeme fragen
  * {@link #isRunning()} oder {@link #isLocked()}.</p>
- *
+ * <p>
  * <p>Der Ablauf steht in {@link NukePhase} und ist eine reine Funktion dieses Zählers – siehe
  * dort, warum. Der Client bekommt denselben Zähler über {@code NukeStatePayload} und leitet
  * daraus Sirene, Countdown, Blitz, Nebel und Abschlusstafel ab. Es gibt damit keinen Zustand,
  * der zwischen Server und Client auseinanderlaufen könnte.</p>
- *
+ * <p>
  * <h2>Der Einschlag</h2>
- *
+ * <p>
  * <p>Für den Pilz wird {@link MushroomCloud} wiederverwendet – dasselbe Modell, das der
  * Luftangriff wirft. Das ist keine Sparmaßnahme: Ein Spieler soll die Nuke wiedererkennen, und
  * ein zweiter Pilz mit eigener Geometrie sähe nur anders aus, nicht besser. Größer wird sie
  * über den Kopfraum, den sie bekommt, und über eine zweite Welle Wellenpartikel ringsum.</p>
  */
+@SuppressWarnings("unused")
 public final class NukeSequenceManager {
    public static final NukeSequenceManager INSTANCE = new NukeSequenceManager();
 
@@ -89,7 +88,7 @@ public final class NukeSequenceManager {
    private static final float SHAKE_REACH = 220.0F;
    /**
     * Schaden des Einschlags.
-    *
+    * <p>
     * Groß genug für jede denkbare Rüstung und jeden Absorptionswert, aber nicht
     * {@code Float.MAX_VALUE}: Der ginge durch die Abzugsrechnungen von Rüstung und Effekten und
     * käme als {@code NaN} wieder heraus, und ein Spieler mit NaN Lebenspunkten stirbt nicht,
@@ -100,7 +99,7 @@ public final class NukeSequenceManager {
    // --- Anflug und Abwurf ---
    /**
     * Tick, an dem der Bomber auftaucht.
-    *
+    * <p>
     * Zusammen mit {@link #BOMBER_SPEED} legt er fest, wie weit draußen er erscheint – hier
     * vierundsechzig Blöcke. Weiter wäre schöner und zugleich falsch: Ein Anzeigekörper in einem
     * nicht geladenen Chunk wird niemandem geschickt, und der Bomber tauchte dann erst mitten
@@ -113,7 +112,7 @@ public final class NukeSequenceManager {
    private static final double BOMBER_SPEED = 1.6;
    /**
     * Flughöhe über dem Einschlagspunkt.
-    *
+    * <p>
     * Tief genug, dass man ihn erkennt statt ihn zu suchen. Auf einer überdachten Karte wird der
     * Wert zusätzlich unter die Decke gezogen – siehe {@link #bomberAltitude}: Ein Bomber, der
     * über dem Dach fliegt, ist von unten schlicht nicht da.
@@ -129,7 +128,7 @@ public final class NukeSequenceManager {
    // --- Die Druckwelle ---
    /**
     * Wie viele Spalten die Welle je Tick abträgt.
-    *
+    * <p>
     * Der Wert bestimmt beides: wie schnell sie über die Karte läuft und wie viel Arbeit der
     * Server dabei je Tick leistet. Eine Arena hat je nach Karte fünfzehn- bis zwanzigtausend
     * Spalten; bei achthundert je Tick ist die ganze Karte nach gut einer Sekunde weg, und der
@@ -142,7 +141,7 @@ public final class NukeSequenceManager {
    private static final double WAVE_MIN_STEP = 1.5;
    /**
     * Wie lange die Karte zerstört bleibt, falls niemand das Match stoppt.
-    *
+    * <p>
     * Praktisch nie erreicht: Zurückgebaut wird beim Stoppen, und zwar auf einen Schlag – siehe
     * {@code MatchManager#stopMatch}. Der Wert ist nur die Auffanglinie für den Fall, dass ein
     * Match tagelang offen steht.
@@ -173,7 +172,7 @@ public final class NukeSequenceManager {
 
    /**
     * Startet die Sequenz. Ein zweiter Aufruf während einer laufenden wird verworfen.
-    *
+    * <p>
     * @param winner    Der Sieger, oder {@code null} bei Unentschieden.
     * @param winReason Warum das Match endet – Zeitablauf, Kill-Ziel, Abbruch.
     */
@@ -201,7 +200,7 @@ public final class NukeSequenceManager {
 
    /**
     * Phase 0: alles anhalten, was noch laufen könnte.
-    *
+    * <p>
     * <p>Die Sperren gegen Schaden und Interaktion liegen nicht hier, sondern in
     * {@code NukeLockEvents} – sie sind Ereignisfilter und keine einmalige Aktion. Hier steht
     * nur, was sich einmal setzen lässt: Unverwundbarkeit, stehende Boxen, geleerter Boden.</p>
@@ -279,7 +278,7 @@ public final class NukeSequenceManager {
 
    /**
     * Der Countdown: jede Sekunde eine Zahl, ein Ton und – zum Schluss – ein Zittern.
-    *
+    * <p>
     * Das Wackeln setzt erst bei drei Sekunden ein und wächst dann steil. Ein Countdown, der von
     * Anfang an wackelt, hat keine Steigerung mehr; so wird aus dem letzten Drittel ein eigener
     * Abschnitt, den man auch mit geschlossenen Augen erkennt.
@@ -326,7 +325,7 @@ public final class NukeSequenceManager {
 
    /**
     * Aufsteigender Staub ueber der Kampfzone.
-    *
+    * <p>
     * Verteilt ueber den Grundriss statt um den Einschlag herum: Der Countdown soll ueberall
     * spuerbar sein und nicht nur dort, wo es gleich einschlaegt. Die Stellen werden gewuerfelt
     * und nicht gerastert – ein Gitter aus Staubsaeulen sieht nach Zaun aus.
@@ -355,7 +354,7 @@ public final class NukeSequenceManager {
 
    /**
     * Der Ring, der in der letzten Sekunde auf den Einschlagspunkt zulaeuft.
-    *
+    * <p>
     * Nach innen und nicht nach aussen: Die Druckwelle kommt erst nach dem Einschlag. Was man
     * vorher sieht, ist die Luft, die zusammengezogen wird – und ein Ring, der sich schliesst,
     * sagt „gleich", waehrend einer, der sich oeffnet, „vorbei" sagt.
@@ -373,12 +372,12 @@ public final class NukeSequenceManager {
 
    /**
     * Der Anflug: ein Bomber quert die Karte und wirft über der Mitte ab.
-    *
+    * <p>
     * <p>Beides sind {@code Display.ItemDisplay} und keine echten Entities – dieselbe Bauweise
     * wie beim Luftangriff. Eine Entity brächte Kollision, Schwerkraft und Netzwerkverkehr mit,
     * und gebraucht wird nichts davon: Der Weg steht von vornherein fest, weil der Einschlag auf
     * den Tick genau sitzen muss.</p>
-    *
+    * <p>
     * <p>Die Bombe fällt quadratisch statt gleichmäßig. Eine Bombe, die mit gleichbleibendem
     * Tempo herunterkommt, sieht aus, als hinge sie an einem Seil; erst die Beschleunigung macht
     * aus dem Abwurf einen Sturz. Der Endpunkt bleibt dabei derselbe – bei einem Fortschritt von
@@ -432,7 +431,7 @@ public final class NukeSequenceManager {
 
    /**
     * Die Flughöhe über dem Einschlag – unter der Decke, wo es eine gibt.
-    *
+    * <p>
     * Auf der Standard-Karte liegt die Decke bei 69 und der Boden gut zehn Blöcke darunter; die
     * dreißig Blöcke aus {@link #BOMBER_ALTITUDE} führten den Bomber glatt darüber hinweg, und
     * von unten wäre er unsichtbar geblieben. Bleibt er darunter, fliegt er stattdessen dicht
@@ -445,12 +444,12 @@ public final class NukeSequenceManager {
          return BOMBER_ALTITUDE;
       }
       double underCeiling = arena.getCeilingY() - CEILING_CLEARANCE - centre.y;
-      return Math.max(8.0, Math.min(BOMBER_ALTITUDE, underCeiling));
+      return Math.clamp(underCeiling, 8.0, BOMBER_ALTITUDE);
    }
 
    /**
     * Richtet einen Flugkörper auf seine Bahn aus.
-    *
+    * <p>
     * <p>Die Nase der Modelle liegt bei -Y. Gedreht wird auf die <em>gespiegelte</em>
     * Zielrichtung, weil {@code DisplayRenderer.ItemDisplayRenderer#submitInner} vor dem Zeichnen
     * ein {@code Axis.YP.rotation(PI)} auf den Stapel legt und damit X und Z umkehrt. Wer hier
@@ -469,7 +468,7 @@ public final class NukeSequenceManager {
 
    /**
     * Phase 2: der Einschlag.
-    *
+    * <p>
     * <p>Reihenfolge mit Absicht: erst das Bild und der Ton, dann die Toten. Der Blitz muss auf
     * dem Bildschirm stehen, bevor der Spieler in den Zuschauermodus wechselt – andersherum
     * sähe er den Wechsel und danach erst die Explosion, und der Moment wäre verschenkt.</p>
@@ -517,12 +516,12 @@ public final class NukeSequenceManager {
 
    /**
     * Ein Spieler verdampft.
-    *
+    * <p>
     * <p>Der Schaden geht durch {@code hurtServer} und damit über den regulären Weg – mit
     * {@code oneshotonekill:nuke_blast} als Quelle, die Rüstung, Effekte und Totems durchdringt
     * (siehe {@link ModDamageTypes}). Die Unverwundbarkeit aus Phase 0 muss dafür kurz weichen:
     * Sie hält das Gefecht an, nicht den Einschlag.</p>
-    *
+    * <p>
     * <p>Was danach kommt, steht nicht hier, sondern in {@code NukeLockEvents#onDeath} – dort
     * wird der Tod abgefangen und in den Zuschauermodus überführt. Diese Trennung ist keine
     * Umständlichkeit: Sie fängt auch den Spieler ab, der in derselben Sekunde durch etwas
@@ -546,7 +545,7 @@ public final class NukeSequenceManager {
 
    /**
     * Der Übergang in den Zuschauermodus, an Ort und Stelle.
-    *
+    * <p>
     * Die Lebenspunkte werden dabei wieder aufgefüllt. Ein Spieler, dessen Tod abgebrochen wurde,
     * stünde sonst mit null Lebenspunkten da und stürbe im nächsten Tick erneut – in einer
     * Schleife, die erst mit dem Ende der Sequenz aufhörte.
@@ -562,7 +561,7 @@ public final class NukeSequenceManager {
 
    /**
     * Phase 3: der Nachlauf.
-    *
+    * <p>
     * Der Pilz zeichnet sich selbst weiter – {@code MushroomCloud} hängt am Takt des
     * Luftangriffssystems. Hier kommt nur noch der Staub dazu, der über der Karte hängen bleibt.
     */
@@ -580,7 +579,7 @@ public final class NukeSequenceManager {
 
    /**
     * Ein Tick Druckwelle: der nächste Ring der Karte verschwindet.
-    *
+    * <p>
     * <p>Die Schrittweite wird aus einem festen Arbeitsbudget gerechnet und nicht aus einer
     * Geschwindigkeit. Ein Ring wird nach außen hin immer länger – bei gleichbleibender
     * Schrittweite wüchse die Arbeit je Tick quadratisch, und der Server bliebe genau dann
@@ -657,7 +656,7 @@ public final class NukeSequenceManager {
 
    /**
     * Phase 4: die Zahlen des Matches, fertig aufbereitet an alle.
-    *
+    * <p>
     * <p>Gesammelt wird über alle verbundenen Spieler, nicht über die Überlebenden – zum
     * Zeitpunkt dieses Aufrufs sind ohnehin alle Zuschauer. Die Rangliste ist nach Kills
     * geordnet, bei Gleichstand entscheidet die geringere Zahl der Tode; ohne dieses zweite
@@ -713,12 +712,12 @@ public final class NukeSequenceManager {
 
    /**
     * Phase 5: die Sequenz endet – das Match auch, aber sonst bleibt alles, wie es ist.
-    *
+    * <p>
     * <p>Ausdrücklich <em>kein</em> Rückflug in die Lobby und <em>kein</em> Zuwachsen der
     * Krater. Wer die Nuke gesehen hat, soll danach über der verwüsteten Karte schweben dürfen,
     * solange er will; erst der Griff zum Stopp im Hauptmenü holt alle zurück und baut die Karte
     * wieder auf – siehe {@code MatchManager#stopMatch}.</p>
-    *
+    * <p>
     * <p>Der Zuschauermodus bleibt deshalb ebenfalls stehen. {@link #finish} setzt ihn nur
     * zurück, wenn es von dort gerufen wird.</p>
     */
@@ -734,7 +733,7 @@ public final class NukeSequenceManager {
 
    /**
     * Alle Spuren der Sequenz entfernen – auch bei Abbruch.
-    *
+    * <p>
     * Wird zusätzlich beim Serverstart und beim Match-Stopp aufgerufen. Ein Spieler, der wegen
     * eines Absturzes im Zuschauermodus und unverwundbar zurückbliebe, könnte sonst nicht mehr
     * mitspielen und wüsste nicht einmal, warum.
@@ -777,7 +776,7 @@ public final class NukeSequenceManager {
 
    /**
     * Holt alle aus dem Zuschauermodus, die der Einschlag hineingebracht hat.
-    *
+    * <p>
     * Nur diese: Wer vorher schon zusah, soll das weiter tun dürfen. Aufgerufen wird das beim
     * Stoppen des Matches und beim Serverstart – nicht am Ende der Sequenz.
     */
@@ -802,7 +801,7 @@ public final class NukeSequenceManager {
 
    /**
     * Ob gerade jede Spielhandlung gesperrt ist.
-    *
+    * <p>
     * Vom Anstoß bis zum Einschlag: In dieser Zeit stehen die Punkte fest, und ein Treffer, der
     * noch zählte, entschiede das Match nach seinem Ende. Danach sind ohnehin alle Zuschauer.
     */
@@ -843,12 +842,12 @@ public final class NukeSequenceManager {
 
    /**
     * Der Einschlagspunkt: die Mitte der Karte, auf dem Boden.
-    *
+    * <p>
     * <p>Auf dem Boden und nicht auf Höhe der Oberkante – daran hängt alles Weitere. Der Pilz
     * wächst von seinem Fuß nach oben, der Krater misst seine Tiefe von hier, und die Bombe muss
     * irgendwo aufschlagen. Ein Einschlag in der Luft ergäbe einen Pilz, der über der Karte
     * schwebt, und einen Krater, der nichts trifft.</p>
-    *
+    * <p>
     * <p>Gesucht wird von der Oberkante der Kampfzone abwärts nach dem ersten festen Block.
     * Findet sich keiner – etwa über einem Loch in der Karte –, bleibt die Unterkante.</p>
     */
@@ -887,14 +886,14 @@ public final class NukeSequenceManager {
    
    /**
     * Die Abschnitte der Nuke-Sequenz, als Fenster auf der Tickachse.
-    *
+    * <p>
     * <p>Der Ablauf ist bewusst eine reine Funktion des Ticks und kein Zustand, der von Ereignis zu
     * Ereignis weitergereicht wird. Das hat zwei Gründe. Erstens läuft die Sequenz auf Server und
     * Client parallel ab, und ein Client, der mittendrin verbindet, bekommt genau eine Zahl
     * geschickt und weiß damit alles – bei einer Zustandsmaschine mit Übergängen müsste er die
     * verpassten Übergänge nachholen. Zweitens ist ein Ablauf, den man an einer einzigen Tabelle
     * ablesen kann, änderbar: Wer den Countdown verlängern will, ändert hier eine Zahl.</p>
-    *
+    * <p>
     * <p>Die Grenzen sind halboffen – {@code from} gehört dazu, {@code to} nicht mehr. Damit ist
     * jeder Tick genau einem Abschnitt zugeordnet, auch der Zündtick selbst.</p>
     */
@@ -914,13 +913,13 @@ public final class NukeSequenceManager {
    
       /**
        * Der Zeitpunkt des Einschlags, auf die Tonspur gelegt.
-       *
+       * <p>
        * <p>{@code endgame/TacticalNukeIncoming.ogg} ist das Original aus Call of Duty, und darin
        * schlägt es bei 12,031 Sekunden ein. Ein Tick dauert 50 Millisekunden, der Einschlag fällt
        * also zwischen zwei Ticks: 240 wären 12,000 s (31 ms zu früh), 241 sind 12,050 s (19 ms zu
        * spät). Genauer geht es mit tickgebundener Ablaufsteuerung nicht, und 241 ist die nähere
        * der beiden Zahlen.</p>
-       *
+       * <p>
        * <p>Die Tonspur startet in {@link #FREEZE}, also bei Tick 0. Wer an der Länge des
        * Countdowns dreht, verschiebt damit den Einschlag gegen die Musik – diese Zahl und die
        * Tonspur gehören zusammen.</p>
@@ -961,7 +960,7 @@ public final class NukeSequenceManager {
    
       /**
        * Der Abschnitt, in dem dieser Tick liegt.
-       *
+       * <p>
        * @return {@code null}, wenn der Tick vor dem Beginn oder nach dem Ende der Sequenz liegt.
        */
       public static NukePhase at(int tick) {
@@ -989,7 +988,7 @@ public final class NukeSequenceManager {
 
       /**
        * Hängt alle Sperren ein.
-       *
+       * <p>
        * <p>Für das Setzen von Blöcken gibt es in Fabric API kein eigenes Ereignis. Es braucht
        * auch keines: Ein Block kommt nur über einen Rechtsklick auf einen Block oder in die
        * Luft in die Welt, und beide Wege sind hier schon gesperrt.</p>
@@ -1028,7 +1027,7 @@ public final class NukeSequenceManager {
 
       /**
        * Verhindert das Aufspannen des Bogens während der Sequenz.
-       *
+       * <p>
        * Fabric API kennt kein Gegenstück zu {@code ArrowNockEvent}; aufgerufen wird das aus
        * {@link com.oneshotonekill.event.InteractionGates} heraus.
        */
@@ -1038,18 +1037,18 @@ public final class NukeSequenceManager {
 
       /**
        * Der Tod durch den Einschlag endet im Zuschauermodus – an Ort und Stelle.
-       *
+       * <p>
        * <p>Warum der Tod verhindert wird, obwohl hier ausdrücklich gestorben werden soll:
        * In den Arenen steht die Spielregel {@code IMMEDIATE_RESPAWN} auf wahr (siehe
        * {@code WorldRulesManager}). Ein zu Ende gelaufener Tod würde den Spieler deshalb sofort
        * an seinem Respawn-Punkt neu erzeugen – als neue Entity, außerhalb der Arena, mit Blick auf
        * die Lobby statt auf den Pilz. Genau das soll nicht passieren.</p>
-       *
+       * <p>
        * <p>Stattdessen wird der Tod hier angehalten und von Hand zu Ende gebracht: Lebenspunkte
        * zurück, damit der Spieler nicht im nächsten Tick erneut stirbt, und dann in den
        * Zuschauermodus. Er bleibt dabei, wo er war – schwebend über dem Krater, aus dem gerade
        * seine Runde verschwunden ist.</p>
-       *
+       * <p>
        * <p>{@code CombatEvents} hält sich bei laufender Sequenz heraus; sonst käme dort der
        * übliche Sofort-Respawn samt Ausrüstung dazwischen.</p>
        */

@@ -6,7 +6,6 @@ import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.client.OsokClient;
 import static com.oneshotonekill.client.state.ClientStates.*;
 import com.oneshotonekill.client.state.ClientStates.*;
-import com.oneshotonekill.item.SpecialItem.Mode;
 import com.oneshotonekill.item.SpecialItem;
 import com.oneshotonekill.item.box.SpecialItemManager;
 import com.oneshotonekill.network.OsokPayloads.*;
@@ -36,6 +35,7 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 /**
  * Die moderne Cyber-Tactical Verwaltungsoberfläche für Arenen, Match-Ablauf, Match-Dauer und Itemgewichtungen.
  */
+@SuppressWarnings({"ConstantValue", "NullableProblems", "SameParameterValue", "UnnecessaryLocalVariable"})
 public final class ArenaMenuScreen extends Screen {
    private static final int CARD_WIDTH = 580;
    private static final int TAB_CONTENT_HEIGHT = 270;
@@ -98,7 +98,7 @@ public final class ArenaMenuScreen extends Screen {
 
    @Override
    protected void init() {
-      contentHeight = Math.max(MIN_TAB_CONTENT_HEIGHT, Math.min(TAB_CONTENT_HEIGHT, height - CHROME_HEIGHT));
+      contentHeight = Math.clamp(height - CHROME_HEIGHT, MIN_TAB_CONTENT_HEIGHT, TAB_CONTENT_HEIGHT);
       cardHeight = contentHeight + CHROME_HEIGHT;
       cardLeft = Math.max(4, width / 2 - CARD_WIDTH / 2);
       cardTop = Math.max(4, height / 2 - cardHeight / 2);
@@ -129,7 +129,7 @@ public final class ArenaMenuScreen extends Screen {
 
    /**
     * Nur die Unschärfe, kein Vanilla-Hintergrund.
-    *
+    * <p>
     * <p>Der Aufruf gehört hierher und nicht in {@code extractRenderState}: Die Unschärfe trennt
     * die bereits gezeichneten Ebenen von den folgenden, muss also feststehen, bevor der eigene
     * Inhalt beginnt. Vanillas Menühintergrund entfällt ersatzlos – über der unscharfen Welt
@@ -566,7 +566,7 @@ public final class ArenaMenuScreen extends Screen {
       // Konfigurationsbereich je nach Modus
       switch (currentMode) {
          case TIME_LIMIT -> {
-            int effectiveMins = localPreviewMinutes != null ? localPreviewMinutes : Math.max(1, Math.min(state.getMatchTargetValue() / 60, 60));
+            int effectiveMins = localPreviewMinutes != null ? localPreviewMinutes : Math.clamp(state.getMatchTargetValue() / 60, 1, 60);
             String formattedTime = String.format("%02d:00 Minuten", effectiveMins);
 
             graphics.fill(left, y, right, y + 46, 0xFF141924);
@@ -629,7 +629,7 @@ public final class ArenaMenuScreen extends Screen {
                graphics.text(font, "Wähle oben '⏱ Zeitbegrenzt' oder '👑 Bis Stufe 13'.", left + 36, y + 38, OsokWidgets.COLOR_TEXT_FAINT);
                y += 64;
             } else {
-               int effectiveKills = localPreviewKills != null ? localPreviewKills : Math.max(1, Math.min(state.getMatchTargetValue(), 100));
+               int effectiveKills = localPreviewKills != null ? localPreviewKills : Math.clamp(state.getMatchTargetValue(), 1, 100);
 
                graphics.fill(left, y, right, y + 46, 0xFF141924);
                graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_CARD_BORDER);
@@ -700,7 +700,7 @@ public final class ArenaMenuScreen extends Screen {
    }
 
    private void drawSlider(GuiGraphicsExtractor graphics, Slider slider, String label, String displayValue, int mouseX, int mouseY) {
-      double ratio = Math.max(0.0, Math.min(1.0, (slider.value - slider.min) / (slider.max - slider.min)));
+      double ratio = Math.clamp((slider.value - slider.min) / (slider.max - slider.min), 0.0, 1.0);
       boolean isHovered = OsokWidgets.isOver(mouseX, mouseY, slider.x, slider.y, slider.width, slider.height);
       boolean isHeld = activeSlider == slider;
 
@@ -1052,12 +1052,12 @@ public final class ArenaMenuScreen extends Screen {
          int thumbWidth = 12;
          double trackInnerWidth = Math.max(1.0, width - thumbWidth);
          double relativeX = mouseX - (x + thumbWidth / 2.0);
-         double ratio = Math.max(0.0, Math.min(1.0, relativeX / trackInnerWidth));
+         double ratio = Math.clamp(relativeX / trackInnerWidth, 0.0, 1.0);
          double rawVal = min + ratio * (max - min);
          if (step > 0) {
             rawVal = Math.round((rawVal - min) / step) * step + min;
          }
-         return Math.max(min, Math.min(max, rawVal));
+         return Math.clamp(rawVal, min, max);
       }
    }
 

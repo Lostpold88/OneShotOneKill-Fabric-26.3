@@ -1,7 +1,5 @@
 package com.oneshotonekill.nuke;
 
-import com.oneshotonekill.shared.ArenaDemolition;
-import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.shared.Hologram;
 
 import com.oneshotonekill.registry.ModItems;
@@ -25,16 +23,16 @@ import org.joml.Vector3f;
 
 /**
  * Der Atompilz über einem Luftangriff – als Körper, nicht als Partikelwolke.
- *
+ * <p>
  * Die erste Fassung zeichnete den Pilz aus {@code DustParticleOptions}. Sichtbar war davon fast
  * nichts: ein Staubpartikel ist ein Fleck von wenigen Pixeln, der mit dem Abstand verblasst und
  * jenseits weniger Dutzend Blöcke gar nicht mehr gezeichnet wird. Ein Atompilz ist aber genau
  * das, was man aus der Ferne sehen soll.
- *
+ * <p>
  * Deshalb besteht er jetzt aus echten Modellen an {@link Display.ItemDisplay}-Entities: einem
  * Wolkenballen, einem Ring für die Druckwelle und einem Erdbrocken (siehe
  * {@code tools/generate_blast_3d.py}). Drei Eigenschaften tragen das:
- *
+ * <p>
  * <ul>
  *   <li><b>Farbe zur Laufzeit.</b> Die Modelle sind fast weiß und färben sich über
  *       {@code minecraft:dye} nach dem {@code DyedItemColor} des gezeigten Stapels. Ein einziges
@@ -49,11 +47,12 @@ import org.joml.Vector3f;
  *   <li><b>Skalierung 1 ist ein Block.</b> Alle drei Modelle füllen genau ihre 16 Einheiten; die
  *       Größen hier unten sind deshalb unmittelbar Blöcke.</li>
  * </ul>
- *
+ * <p>
  * Der Ablauf besteht aus sechs Teilen, die nacheinander einsetzen: Feuerball, Stiel, Hut,
  * Bodenwelle, herausgeschleuderte Brocken und der Ring der Druckwelle. An der Karte ändert das
  * nichts – der Krater kommt aus {@code ArenaDemolition}, hier entsteht nur das Bild.
  */
+@SuppressWarnings("SameParameterValue")
 public final class MushroomCloud {
    public static final MushroomCloud INSTANCE = new MushroomCloud();
 
@@ -94,7 +93,7 @@ public final class MushroomCloud {
 
    /**
     * Das langsame Nachtreiben, wenn der Aufstieg vorbei ist.
-    *
+    * <p>
     * Ohne das steht der Pilz ab der dritten Sekunde bewegungslos in der Luft, und genau das
     * verrät ihn als Kulisse. Ein echter Pilz wächst noch minutenlang weiter, nur eben zäh.
     */
@@ -138,7 +137,7 @@ public final class MushroomCloud {
    private static final double WAVE_BAND = 1.6;
    /**
     * Höhe des Ringmodells bei Skalierung 1.
-    *
+    * <p>
     * Steht so in der Ausgabe von {@code tools/generate_blast_3d.py} und muss mit ihr
     * übereinstimmen: der Ring wird quer und hoch verschieden skaliert, damit er beim Auslaufen
     * ein flaches Band bleibt statt zu einem Reifen anzuschwellen.
@@ -159,7 +158,7 @@ public final class MushroomCloud {
 
    /**
     * Zündet einen Pilz.
-    *
+    * <p>
     * {@code headroom} ist die Höhe, die über dem Einschlag frei ist. In einer Arena mit Decke
     * wüchse der Pilz sonst durch sie hindurch; statt ihn abzuschneiden, wird er als Ganzes
     * kleiner – ein gestauchter Pilz ist immer noch ein Pilz, ein halber wäre ein Fehler.
@@ -372,7 +371,7 @@ public final class MushroomCloud {
 
       /**
        * Höhe der Stielspitze.
-       *
+       * <p>
        * Hut und Haube hängen daran, statt auf einer festen Höhe zu warten. Sonst steht der Hut
        * fertig oben, während der Stiel noch unterwegs ist – und dazwischen klafft eine Lücke,
        * die den Pilz zu einer Scheibe über einer Rauchsäule macht.
@@ -389,7 +388,7 @@ public final class MushroomCloud {
 
       /**
        * Der Hut: zwei Kränze und eine Haube darüber.
-       *
+       * <p>
        * Der äußere Kranz sackt mit dem Quadrat des Aufreißens ab. Ohne dieses Absacken entsteht
        * kein Pilz, sondern eine Scheibe auf einem Stab – an der überhängenden Krempe erkennt
        * das Auge die Form.
@@ -461,7 +460,7 @@ public final class MushroomCloud {
 
       /**
        * Die Druckwelle als flaches Band über dem Boden.
-       *
+       * <p>
        * Als einziges Teil wird sie ungleich skaliert: quer wächst der Kreis, hoch bleibt das
        * Band flach. Bei gleichmäßiger Skalierung würde aus dem Ring über siebzig Blöcken
        * Durchmesser ein Reifen von mehreren Blöcken Höhe.
@@ -487,7 +486,7 @@ public final class MushroomCloud {
 
       /**
        * Ein paar Funken und Rauchfahnen obendrauf.
-       *
+       * <p>
        * Die Modelle tragen die Form, aber Partikel können, was Modelle nicht können: flimmern.
        * Sparsam eingesetzt geben sie dem Feuerball seine Unruhe.
        */
@@ -518,7 +517,7 @@ public final class MushroomCloud {
 
       /**
        * Setzt ein Teil an seinen Platz. Maße in Blöcken, bezogen auf den Einschlag.
-       *
+       * <p>
        * Aktualisiert wird nur jeden zweiten Tick, versetzt nach Teilenummer. Der Client schiebt
        * die Matrix ohnehin über zwei Ticks weiter, sichtbar ist der Unterschied also nicht – die
        * Zahl der Pakete aber halbiert sich, und bei über vierzig Teilen je Pilz zählt das.
@@ -554,7 +553,7 @@ public final class MushroomCloud {
 
       /**
        * Färbt ein Teil ein.
-       *
+       * <p>
        * Die Farbe steckt im Gegenstand, nicht in der Matrix – jede Änderung ist also ein eigenes
        * Paket. Deshalb wird sie auf Stufen von acht gerundet und nur bei echter Änderung gesetzt;
        * vom sekundenlangen Abkühlen bleiben so eine Handvoll Pakete übrig statt eines je Tick
@@ -568,7 +567,7 @@ public final class MushroomCloud {
          part.colour = stepped;
          ItemStack stack = new ItemStack(part.shape);
          stack.set(DataComponents.DYED_COLOR, new DyedItemColor(stepped));
-         part.display.getSlot(0).set(stack);
+         Hologram.setItem(part.display, stack);
       }
 
       private double fade() {
@@ -578,7 +577,7 @@ public final class MushroomCloud {
 
    /**
     * Ein Bauteil der Wolke.
-    *
+    * <p>
     * Die Entity steht die ganze Zeit still auf dem Einschlag; unterwegs ist nur ihre Matrix.
     * {@code bearing}, {@code phase} und {@code bulk} sorgen dafür, dass sich die Ballen weder
     * gleichzeitig noch gleich groß bewegen – sonst sieht man vierzig Kopien desselben Modells

@@ -10,10 +10,11 @@ import net.minecraft.world.item.ItemStack;
 
 /**
  * Die Spezial-Items, die gewichtet in der Arena erscheinen oder als Killstreak-Belohnung fallen.
- *
+ * <p>
  * Die Reihenfolge bestimmt die Anzeige im Gewichtungsmenü und den Index in der Netzwerkübertragung –
  * neue Items werden deshalb hinten angehängt, nicht dazwischengeschoben.
  */
+@SuppressWarnings("unused")
 public enum SpecialItem {
    RADAR_PULSE("radar_pulse", "Radar-Puls", ModItems.RADAR_PULSE),
    EXPLOSIVE_SHOT("explosive_shot", "Explosiv-Schuss", ModItems.EXPLOSIVE_SHOT),

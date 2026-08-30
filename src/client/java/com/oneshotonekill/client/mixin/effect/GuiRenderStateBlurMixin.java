@@ -9,13 +9,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Macht die Unschärfe hinter einem Bildschirm mehrfach anforderbar, statt hart abzustürzen.
- *
+ * <p>
  * <p>{@code GuiRenderState#blurBeforeThisStratum} wirft {@code IllegalStateException("Can only
  * blur once per frame")}, sobald in einem Bild ein zweites Mal unschärfegeblendet werden soll.
  * Genau das passiert, sobald ein eigener Bildschirm die Unschärfe anfordert und Vanilla in
  * derselben Bildfolge ebenfalls dazu kommt – etwa über {@code Screen#extractBlurredBackground}
  * eines darunterliegenden Bildschirms oder beim Wechsel zwischen zwei Menüs.</p>
- *
+ * <p>
  * <p>Fabric API bietet keinen Einstieg in den GUI-Renderstate, und ein Access Widener hilft
  * nicht: Der Wert ist bereits erreichbar, gebraucht wird ein anderes Verhalten. Der zweite
  * Aufruf wird deshalb still verworfen – die erste angeforderte Ebene bleibt gültig, und das

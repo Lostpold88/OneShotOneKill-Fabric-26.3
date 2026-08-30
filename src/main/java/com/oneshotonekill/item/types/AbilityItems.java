@@ -1,8 +1,6 @@
 package com.oneshotonekill.item.types;
 import com.oneshotonekill.shared.SpecialItemRules;
 
-import com.oneshotonekill.OneShotOneKill;
-import com.oneshotonekill.item.SpecialItem;
 import com.oneshotonekill.item.runtime.ArmedShots;
 import com.oneshotonekill.shared.DeviceLights;
 import com.oneshotonekill.item.runtime.StatusAbilities;
@@ -22,13 +20,14 @@ import net.minecraft.world.level.Level;
 /**
  * Klassensammlung aller passiven und aktiven Fähigkeiten-Spezialitems.
  */
+@SuppressWarnings("NullableProblems")
 public final class AbilityItems {
    private AbilityItems() {}
 
    // --- SpecialAbilityItem.java ---
    /**
     * Basis für alle Spezial-Items, die per Rechtsklick wirken.
-    *
+    * <p>
     * Die gesamte Wirkung liegt auf dem Server; der Client meldet nur Erfolg zurück, damit die
     * Handanimation läuft. Verbraucht wird das Item ausschließlich, wenn die Wirkung wirklich
     * eingetreten ist – ein Fehlversuch außerhalb der Arena kostet also nichts.
@@ -97,7 +96,7 @@ public final class AbilityItems {
    // --- GliderItem.java ---
    /**
     * Acht Sekunden Flug mit Startschub und regelmäßigen Schubstößen.
-    *
+    * <p>
     * Das Item selbst ist bewusst kein anziehbares Rüstungsteil – sonst hätte man unbegrenzten Flug
     * statt der acht Sekunden. Die Flughöhe respektiert Arena-Oberkante und Decke.
     */
@@ -112,7 +111,7 @@ public final class AbilityItems {
    
       /**
        * Lässt die Anzeige blinken, solange das Gerät in der Hand liegt.
-       *
+       * <p>
        * Nur in der Haupthand: {@code inventoryTick} läuft für jeden Gegenstand in jedem Inventar,
        * und ein Gerät tief in der Tasche muss niemandem etwas anzeigen.
        */
@@ -233,7 +232,7 @@ public final class AbilityItems {
    // --- GrapplingHookItem.java ---
    /**
     * Mehrfach verwendbarer Grappler: Ein Schuss verbraucht eine der zehn Druckladungen.
-    *
+    * <p>
     * <p>Anders als die einmaligen Fähigkeiten schrumpft der Stapel nicht sofort. Vanillas
     * Schadenskomponente ist hier die Munitionsanzeige; dadurch bleiben Restladungen auch beim
     * Verschieben, Tod oder erneuten Einloggen ohne eigene Speicherschicht erhalten.</p>

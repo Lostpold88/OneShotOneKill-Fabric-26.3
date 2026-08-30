@@ -9,26 +9,22 @@ import net.minecraft.world.entity.Relative;
 
 
 import com.oneshotonekill.OneShotOneKill;
-import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.shared.ArenaDemolition;
 import com.oneshotonekill.arena.ArenaWorlds;
 import com.oneshotonekill.arena.ArenaWorlds.ResetOutcome;
 import com.oneshotonekill.shared.OsokEffects;
 import com.oneshotonekill.equipment.EquipmentManager;
-import com.oneshotonekill.item.SpecialItem.Mode;
 import com.oneshotonekill.item.SpecialItem;
 import com.oneshotonekill.shared.Feedback;
 import com.oneshotonekill.item.box.SpecialItemManager;
 import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.nuke.NukeSequenceManager;
-import com.oneshotonekill.match.ScoreboardManager;
 import com.oneshotonekill.arena.RandomTpSystem;
 import com.oneshotonekill.arena.RandomTpSystem.RespawnSystem;
 import java.util.Arrays;
 import java.util.Comparator;
 import java.util.List;
-import java.util.Set;
 import java.util.function.Consumer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
@@ -48,6 +44,7 @@ import net.minecraft.world.level.GameType;
 /**
  * Der Ablauf eines Matches: starten, pausieren, stoppen, Arena wechseln, Match-Ziele verwalten und zurücksetzen.
  */
+@SuppressWarnings({"BooleanMethodIsAlwaysInverted", "ConstantValue", "Convert2MethodRef", "RedundantTypeArguments", "resource", "UnnecessaryLocalVariable", "unused"})
 public final class MatchManager {
    public static final MatchManager INSTANCE = new MatchManager();
    private static final int MAX_WEIGHT_ADJUSTMENT = 5;
@@ -60,7 +57,7 @@ public final class MatchManager {
    private static int elapsedTicks = 0;
    /**
     * Das Ergebnis steht fest, der Abschluss fehlt noch.
-    *
+    * <p>
     * Gesetzt am Ende der Nuke-Sequenz, geräumt beim Starten und Stoppen. Solange dieses Merkmal
     * steht, ruht der Match-Timer und es erscheinen keine Item-Boxen mehr – die Runde ist
     * gelaufen, sie ist nur noch nicht abgeräumt.
@@ -141,8 +138,8 @@ public final class MatchManager {
          return;
       }
       int boundedValue = switch (mode) {
-         case TIME_LIMIT -> Math.max(60, Math.min(value, 3600)); // 1 min (60s) bis 60 min (3600s)
-         case KILL_LIMIT -> Math.max(1, Math.min(value, 100));   // 1 bis 100 Kills
+         case TIME_LIMIT -> Math.clamp(value, 60, 3600); // 1 min (60s) bis 60 min (3600s)
+         case KILL_LIMIT -> Math.clamp(value, 1, 100);   // 1 bis 100 Kills
          case UNLIMITED -> 0;
       };
       targetMode = mode;
@@ -318,12 +315,12 @@ public final class MatchManager {
 
    /**
     * Das Match endet – aber nicht sofort.
-    *
+    * <p>
     * <p>Frueher stand hier ein Titel, ein Klang und ein sofortiger Stopp. Das war korrekt und
     * vollkommen unspektakulaer: Der Bildschirm sprang um, und die Runde war vorbei. Jetzt
     * uebernimmt {@link NukeSequenceManager} die naechsten zweiundzwanzig Sekunden – Countdown,
     * Einschlag, Nachlauf, Abschlusstafel – und ruft danach {@link #stopMatch} selbst auf.</p>
-    *
+    * <p>
     * <p>Die Meldung im Chat bleibt hier, denn sie gehoert zum Match und nicht zur Inszenierung:
     * Wer im Moment des Endes gerade wegsieht, soll sie im Verlauf nachlesen koennen.</p>
     */
@@ -397,21 +394,21 @@ public final class MatchManager {
 
    /**
     * Das Ergebnis steht fest – aber das Match läuft weiter, bis jemand es stoppt.
-    *
+    * <p>
     * <p>Aufgerufen vom {@link NukeSequenceManager} am Ende seiner Sequenz. Es passiert
     * ausdrücklich <em>nichts</em>, was Spieler anfasst: kein Rückflug in die Lobby, keine
     * Ausrüstung eingesammelt, keine Werte zurückgesetzt, kein Zustandswechsel. Wer den
     * Einschlag gesehen hat, bleibt als Zuschauer über der Karte stehen.</p>
-    *
+    * <p>
     * <h2>Warum der Zustand auf {@code RUNNING} bleibt</h2>
-    *
+    * <p>
     * <p>Hier stand einmal ein Wechsel auf {@code STOPPED} – mit dem Gedanken, dass ein Match,
     * dessen Sieger feststeht, nicht mehr läuft. Das hatte eine Folge, die ich übersehen habe:
     * {@link #stopMatch} bricht als Erstes ab, wenn der Zustand schon {@code STOPPED} ist. Der
     * Druck auf den Stopp-Knopf lief damit ins Leere, und mit ihm alles, was daran hängt – der
     * Kartenrückbau aus dem Archiv, der Rückflug in die Lobby und die Freigabe des
     * Zuschauermodus.</p>
-    *
+    * <p>
     * <p>Stattdessen merkt sich {@link #decided}, dass das Ergebnis steht. Der Match-Timer hält
     * daran an, damit die Runde nicht ein zweites Mal endet, aber der Zustand bleibt
     * {@code RUNNING} – und der Stopp-Knopf tut wieder etwas.</p>
@@ -433,17 +430,17 @@ public final class MatchManager {
 
    /**
     * Bringt eine entschiedene Runde zu Ende, bevor an der Arena gedreht wird.
-    *
+    * <p>
     * <p>Nach dem Einschlag bleibt der Zustand mit Absicht auf {@code RUNNING} – niemand soll
     * automatisch in die Lobby gezogen werden. Das hatte eine Folge, die ich uebersehen habe:
     * Arena wechseln, zuruecksetzen und Ziele aendern verlangen alle einen gestoppten Zustand,
     * und wiesen deshalb nach jeder Nuke stillschweigend ab. Der Reset-Knopf tat schlicht
     * nichts, und das sah aus wie ein kaputter Reset.</p>
-    *
+    * <p>
     * <p>Jetzt gilt eine entschiedene Runde als abschliessbar: Sie wird beim ersten Griff an die
     * Arena zu Ende gebracht – Zuschauer frei, Karte zurueck, alle in die Lobby – und danach
     * laeuft die eigentliche Anweisung durch.</p>
-    *
+    * <p>
     * @return ob jetzt an der Arena gearbeitet werden darf
     */
    private boolean settleBeforeArenaChange(ServerPlayer player) {
@@ -566,7 +563,7 @@ public final class MatchManager {
             payload.getItemId(), player.getGameProfile().name());
          return;
       }
-      int adjustment = Math.max(-MAX_WEIGHT_ADJUSTMENT, Math.min(payload.getAdjustment(), MAX_WEIGHT_ADJUSTMENT));
+      int adjustment = Math.clamp(payload.getAdjustment(), -MAX_WEIGHT_ADJUSTMENT, MAX_WEIGHT_ADJUSTMENT);
       if (adjustment != 0) {
          SpecialItemManager.INSTANCE.setWeight(item, SpecialItemManager.INSTANCE.weightOf(item) + adjustment);
          broadcastState();
@@ -615,7 +612,8 @@ public final class MatchManager {
       }
 
       Arena activeArena = worlds.getActive();
-      String playerArenaId = worlds.arenaOf(player) == null ? "" : worlds.arenaOf(player).getId();
+      Arena playerArena = worlds.arenaOf(player);
+      String playerArenaId = playerArena == null ? "" : playerArena.getId();
       var openArenaIds = Arrays.stream(Arena.values()).filter(worlds::isOpen).map(Arena::getId).toList();
       String resettingArenaId = Arrays.stream(Arena.values()).filter(worlds::isResetting).map(Arena::getId).findFirst().orElse("");
       var itemWeights = Arrays.stream(SpecialItem.values()).map(SpecialItemManager.INSTANCE::weightOf).toList();
@@ -819,10 +817,10 @@ public final class MatchManager {
          return remainingTicks >= 0;
       }
    
-      /** Schickt den aktuellen Stand; gezeichnet und heruntergezählt wird auf dem Client. */
+      /* Schickt den aktuellen Stand; gezeichnet und heruntergezählt wird auf dem Client. */
       /**
        * Hält jeden Eingefrorenen auf seinem Startpunkt.
-       *
+       * <p>
        * Die Positionen wurden schon immer beim Start gemerkt, nur nie ausgewertet – bewegen konnte
        * man sich im Countdown also sehr wohl. Die eigentliche Sperre sitzt auf dem Client, der
        * seine Bewegungseingabe verwirft; hier steht die Absicherung dahinter, die zugleich Rückstoß

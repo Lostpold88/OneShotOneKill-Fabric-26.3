@@ -20,15 +20,16 @@ import org.joml.Matrix4fc;
 
 /**
  * Das Reflektor-Energiefeld des lokalen Spielers.
- *
+ * <p>
  * <p>Es gibt dafür absichtlich keine Entity. Der Server meldet dem Besitzer nur den booleschen
  * Schildzustand; dieser Renderer setzt die Kugel in jedem Frame an die bereits interpolierte
  * Clientposition. Damit kann kein Positionspaket hinter der Spielerbewegung zurückbleiben.</p>
- *
+ * <p>
  * <p>Die Oberfläche ist eine geschlossene, additive Energiekugel und kein Drahtgitter. Zwei
  * leicht gegeneinander pulsierende Schalen, ein Fresnel-artig heller Rand und wandernde
  * Energieverdichtungen geben Volumen, ohne die Sicht wie eine massive Wand zu verdecken.</p>
  */
+@SuppressWarnings("resource")
 public final class ReflectorShieldRenderer {
    private static final RenderStateDataKey<ShieldFrame> FRAME =
       RenderStateDataKey.create(() -> OneShotOneKill.MOD_ID + ":reflector_shield_frame");
@@ -45,7 +46,7 @@ public final class ReflectorShieldRenderer {
 
    /**
     * Hängt das Reflektor-Energiefeld in den Renderdurchlauf ein.
-    *
+    * <p>
     * {@code END_EXTRACTION} entspricht NeoForges {@code ExtractLevelRenderStateEvent} und
     * sammelt am Ende der Zustandserfassung die unveränderlichen Zahlen dieses Bildes ein;
     * {@code COLLECT_SUBMITS} entspricht {@code SubmitCustomGeometryEvent} und zeichnet daraus.

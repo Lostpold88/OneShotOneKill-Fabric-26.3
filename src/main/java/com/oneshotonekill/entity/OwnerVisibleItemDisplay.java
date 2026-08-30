@@ -10,11 +10,12 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Ein Item-Display, das der Server vor seiner Enthüllung nur an seinen Besitzer überträgt.
- *
+ * <p>
  * <p>Das ist echte serverseitige Sichtbarkeit: Gegner erhalten keine Spawn- oder
  * Aktualisierungspakete für die Entity. Transparenz oder ein unsichtbares Modell würden die
  * Falle weiterhin über Debug-Anzeigen und andere Clientzustände verraten.</p>
  */
+@SuppressWarnings("NullableProblems")
 public final class OwnerVisibleItemDisplay extends Display.ItemDisplay {
    private UUID owner;
 

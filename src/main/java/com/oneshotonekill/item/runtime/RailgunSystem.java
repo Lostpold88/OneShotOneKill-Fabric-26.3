@@ -1,7 +1,6 @@
 package com.oneshotonekill.item.runtime;
 
 import com.oneshotonekill.shared.Hologram;
-import com.oneshotonekill.shared.Blast;
 import com.oneshotonekill.shared.BlastEffect;
 import com.oneshotonekill.shared.Feedback;
 
@@ -38,10 +37,10 @@ import org.joml.Vector3f;
 
 /**
  * Die Railgun: aufladen, loslassen, und was auf der Linie steht, ist weg.
- *
+ * <p>
  * Vorher schoss sie ohne Vorlauf und zeichnete den Strahl aus einer Reihe Partikel. Beides ist
  * ersetzt:
- *
+ * <p>
  * <ul>
  *   <li><b>Sie lädt.</b> Wer die Taste hält, sieht die Kondensatorspulen der Waffe von einem
  *       matten Blau bis zum Weißglühen hochlaufen und hört den Ton mitsteigen. Losgelassen
@@ -52,17 +51,18 @@ import org.joml.Vector3f;
  *       Schussweite gestreckt. Das ist billiger als hundert Partikel und aus jeder Entfernung
  *       zu sehen.</li>
  * </ul>
- *
+ * <p>
  * Block- und Spielertreffer werden getrennt gesucht und danach nach Entfernung verglichen –
  * eine Wand blockt den Schuss damit zuverlässig, statt dass ein Gegner dahinter noch getroffen
  * wird.
  */
+@SuppressWarnings({"RedundantCast", "SameParameterValue", "SuspiciousNameCombination"})
 public final class RailgunSystem {
    public static final RailgunSystem INSTANCE = new RailgunSystem();
 
    /**
     * Nach so vielen Ticks ist die Waffe voll geladen – und erst dann löst sie aus.
-    *
+    * <p>
     * Vorher genügte ein Bruchteil davon für einen schwächeren Schuss. Das nahm dem Aufladen
     * seinen Sinn: Wer schnell schoss, traf zwar kürzer, aber eben trotzdem, und die Waffe war
     * damit eine gewöhnliche Schnellfeuerwaffe mit Vorlauf. Jetzt gibt es nur den vollen Schuss.
@@ -76,7 +76,7 @@ public final class RailgunSystem {
 
    /**
     * Mündung in der Ersten-Person-Ansicht, in Metern vom Auge aus.
-    *
+    * <p>
     * Keine geschätzten Werte: {@code tools/generate_railgun_3d.py} führt die Spitze der
     * Schiene durch die Anzeige-Transformation und die Handverschiebung des Renderers und gibt
     * das Ergebnis beim Erzeugen des Modells aus. Wer an Geometrie oder Handhaltung dreht, holt
@@ -91,7 +91,7 @@ public final class RailgunSystem {
    private static final int BEAM_TICKS = 16;
    /**
     * Dicke des Strahls in Blöcken, von der kleinsten bis zur vollen Ladung.
-    *
+    * <p>
     * In Blöcken und nicht als Skalierungswert: das Lanzenmodell ist im Querschnitt nur ein gutes
     * Zehntel eines Blocks breit, ein Skalierungswert um eins ergäbe also einen Faden. Umgerechnet
     * wird über {@link #BOLT_GIRTH_UNIT}.
@@ -100,7 +100,7 @@ public final class RailgunSystem {
    private static final double BEAM_GIRTH_MAX = 0.95;
    /**
     * Querschnitt des Lanzenmodells bei Skalierung 1, in Blöcken.
-    *
+    * <p>
     * Steht so in der Ausgabe von {@code tools/generate_railgun_3d.py} und muss mit ihr
     * übereinstimmen.
     */
@@ -125,7 +125,7 @@ public final class RailgunSystem {
 
    /**
     * Die Anzeigen der Waffe – Bildschirme, Melder und Leuchtstreifen.
-    *
+    * <p>
     * Sie hängen an der zweiten Farbebene des Modells und laufen deshalb unabhängig von den
     * Spulen: im Ruhezustand ein türkises Doppelblinken mit langer Pause, beim Laden ein immer
     * schnelleres Bernstein, das zum Schluss rot durchschlägt.
@@ -164,7 +164,7 @@ public final class RailgunSystem {
 
    /**
     * Ein Tick Ladezeit: Spulen heller, Ton höher, Funken an der Mündung.
-    *
+    * <p>
     * Die Farbe wird auf dem gehaltenen Stapel selbst gesetzt. Das unterbricht das Laden nicht:
     * {@code LivingEntity#updatingUsingItem} vergleicht den Stapel über die Objektgleichheit,
     * und ein an Ort und Stelle geänderter Bestandteil lässt die Kennung unangetastet.
@@ -207,7 +207,7 @@ public final class RailgunSystem {
 
    /**
     * Das Ruhemuster der Anzeigen: zweimal kurz, dann lange nichts.
-    *
+    * <p>
     * Läuft auch, wenn niemand lädt – eine Waffe, die erst beim Drücken lebendig wird, wirkt
     * wie ein Requisit. Gerätebedingt geht jede Farbänderung als Inventarpaket hinaus, deshalb
     * hat das Muster lange Ruhephasen und {@link #setPanel} vergleicht vorher.
@@ -238,7 +238,7 @@ public final class RailgunSystem {
 
    /**
     * Setzt die Farbe der zweiten Ebene über die Farbliste von {@code CUSTOM_MODEL_DATA}.
-    *
+    * <p>
     * Nur bei echter Änderung, denn jede geht als Inventarpaket zum Client. Dass die Waffe dabei
     * nicht bei jedem Blinken neu in die Hand genommen wird, hängt an
     * {@code RailgunItem#shouldCauseReequipAnimation} – Vanilla vergleicht dort die Stapel über
@@ -267,7 +267,7 @@ public final class RailgunSystem {
 
    /**
     * @param charge Stärke des Schusses, zwischen null und eins.
-    *
+    * <p>
     * Sie steht seit der Umstellung auf die volle Ladung immer auf eins. Der Wert bleibt
     * trotzdem ein Parameter, weil Reichweite, Strahldicke, Rückstoß und Einschlag alle daran
     * hängen – ein Schuss halber Stärke wäre damit eine Zeile Arbeit, kein Umbau.
@@ -303,7 +303,7 @@ public final class RailgunSystem {
 
    /**
     * Alle Spieler auf der Linie, nach Entfernung geordnet.
-    *
+    * <p>
     * Es wird gegen die aufgeblähte Trefferbox geschnitten statt gegen einen Punkt: eine
     * Railgun soll sich anfühlen wie ein Strich über den Bildschirm, nicht wie eine Nadel.
     */
@@ -366,11 +366,11 @@ public final class RailgunSystem {
 
    /**
     * Hängt die Lanze zwischen Mündung und Einschlag auf.
-    *
+    * <p>
     * Ein einziges Display trägt den ganzen Strahl: das Modell ist genau 16 Einheiten lang, die
     * Skalierung in Z ist damit unmittelbar seine Länge in Blöcken. Die Entity sitzt auf der
     * Mitte der Strecke, weil eine {@code Display} ihr Modell um die eigene Position zentriert.
-    *
+    * <p>
     * Gedreht wird die Weltachse +Z auf die Schussrichtung. Dass das trotz der halben Umdrehung
     * des Renderers stimmt, liegt an der Bauweise des Modells: seine Spitze liegt bei z = 0 und
     * damit hinter der Mitte, und die Umdrehung dreht sie nach vorn.
@@ -403,7 +403,7 @@ public final class RailgunSystem {
 
    /**
     * Der Einschlag: ein Energiering, ein weißglühender Kern und ein paar Plasmasplitter.
-    *
+    * <p>
     * Bewusst kein {@link BlastEffect}. Der baut einen Feuerball mit Rauchballen und Erdbrocken –
     * richtig für eine Sprengladung, falsch für einen Strahl, der nichts verbrennt. Hier stößt
     * stattdessen Energie zurück: der Ring steht quer zur Schussrichtung, die Splitter fahren im
@@ -499,7 +499,7 @@ public final class RailgunSystem {
          if (colour != flash.shardColour) {
             flash.shardColour = colour;
             for (Display.ItemDisplay shard : flash.shards) {
-               shard.getSlot(0).set(boltStack(colour));
+               Hologram.setItem(shard, boltStack(colour));
             }
          }
       }
@@ -511,7 +511,7 @@ public final class RailgunSystem {
          return;
       }
       flash.colours[slot] = colour;
-      display.getSlot(0).set(slot == RING_SLOT ? ringStack(colour) : puffStack(colour));
+      Hologram.setItem(display, slot == RING_SLOT ? ringStack(colour) : puffStack(colour));
    }
 
    public void tick() {
@@ -533,7 +533,7 @@ public final class RailgunSystem {
          int colour = blend(BOLT_COLD, BOLT_HOT, left);
          if (colour != beam.colour) {
             beam.colour = colour;
-            beam.display.getSlot(0).set(boltStack(colour));
+            Hologram.setItem(beam.display, boltStack(colour));
          }
       }
    }
@@ -572,7 +572,7 @@ public final class RailgunSystem {
 
    /**
     * Die Mündung in der Welt.
-    *
+    * <p>
     * In der Ersten-Person-Ansicht deckt sich dieser Punkt mit den gezeichneten Schienen, weil
     * die Hand im selben Sichtfeld wie die Welt gezeichnet wird. Für Zuschauer bleibt es eine
     * Näherung – sie sehen die Waffe an der Hand, nicht vor dem Auge.
@@ -600,7 +600,7 @@ public final class RailgunSystem {
 
    /**
     * Ein Einschlag: Ring, Kern und Splitter.
-    *
+    * <p>
     * Alle Teile hängen an derselben Stelle in der Welt und bewegen sich nur über ihre Matrix –
     * genauso wie beim Atompilz, und aus demselben Grund: der Client schiebt sie von sich aus
     * weiter, und aus dem Sichtfeld geschnitten wird eine Display ohne Ausmaße nie.

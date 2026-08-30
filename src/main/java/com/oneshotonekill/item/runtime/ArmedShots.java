@@ -43,6 +43,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /** Explosiv- und Kettenblitz-Schüsse samt ihrer echten 3D-Projektile und Einschlagseffekte. */
+@SuppressWarnings({"ConstantValue", "resource", "SuspiciousNameCombination", "unused"})
 public final class ArmedShots {
    public static final ArmedShots INSTANCE = new ArmedShots();
 
@@ -53,7 +54,7 @@ public final class ArmedShots {
 
    /**
     * Die Flugbahn des eigenen Geschoßes.
-    *
+    * <p>
     * Sie ersetzt den Vanilla-Pfeil: dessen Werte werden übernommen, damit ein halb gezogener
     * Bogen weiterhin kürzer wirft als ein voll gezogener.
     */
@@ -129,16 +130,16 @@ public final class ArmedShots {
 
    /**
     * Nimmt einem scharf gemachten Bogenschuss den Pfeil ab und fliegt selbst weiter.
-    *
+    * <p>
     * Der Pfeil wird nicht versteckt, sondern gar nicht erst in die Welt gelassen – der Aufrufer
     * bricht sein Beitrittsereignis ab. Das ist der einzige Weg, der ohne Mixin auskommt:
     * {@code arrow.setInvisible(true)} bleibt wirkungslos, weil {@code ArrowRenderer#submit} die
     * Unsichtbarkeit gar nicht abfragt und das Modell bedingungslos einreicht. Genau deshalb flog
     * bisher neben dem Geschoß immer noch ein gewöhnlicher Pfeil her.
-    *
+    * <p>
     * Geschwindigkeit und Ort kommen vom Pfeil, damit ein halb gezogener Bogen weiterhin kürzer
     * wirft. Minigun-Projektile tragen deren Item als Waffe und können die Ladung nicht stehlen.
-    *
+    * <p>
     * @return true, wenn die Ladung übernommen wurde und der Pfeil verschwinden soll.
     */
    public boolean takeOverArrow(ServerLevel level, AbstractArrow arrow) {
@@ -239,10 +240,10 @@ public final class ArmedShots {
 
    /**
     * Ein Tick Flug: bewegen, auf Wand und Spieler prüfen, zeichnen.
-    *
+    * <p>
     * Geprüft wird die Strecke dieses Ticks, nicht der Zielpunkt: ein Bogenschuss legt mehrere
     * Blöcke je Tick zurück und spränge sonst über dünne Wände und schmale Gegner hinweg.
-    *
+    * <p>
     * @return true, wenn das Geschoß aufgeschlagen ist und aus der Liste soll.
     */
    private boolean advance(ServerLevel level, MinecraftServer server, FlyingShot shot) {
@@ -301,7 +302,7 @@ public final class ArmedShots {
             float pulse = 0.78F + (float) Math.sin(shot.age * 1.7) * 0.1F;
             Hologram.setPose(shot.display, new Vector3f(), aim, new Vector3f(pulse, pulse, 1.35F), 1);
             if ((shot.age & 1) == 0) {
-               shot.display.getSlot(0).set(lightningStack((shot.age & 2) == 0 ? LIGHTNING_HOT : LIGHTNING_GOLD));
+               Hologram.setItem(shot.display, lightningStack((shot.age & 2) == 0 ? LIGHTNING_HOT : LIGHTNING_GOLD));
             }
          }
       }
@@ -412,7 +413,7 @@ public final class ArmedShots {
       float width = Math.max(Hologram.HIDDEN_SCALE, (0.62F + (float) Math.sin(arc.age * 2.4) * 0.12F) * fade);
       Hologram.setPose(arc.display, new Vector3f(), aim,
          new Vector3f(width, width, (float) (length / BOLT_LENGTH_UNIT)), 1);
-      arc.display.getSlot(0).set(lightningStack((arc.age & 1) == 0 ? LIGHTNING_HOT : LIGHTNING_GOLD));
+      Hologram.setItem(arc.display, lightningStack((arc.age & 1) == 0 ? LIGHTNING_HOT : LIGHTNING_GOLD));
    }
 
    private void lightningBurst(ServerLevel level, Vec3 target, int jump) {
@@ -531,7 +532,7 @@ public final class ArmedShots {
          float band = (float) Math.max(Hologram.HIDDEN_SCALE, 0.34 / RING_BAND_UNIT * left);
          Hologram.setPose(impact.ring, new Vector3f(), new Quaternionf(),
             new Vector3f(across, band, across), 1);
-         impact.ring.getSlot(0).set(tinted(ModItems.BLAST_RING, colour));
+         Hologram.setItem(impact.ring, tinted(ModItems.BLAST_RING, colour));
       }
       if (impact.echoRing != null) {
          double delayed = Math.clamp((impact.age - 3.0) / (IMPACT_TICKS - 3.0), 0.0, 1.0);
@@ -545,7 +546,7 @@ public final class ArmedShots {
          double flash = Math.min(1.0, impact.age / 2.0) * Math.max(0.0, 1.0 - progress * 1.35);
          float size = (float) Math.max(Hologram.HIDDEN_SCALE, 2.8 * flash);
          Hologram.setPose(impact.core, new Vector3f(), new Quaternionf(), new Vector3f(size, size, size), 1);
-         impact.core.getSlot(0).set(tinted(ModItems.BLAST_PUFF, colour));
+         Hologram.setItem(impact.core, tinted(ModItems.BLAST_PUFF, colour));
       }
 
       for (ImpactBolt bolt : impact.bolts) {
@@ -559,7 +560,7 @@ public final class ArmedShots {
             bolt.width * appear * fade * flicker);
          Hologram.setPose(bolt.display, new Vector3f(), bolt.rotation,
             new Vector3f(width, width, (float) (bolt.length / BOLT_LENGTH_UNIT * appear)), 1);
-         bolt.display.getSlot(0).set(lightningStack(colour));
+         Hologram.setItem(bolt.display, lightningStack(colour));
       }
    }
 

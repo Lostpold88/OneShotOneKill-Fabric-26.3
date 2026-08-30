@@ -2,7 +2,6 @@ package com.oneshotonekill.item.box;
 
 import com.oneshotonekill.registry.ModItems;
 import com.oneshotonekill.item.SpecialItem;
-import com.oneshotonekill.item.SpecialItem.Mode;
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.arena.ArenaWorlds;
@@ -29,18 +28,17 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.entity.Display;
-import net.minecraft.world.entity.ExperienceOrb;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.BlockPos;
 import net.minecraft.world.level.block.state.BlockState;
 import com.oneshotonekill.match.ScoreboardManager;
-import net.minecraft.world.damagesource.DamageSource;
 import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 
+@SuppressWarnings({"ConstantValue", "resource", "UnusedReturnValue", "unused"})
 public final class SpecialItemManager {
    public static final SpecialItemManager INSTANCE = new SpecialItemManager();
    /** So viele Spezial-Items bekommt, wer einen Kopfgeldträger erledigt. */
@@ -52,7 +50,7 @@ public final class SpecialItemManager {
    public static final int GROUND_DESPAWN_DELAY_TICKS = 1_200;
    /**
     * So viele Boxen dürfen gleichzeitig liegen.
-    *
+    * <p>
     * Bei einer Box alle 30 Sekunden und einer Minute Lebensdauer waren nie mehr als zwei
     * gleichzeitig da – auf einer ganzen Karte findet man die praktisch nie. Häufiger und
     * mehrere zugleich verteilt sie über die Fläche, statt sie zur Rarität zu machen.
@@ -109,13 +107,13 @@ public final class SpecialItemManager {
    }
 
    public void setWeight(SpecialItem item, int weight) {
-      weights.put(item, Math.max(0, Math.min(weight, MAX_WEIGHT)));
+      weights.put(item, Math.clamp(weight, 0, MAX_WEIGHT));
       saveWeights();
    }
 
    /**
     * Legt die Gewichte neben die Welt.
-    *
+    * <p>
     * Sie lagen bisher nur im Speicher und waren nach jedem Neustart wieder auf dem Standardwert.
     * Wer sie eingestellt hatte, sah beim nächsten Start wieder gleichverteilte Ziehungen und
     * musste annehmen, die Gewichtung wirke nicht – dabei war sie schlicht weg.
@@ -170,7 +168,7 @@ public final class SpecialItemManager {
             }
             SpecialItem item = SpecialItem.fromId(trimmed.substring(0, split));
             if (item != null) {
-               weights.put(item, Math.max(0, Math.min(Integer.parseInt(trimmed.substring(split + 1)), MAX_WEIGHT)));
+               weights.put(item, Math.clamp(Integer.parseInt(trimmed.substring(split + 1)), 0, MAX_WEIGHT));
             }
          }
          OneShotOneKill.INSTANCE.getLOGGER().info("{} gespeicherte Itemgewichte geladen.", weights.size());
@@ -240,7 +238,7 @@ public final class SpecialItemManager {
             if (level != null) {
                AABB area = new AABB(-5000, level.getMinY(), -5000, 5000, level.getMaxY(), 5000);
                for (Display.ItemDisplay display : level.getEntitiesOfClass(Display.ItemDisplay.class, area,
-                     d -> d.getSlot(0).get().is(ModItems.ITEM_BOX))) {
+                     d -> Hologram.item(d).is(ModItems.ITEM_BOX))) {
                   Hologram.remove(display);
                }
             }
@@ -331,7 +329,7 @@ public final class SpecialItemManager {
 
    /**
     * Berechnet Schwerkraft, freien Fall und Kollision mit dem Boden.
-    *
+    * <p>
     * @return true, falls die Box ins Void gefallen ist und entfernt werden soll.
     */
    private boolean tickPhysics(GroundBox box, ServerLevel level) {
@@ -408,7 +406,7 @@ public final class SpecialItemManager {
 
    /**
     * Sucht einen Spieler in Reichweite der Box.
-    *
+    * <p>
     * Gemessen wird waagerecht zur Boxmitte und senkrecht in einem breiten Band, statt zwei
     * Bounding-Boxen zu schneiden. Die Box schwebt und wippt; eine mitwandernde Trefferfläche
     * ließe sie je nach Schwebephase mal greifbar und mal unerreichbar wirken.
@@ -430,10 +428,10 @@ public final class SpecialItemManager {
 
    /**
     * Prüft, ob ein fliegender Pfeil in diesem Tick die schwebende Item-Box getroffen hat.
-    *
+    * <p>
     * Wie beim Geschützturm hat ein Display keine eigene Kollisionsbox: wir prüfen die
     * zurückgelegte Flugstrecke des Pfeils gegen eine Bounding Box um die Box.
-    *
+    * <p>
     * @return der Schütze, falls ein Pfeil getroffen hat, sonst null
     */
    private ServerPlayer checkArrowHit(ServerLevel level, GroundBox box) {
@@ -477,7 +475,7 @@ public final class SpecialItemManager {
 
    /**
     * Dreht, wippt und neigt die Box.
-    *
+    * <p>
     * Alle drei Bewegungen leiten sich aus dem Servertick ab. Der frühere Weg über mitlaufende
     * Winkel hatte zwei Nachteile: die Boxen liefen auseinander, und nach langer Laufzeit wurden
     * die Werte so groß, dass die Drehung sichtbar ruckelte.
@@ -500,11 +498,11 @@ public final class SpecialItemManager {
 
    /**
     * Belohnt eine Killserie mit einem Spezial-Item.
-    *
+    * <p>
     * Die Betriebsart {@code STREAK} und der Menuetext versprachen das seit jeher, nur gab es
     * die Vergabe nie: {@code ItemMode#getAllowsStreakRewards} wurde nirgends abgefragt.
     * Belohnt wird jede dritte Eliminierung ohne eigenen Tod, also bei 3, 6, 9 und so weiter.
-    *
+    * <p>
     * @return true, wenn wirklich etwas vergeben wurde
     */
    public boolean grantStreakReward(ServerPlayer player, int streak) {
@@ -539,7 +537,7 @@ public final class SpecialItemManager {
 
    /**
     * Zahlt das Kopfgeld aus: zwei Spezial-Items für den, der den Träger erledigt hat.
-    *
+    * <p>
     * Sie werden einzeln gewürfelt, damit die Gewichtung auch hier gilt und nicht zweimal
     * dasselbe herauskommt, nur weil ein Wurf für beide reichen musste.
     */

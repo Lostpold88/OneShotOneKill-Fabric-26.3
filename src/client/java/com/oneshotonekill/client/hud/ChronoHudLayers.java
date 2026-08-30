@@ -11,13 +11,14 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.util.Util;
 
 /** HUD-Ebene des Zeitverzerrers: ein abbauender Ring mit der verbleibenden Echtzeit. */
+@SuppressWarnings("NullableProblems")
 public final class ChronoHudLayers {
    private ChronoHudLayers() {}
 
    /**
     * Die Restzeit stand bisher nur einmal beim Start in der Aktionsleiste – wer den Ruf verpasste,
     * wusste bis zum Rückschlag nicht, wie lange die Zeitlupe noch trägt.
-    *
+    * <p>
     * <p>Alles hier hängt an echter Zeit aus {@code TimeDistortionEffects}, nicht am Spieltakt:
     * Während der Zeitlupe läuft auch der Client nur mit acht Ticks je Sekunde, ein tickbasierter
     * Ring liefe sichtbar ruckelnd.</p>

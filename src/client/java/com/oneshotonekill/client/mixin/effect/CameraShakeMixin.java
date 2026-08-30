@@ -16,12 +16,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Lässt die Kamera bei Explosionen wackeln und während eines Grappler-Zugs mitkippen.
- *
+ * <p>
  * <p>Fabric API kennt kein Gegenstück zu NeoForges {@code ViewportEvent.ComputeCameraAngles}.
  * Ein Access Widener genügt nicht: {@code Camera#setRotation} nimmt nur Gier und Nick entgegen
  * und setzt die Rollachse fest auf null – für das Wackeln fehlt also nicht der Zugriff, sondern
  * ein dritter Winkel.</p>
- *
+ * <p>
  * <p>Deshalb wird die Drehung nach dem Vanilla-Aufruf noch einmal aufgebaut, diesmal mit allen
  * drei Winkeln. Die Rollachse kombiniert Explosionswackeln und den zum Anker berechneten
  * Grappler-Winkel; die abgeleiteten Achsen werden genauso nachgezogen wie in

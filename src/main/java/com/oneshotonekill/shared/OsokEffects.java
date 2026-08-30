@@ -1,6 +1,5 @@
 package com.oneshotonekill.shared;
 
-import com.oneshotonekill.arena.Arena;
 
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
@@ -24,6 +23,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import com.oneshotonekill.network.OsokPayloads.MatchNotificationPayload;
 
 /** Bündelt die Ton-, Partikel- und Actionbar-Rückmeldungen des Minigames. */
+@SuppressWarnings({"resource", "SameParameterValue", "unused"})
 public final class OsokEffects {
    public static final OsokEffects INSTANCE = new OsokEffects();
 
@@ -106,7 +106,7 @@ public final class OsokEffects {
 
    /**
     * Großer Text in Bildschirmmitte, wie ihn Vanilla für Titel benutzt.
-    *
+    * <p>
     * Die Actionbar reicht für Beiläufiges; ein anrollender Bombenangriff soll den Blick
     * unterbrechen. Ohne Untertitel bleibt die zweite Zeile leer.
     */
@@ -119,7 +119,7 @@ public final class OsokEffects {
 
    /**
     * Spielt einen Ton nur für diesen Spieler ab, ohne ihn an die Umgebung zu senden.
-    *
+    * <p>
     * Der Ton hängt an einer festen Weltposition. Für alles, was einen Spieler überdauert, der
     * sich gleich bewegt oder teleportiert wird, ist {@link #playOwnSound} die richtige Wahl.
     */
@@ -129,13 +129,9 @@ public final class OsokEffects {
          player.getX(), player.getY(), player.getZ(), volume, pitch, player.level().getRandom().nextLong()));
    }
 
-   public void sendPrivateSound(ServerPlayer player, Holder<SoundEvent> sound, float volume, float pitch) {
-      sendPrivateSound(player, sound.value(), volume, pitch);
-   }
-
-   /**
+    /**
     * Spielt einen Ton am Spieler selbst – er wandert mit ihm mit.
-    *
+    * <p>
     * Ein an eine Weltposition geheftetes Geräusch bleibt liegen, wo es angestoßen wurde. Beim
     * Tod fällt das sofort auf: der Sofort-Respawn setzt den Spieler bewusst weit vom Sterbeort
     * weg, und der Todes-Ton verhallte dort ungehört. An die Entity gebunden bleibt er dort, wo

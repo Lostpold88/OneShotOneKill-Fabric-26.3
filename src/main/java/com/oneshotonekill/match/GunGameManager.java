@@ -36,6 +36,7 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 /**
  * Verwaltet den Ablauf, die Progression, Ausrüstung und Nachladelogik des Waffenspiel-Modus (Gun Game).
  */
+@SuppressWarnings({"CodeBlock2Expr", "ConstantValue", "resource", "unused"})
 public final class GunGameManager {
    public static final GunGameManager INSTANCE = new GunGameManager();
    public static final int TOTAL_TIERS = 13;
@@ -159,7 +160,7 @@ public final class GunGameManager {
       }
 
       public static Tier byIndex(int index) {
-         int bounded = Math.max(1, Math.min(index, TOTAL_TIERS));
+         int bounded = Math.clamp(index, 1, TOTAL_TIERS);
          return values()[bounded - 1];
       }
    }

@@ -8,7 +8,6 @@ import static com.oneshotonekill.client.state.ClientStates.*;
 import com.oneshotonekill.client.state.ClientStates.*;
 import com.oneshotonekill.client.effect.TimeDistortionEffects;
 import com.oneshotonekill.client.renderer.GrapplingHookRenderer;
-import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.registry.ModDataComponents;
 import java.util.List;
 import java.util.function.Supplier;
@@ -42,6 +41,7 @@ import org.jspecify.annotations.Nullable;
 /**
  * Sammelklasse aller benutzerdefinierten Client-Itemmodelle und Modell-Bedingungen.
  */
+@SuppressWarnings("NullableProblems")
 public final class OsokClientModels {
    private OsokClientModels() {
    }
@@ -158,7 +158,7 @@ public final class OsokClientModels {
 
    /**
     * Zweiteiliges Grappler-Modell mit genau einem Pömpel im gesamten Schuss.
-    *
+    * <p>
     * <p>Der geladene Kopf verschwindet im Eingabebild sofort aus der Waffe und bleibt während
     * Flug, Zug und Einzug ausgeblendet. Erst das serverseitige Ende des gesamten Grapples setzt
     * ihn wieder ein. Es gibt hier bewusst keine zweite Ausfahr- oder Nachladebewegung.</p>
@@ -292,7 +292,7 @@ public final class OsokClientModels {
 
    /**
     * Animiertes Mehrschichtmodell des Zeitverzerrers.
-    *
+    * <p>
     * <p>Das alte Modell hing alle 54 Leuchtflächen an denselben {@code DyedItemColor}. Dadurch
     * konnten sie nur gemeinsam hart ein- und ausgeschaltet werden, und jeder Wechsel musste als
     * Inventaränderung vom Server kommen. Hier bleiben Gehäuse und Zifferblatt eine ruhige
@@ -448,7 +448,7 @@ public final class OsokClientModels {
          layer.setLocalTransform(transform);
          part.properties.applyToLayer(layer, context);
          if (tint != null) {
-            layer.tintLayers().add(tint);
+            layer.tintLayers().add(tint.intValue());
          }
          layer.prepareQuadList().addAll(part.quads.getAll());
       }

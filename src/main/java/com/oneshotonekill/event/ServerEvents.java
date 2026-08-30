@@ -31,10 +31,11 @@ import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 
 /**
  * Serverseitiger Lebenszyklus und der Haupttakt der Mod.
- *
+ * <p>
  * Die Reihenfolge im Takt ist unverändert – daran hängt, dass die Arenen stehen, bevor
  * irgendein System sie anspricht.
  */
+@SuppressWarnings("unused")
 public final class ServerEvents {
    /** Abstand des Abgleichs auf herrenlose Displays. */
    private static final int ORPHAN_SWEEP_TICKS = 100;
@@ -120,13 +121,13 @@ public final class ServerEvents {
 
    /**
     * Torwächter für alles, was in eine Serverwelt eintritt.
-    *
+    * <p>
     * {@code ServerEntityEvents.ALLOW_LOAD} hängt an {@code PersistentEntitySectionManager}
     * und ist damit die einzige Stelle, die sowohl frisch erzeugte Entitys als auch die aus
     * einem geladenen Chunk zurückkommenden erfasst. Ein {@code false} hält sie draußen; ein
     * {@code discard()} an dieser Stelle verpuffte, weil die Entity danach trotzdem eingefügt
     * würde.
-    *
+    * <p>
     * @return {@code false}, wenn die Entity gar nicht erst eintreten darf
     */
    private static boolean onEntityLoad(Entity entity, ServerLevel level) {

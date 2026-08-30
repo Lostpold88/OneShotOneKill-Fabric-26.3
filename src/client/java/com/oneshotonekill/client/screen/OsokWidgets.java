@@ -14,11 +14,12 @@ import org.joml.Vector3fc;
 
 /**
  * Die zentralen Zeichenbausteine und das moderne UI-Designsystem der Mod.
- *
+ * <p>
  * <p>Bietet sowohl abwärtskompatible Standardkomponenten als auch veredelte
  * Cyber-Tactical / Esports Dark-Theme UI-Bausteine mit Glassmorphismus,
  * dynamischen Glow-Kanten, Micro-Interaktionen und flüssigen Hover-Zuständen.</p>
  */
+@SuppressWarnings({"MathClampMigration", "UnnecessaryLocalVariable", "unused"})
 public final class OsokWidgets {
    // Farbpaletten-Konstanten für einheitliches Design
    /** Kühler, durchscheinender Schleier – die Unschärfe dahinter soll sichtbar bleiben. */
@@ -187,7 +188,7 @@ public final class OsokWidgets {
 
    /**
     * Wie oben, aber der feste Unterstrich lässt sich abschalten.
-    *
+    * <p>
     * <p>Nötig, sobald ein gleitender Indikator die Markierung übernimmt: Sonst stünde der starre
     * Balken bereits am Ziel, während der gleitende noch unterwegs ist.</p>
     */
@@ -448,7 +449,7 @@ public final class OsokWidgets {
 
    /**
     * Weiche Ein- und Ausblendkanten am Rand eines Scroll-Bereichs.
-    *
+    * <p>
     * <p>Der Scissor-Rahmen schneidet Text und Karten hart ab. Die Verläufe blenden den Inhalt
     * nur dann weich ein, wenn tatsächlich Inhalt unter den Rand gescrollt wurde (oben nur bei
     * scrollOffset > 0, unten nur wenn noch Inhalt nach unten existiert).</p>
@@ -488,7 +489,7 @@ public final class OsokWidgets {
 
    /**
     * Frei gleitender Unterstrich für Reiter.
-    *
+    * <p>
     * <p>Anders als die feste Leiste in {@link #tabHeader} nimmt diese Fassung Bruchteile von
     * Pixeln entgegen, damit der Balken beim Wechsel weich von einem Reiter zum nächsten läuft,
     * statt zu springen.</p>
@@ -531,7 +532,7 @@ public final class OsokWidgets {
 
    /**
     * Trägheitsbehaftete Scrollposition mit elastischen Rändern und Schieber-Ziehen.
-    *
+    * <p>
     * <p>Liegt im Designsystem statt in den Bildschirmen, weil beide dieselbe Physik und dieselbe
     * Schiebergeometrie brauchen; zwei getrennte Fassungen liefen unweigerlich auseinander und
     * fielen sofort als ungleiches Bedienverhalten auf.</p>
@@ -599,7 +600,7 @@ public final class OsokWidgets {
 
       /**
        * Beginnt das Ziehen, wenn der Zeiger auf Spur oder Schieber liegt.
-       *
+       * <p>
        * <p>Ein Griff mitten auf den Schieber behält seinen Versatz, damit dieser nicht unter der
        * Maus wegspringt. Ein Klick daneben setzt ihn mittig unter den Zeiger.</p>
        */
@@ -648,7 +649,7 @@ public final class OsokWidgets {
    public static final class WorldMarker {
       /**
        * Grenze im normierten Bildraum, jenseits derer nicht mehr gezeichnet wird.
-       *
+       * <p>
        * Nahe der Bildkante wachsen die projizierten Werte sehr schnell; die Schranke hält sie in
        * einem Bereich, in dem die Umrechnung auf Pixel nicht überläuft. Ein Punkt jenseits von
        * ±1 liegt ohnehin außerhalb des Bildes.
@@ -666,12 +667,12 @@ public final class OsokWidgets {
 
       /**
        * Projiziert einen Weltpunkt auf das HUD.
-       *
+       * <p>
        * <p>Gerechnet wird über Vanilla selbst: {@code GameRenderer} erfüllt
        * {@code TrackedWaypoint.Projector} und benutzt die echte Kameramatrix. Eine eigene Rechnung
        * aus Sichtwinkeln und dem Options-Sichtfeld läge daneben, sobald das Sichtfeld verändert
        * ist (Sprint, gespannter Bogen, Effekte) oder die Kamera in der Verfolgeransicht steht.
-       *
+       * <p>
        * <p><b>Ob der Punkt vor der Kamera liegt, wird geometrisch entschieden und nicht an der
        * projizierten Tiefe.</b> Vanilla prüft in {@code TrackedWaypoint.Vec3iWaypoint} auf
        * {@code z > 1.0}, aber {@code Projection#getMatrix} baut die Matrix mit vertauschtem

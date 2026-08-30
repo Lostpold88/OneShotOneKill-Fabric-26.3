@@ -21,17 +21,18 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Echtzeitgesteuerte Präsentation des Zeitverzerrers auf dem Client.
- *
+ * <p>
  * <p>Der Server schickt Ursprung und verbleibende Echtzeit über ein eigenes Payload. Vanillas
  * Tickratenpaket bleibt ein Fallback, damit selbst bei einem Versionsfehler niemals die Welt
  * langsam läuft, ohne dass der Spieler eine Rückmeldung erhält. Alle Kurven laufen auf
  * monotoner Echtzeit: Der Effekt darf nicht zusammen mit den Spielticks langsamer werden.</p>
- *
+ * <p>
  * <p>Der Zustand für den Shader wird genau einmal je Bild in {@link #beginFrame()} berechnet und
  * zwischengespeichert. Beide Durchgänge mit der Gruppe {@code TemporalConfig} bekommen damit
  * dieselben Werte, und die Bildzeit wird nicht doppelt gezählt. Alle übrigen Abfragen sind reine
  * Leser; nur {@link #currentPostEffect()} und {@link #clientTick()} verschieben den Zustand.</p>
  */
+@SuppressWarnings("SameParameterValue")
 public final class TimeDistortionEffects {
    public static final TimeDistortionEffects INSTANCE = new TimeDistortionEffects();
 
@@ -48,7 +49,7 @@ public final class TimeDistortionEffects {
    private static final int HISTORY_WARMUP_FRAMES = 6;
    /**
     * Zeitkonstante für Ursprungsnachführung und Richtungswechsel.
-    *
+    * <p>
     * <p>Deutlich träger als die übrigen Kurven. Der Ursprung ist ein Weltpunkt; jede Bewegung des
     * Spielers verschiebt seine Bildschirmlage. Bei kurzer Zeitkonstante wandert das Zentrum beim
     * Sprinten und Springen sichtbar hin und her.</p>
@@ -56,7 +57,7 @@ public final class TimeDistortionEffects {
    private static final float ORIGIN_TAU = 0.28F;
    /**
     * So lange behält der Weltursprung die Hoheit über das Bildzentrum.
-    *
+    * <p>
     * <p>Die Einschlagwelle soll aus der Richtung kommen, in der sie ausgelöst wurde – das ist die
     * räumliche Information, auf die es ankommt. Das anschließende Dauerpulsieren darf dagegen
     * nicht an einem Weltpunkt kleben, sonst rutscht es beim Laufen unter dem Fadenkreuz weg.
@@ -184,7 +185,7 @@ public final class TimeDistortionEffects {
 
    /**
     * Ein einziges Post-Programm; seine Werte werden vom {@code PostPass}-Mixin pro Frame gesetzt.
-    *
+    * <p>
     * <p>Das ist zugleich der eine Punkt im Bild, an dem die Frist geprüft wird.</p>
     */
    public @Nullable Identifier currentPostEffect() {
@@ -199,7 +200,7 @@ public final class TimeDistortionEffects {
 
    /**
     * Schreibt den Vorführzustand für dieses Bild fort.
-    *
+    * <p>
     * <p>Die Bildzeit kommt aus {@link Util#getNanos()} und nicht aus dem Tickzähler: Bei acht TPS
     * liefe sonst jede Kurve selbst in Zeitlupe.</p>
     */
@@ -377,7 +378,7 @@ public final class TimeDistortionEffects {
 
    /**
     * Führt den Bildschirmursprung weich nach.
-    *
+    * <p>
     * <p>Früher schnappte er an drei harten Kanten in die Mitte – bei drei Blöcken Abstand, hinter
     * der Kamera und am Bildrand. Jede Kopfdrehung ließ das Wellenzentrum in einem Bild springen.
     * Stattdessen wird der Punkt auf einen Kreis um die Mitte geklemmt, mit einem weichen Gewicht

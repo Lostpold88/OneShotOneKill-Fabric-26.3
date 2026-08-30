@@ -18,6 +18,7 @@
 		"network.ClientPacketListenerPositionSyncMixin",
 		"network.ClientPacketListenerTickRateMixin",
 		"renderer.AvatarRendererMixin",
+		"renderer.HumanoidModelMixin",
 		"renderer.ItemInHandRendererMixin",
 		"renderer.LivingEntityRendererMixin",
 		"sound.SoundEngineAccessor",

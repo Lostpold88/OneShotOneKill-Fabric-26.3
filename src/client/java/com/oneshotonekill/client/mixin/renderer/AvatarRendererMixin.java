@@ -13,14 +13,14 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Zwei Eingriffe an der Spielerfigur, für die Fabric API nichts anbietet.
- *
+ * <p>
  * <p><b>Haltung:</b> NeoForge lässt einen Gegenstand seine Armhaltung über
  * {@code IClientItemExtensions#getArmPose} selbst bestimmen. Fabric API kennt keine solche
  * Erweiterung, und ein Access Widener hilft nicht – {@code AvatarRenderer#getArmPose} ist zwar
  * privat, gebraucht wird aber ein anderer Rückgabewert. Railgun und Minigun sollen beim Einsatz
- * im Anschlag liegen; der Grappler behält denselben ausgestreckten Anschlag vom Abschuss bis
- * zum vollständigen Einzug. Ohne diesen Eingriff hinge die Waffe lose in der Faust.</p>
- *
+ * im Anschlag liegen; für den Grappler liefert dieser Einstieg die neutrale Ausgangshaltung,
+ * auf der {@code HumanoidModelMixin} seine richtungsabhängige Pose aufbaut.</p>
+ * <p>
  * <p><b>Namensschild:</b> ersetzt {@code RenderNameTagEvent.CanRender}. Über einem unsichtbaren
  * Spieler darf kein Name stehen, sonst verrät der Tarnmantel seinen Träger. Der eigene Spieler
  * ist ausgenommen: Sein Schild sieht ohnehin nur er selbst in der Verfolgeransicht.</p>

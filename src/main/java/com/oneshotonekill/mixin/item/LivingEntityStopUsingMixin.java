@@ -11,12 +11,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Meldet einem Gegenstand, dass seine Benutzung abbricht.
- *
+ * <p>
  * <p>Vanilla ruft {@code Item#releaseUsing} nur, wenn der Client das Loslassen meldet.
  * {@code stopUsingItem} kommt dagegen auch beim Waffenwechsel, und dort erfährt der Gegenstand
  * nichts mehr. Fabric API kennt kein Gegenstück zu NeoForges {@code IItemExtension#onStopUsing},
  * und ein Access Widener hilft nicht – es fehlt kein Zugriff, sondern ein Aufruf.</p>
- *
+ * <p>
  * <p>Am {@code HEAD}, damit {@code useItem} noch steht: {@code stopUsingItem} räumt es im
  * weiteren Verlauf ab. Wer gemeint ist, entscheidet {@link StopUsingAware}.</p>
  */

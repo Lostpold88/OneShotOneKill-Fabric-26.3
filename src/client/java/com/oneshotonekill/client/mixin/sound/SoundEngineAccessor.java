@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.gen.Invoker;
 
 /**
  * Zugang zu den laufenden Tonkanälen, um deren Tonhöhe nachträglich zu ändern.
- *
+ * <p>
  * <p>{@code SoundEngine#refreshCategoryVolume} zieht ausschließlich die Lautstärke nach, und die
  * Tonhöhe wird nur für {@code TickableSoundInstance} je Tick neu gesetzt. Ein gewöhnlicher
  * Weltklang behält deshalb bis zu seinem Ende die Tonhöhe, mit der er gestartet ist – während der

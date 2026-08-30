@@ -1,4 +1,5 @@
 package com.oneshotonekill.event;
+import com.oneshotonekill.shared.Hologram;
 
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.shared.ProtectedItems;
@@ -25,6 +26,7 @@ import net.fabricmc.fabric.api.event.player.UseBlockCallback;
 import net.fabricmc.fabric.api.event.player.UseItemCallback;
 import org.jspecify.annotations.Nullable;
 
+@SuppressWarnings({"resource", "unused"})
 public final class ItemProtectionEvents {
    /** Feste Ausrüstung – Dolch, Bogen, Pfeil – ist an ihren Slot gebunden. */
    private static final String LOCK_MESSAGE = "§c✖ Feste Ausrüstung bleibt in ihrem Slot";
@@ -43,11 +45,11 @@ public final class ItemProtectionEvents {
 
    /**
     * Ersetzt NeoForges {@code ItemTossEvent}.
-    *
+    * <p>
     * Aufgerufen aus {@code ServerPlayerDropMixin}, bevor die Wurf-Entity entsteht. Der beim
     * Q-Drop geleerte ausgewählte Slot ist zu diesem Zeitpunkt bereits leer und wird deshalb
     * ausdrücklich wieder befüllt.
-    *
+    * <p>
     * @return {@code true}, wenn der Wurf nicht stattfinden darf
     */
    public static boolean interceptDrop(ServerPlayer player, ItemStack stack) {
@@ -73,9 +75,9 @@ public final class ItemProtectionEvents {
 
    /**
     * Ersetzt NeoForges {@code LivingSwapItemsEvent.Hands}.
-    *
+    * <p>
     * Aufgerufen aus {@code ServerGamePacketListenerSwapMixin}.
-    *
+    * <p>
     * @return {@code true}, wenn der Handtausch nicht stattfinden darf
     */
    public static boolean blocksHandSwap(ServerPlayer player) {
@@ -89,12 +91,12 @@ public final class ItemProtectionEvents {
 
    /**
     * Liefert dem OneShot-Bogen virtuelle Munition.
-    *
+    * <p>
     * Ersetzt NeoForges {@code LivingGetProjectileEvent}; aufgerufen aus
     * {@code PlayerProjectileMixin}, also auf Client und Server. Ein jeweils neuer Stack
     * verhindert Desynchronisationen und liegt nie im Inventar; Infinity macht den erzeugten
     * Pfeil zugleich unaufhebbar. Andere Vanilla-Bögen behalten ihre normale Munitionspflicht.
-    *
+    * <p>
     * @return der virtuelle Pfeil, oder {@code null}, wenn Vanilla weiterrechnen soll
     */
    public static @Nullable ItemStack virtualProjectile(ItemStack weapon) {
@@ -105,18 +107,18 @@ public final class ItemProtectionEvents {
    }
    /**
     * Entscheidet, ob ein Klick im Inventar fallen muss.
-    *
+    * <p>
     * <p>Ersetzt den früheren {@code GuardedSlot}. Der ersetzte jeden Slot eines Menüs durch eine
     * Hülle, die {@code mayPickup} und {@code mayPlace} verneinte – aber nur auf dem Server. Der
     * Client kannte die Hülle nicht, sagte den Zug voraus und bekam ihn im nächsten
     * Inventarpaket zurückgenommen: Der Dolch ließ sich herausziehen und sprang sichtbar wieder
     * an seinen Platz.</p>
-    *
+    * <p>
     * <p>Diese Prüfung hängt stattdessen in {@code AbstractContainerMenuClickMixin} am Anfang von
     * {@code AbstractContainerMenu#clicked}, und die ruft Vanilla auf beiden Seiten auf – einmal
     * aus {@code MultiPlayerGameMode}, einmal aus {@code ServerGamePacketListenerImpl}. Damit
     * fällt der Klick, bevor überhaupt etwas bewegt oder vorausgesagt wird.</p>
-    *
+    * <p>
     * @param slotIndex angeklickter Slot; {@code -999} steht für „neben das Fenster geklickt“
     * @param buttonNum bei {@link ContainerInput#SWAP} der Hotbar-Slot (0–8) oder 40 für die Zweithand
     * @return {@code true}, wenn der Klick nicht ausgeführt werden darf
@@ -176,7 +178,7 @@ public final class ItemProtectionEvents {
 
    /**
     * Verwirft den Klick und sagt auf dem Server, warum.
-    *
+    * <p>
     * Die Prüfung läuft auf beiden Seiten; die Einblendung ist ein Paket und darf deshalb nur
     * vom Server ausgehen.
     */
@@ -197,7 +199,7 @@ public final class ItemProtectionEvents {
    /**
     * Rechtsklick mit leerer Hand, C4 oder Zünder auf eine Haftladung nimmt diese ab,
     * ohne dass der Bogen in der Zweithand aufgespannt wird.
-    *
+    * <p>
     * Die beiden Klickwege laufen über Fabrics Callbacks. Für den Beginn der Item-Nutzung und
     * für Spannen und Lösen des Bogens gibt es kein Fabric-Ereignis; die drei bedient
     * {@link InteractionGates} aus einem Mixin heraus.
@@ -235,7 +237,7 @@ public final class ItemProtectionEvents {
 
       /**
        * Verhindert den Beginn der Item-Nutzung (Bogen-Spannen).
-       *
+       * <p>
        * @return {@code true}, wenn die Nutzung nicht beginnen darf
        */
       public static boolean blocksItemUseStart(LivingEntity entity, ItemStack stack) {
@@ -248,7 +250,7 @@ public final class ItemProtectionEvents {
 
       /**
        * Verhindert das Aufspannen des Bogens beim Abnehmen von C4.
-       *
+       * <p>
        * @return {@code true}, wenn der Bogen nicht gespannt werden darf
        */
       public static boolean blocksBowDraw(Player player) {
@@ -261,7 +263,7 @@ public final class ItemProtectionEvents {
 
       /**
        * Verhindert versehentliches Pfeillösen, falls der Bogen im selben Tick ausgelöst wurde.
-       *
+       * <p>
        * @return {@code true}, wenn kein Pfeil abgehen darf
        */
       public static boolean blocksBowRelease(Player player) {
@@ -281,7 +283,7 @@ public final class ItemProtectionEvents {
          Vec3 look = player.getLookAngle();
          AABB box = new AABB(eye.x - 6.0, eye.y - 6.0, eye.z - 6.0, eye.x + 6.0, eye.y + 6.0, eye.z + 6.0);
          for (Display.ItemDisplay display : player.level().getEntitiesOfClass(Display.ItemDisplay.class, box)) {
-            ItemStack stack = display.getSlot(0).get();
+            ItemStack stack = Hologram.item(display);
             if (!stack.is(ModItems.C4_CHARGE) && !stack.is(ModItems.C4)) {
                continue;
             }

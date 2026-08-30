@@ -20,6 +20,7 @@ import net.minecraft.server.level.ServerPlayer;
 import net.fabricmc.fabric.api.entity.event.v1.ServerPlayerEvents;
 import net.minecraft.world.level.GameType;
 
+@SuppressWarnings({"ConstantValue", "resource", "unused"})
 public final class PlayerEvents {
    private PlayerEvents() {
    }
@@ -54,9 +55,9 @@ public final class PlayerEvents {
       ScoreboardManager.INSTANCE.updateAllScoreboards();
    }
 
-   /**
+   /*
     * Der Name in der Tabellenliste kommt aus {@code ServerPlayerTabListMixin}.
-    *
+    * <p>
     * Fabric API kennt kein Gegenstück zu NeoForges {@code TabListNameFormat}; die Zeile wird
     * deshalb wieder direkt an {@code ServerPlayer#getTabListDisplayName} gesetzt.
     */
@@ -102,7 +103,7 @@ public final class PlayerEvents {
    
    /**
     * Die eigene Beitritts- und Abschiedsmeldung im Chat.
-    *
+    * <p>
     * Vanilla schickt bereits „X joined the game“ – und zwar ohne abbrechbares Ereignis, direkt aus
     * {@code PlayerList#placeNewPlayer} beziehungsweise {@code ServerGamePacketListenerImpl}. Statt
     * dafür einen Mixin einzuführen, wird die Vanilla-Zeile auf dem Client verworfen: Dort bietet

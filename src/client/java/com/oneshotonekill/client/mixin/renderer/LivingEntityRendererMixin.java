@@ -20,23 +20,23 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Unterdrückt das Zeichnen unsichtbarer Spielerfiguren vollständig.
- *
+ * <p>
  * <p>Ersetzt NeoForges {@code RenderPlayerEvent.Pre}; Fabric API hat dazu kein Gegenstück.
  * Vanilla zeichnet einen unsichtbaren Spieler nicht als Körper, wohl aber weiter dessen
  * Ausrüstung und gehaltene Gegenstände – ein Tarnmantel liefe damit als schwebender Bogen
  * durch die Arena.</p>
- *
+ * <p>
  * <p>Der Einstieg sitzt auf {@code LivingEntityRenderer#submit}, weil {@code AvatarRenderer}
  * diese Methode nicht selbst überschreibt; die Abfrage auf {@link AvatarRenderState} grenzt ihn
  * wieder auf Spielerfiguren ein.</p>
- *
+ * <p>
  * <p>Die Signatur steht ausgeschrieben, weil {@code javap} neben der eigentlichen Methode noch
  * eine Brücke {@code submit(EntityRenderState, …)} zeigt: Ohne den Deskriptor träfe der
  * Einstieg beide, und das Bild liefe zweimal durch dieselbe Prüfung.</p>
  */
 @Mixin(LivingEntityRenderer.class)
 public abstract class LivingEntityRendererMixin {
-   /** Richtet Rumpf, Kopf und damit den ausgestreckten Waffenarm zum Grappler-Anker aus. */
+   /** Richtet die Figur bereits ab dem Abschuss horizontal zum fliegenden Grappler-Haken aus. */
    @Inject(
       method = "extractRenderState(Lnet/minecraft/world/entity/LivingEntity;Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;F)V",
       at = @At("RETURN"))
@@ -45,17 +45,16 @@ public abstract class LivingEntityRendererMixin {
       if (!(state instanceof AvatarRenderState)) {
          return;
       }
-      RenderPose pull = GrapplePullState.INSTANCE.pose(entity, partialTicks);
-      if (pull == null) {
+      RenderPose aim = GrapplePullState.INSTANCE.aimPose(entity, partialTicks);
+      if (aim == null) {
          return;
       }
 
-      state.bodyRot = Mth.rotLerp(pull.blend(), state.bodyRot, pull.yaw());
-      // BOW_AND_ARROW richtet die ausgestreckten Arme nach Kopf-Yaw und -Pitch. Da der gesamte
-      // Körper weiter unten bereits entlang der Zugrichtung gekippt wird, müssen beide lokalen
-      // Kopfwinkel gegen null laufen; sonst würde die Waffenachse doppelt gedreht.
-      state.yRot = Mth.rotLerp(pull.blend(), state.yRot, 0.0F);
-      state.xRot = Mth.lerp(pull.blend(), state.xRot, 0.0F);
+      state.bodyRot = Mth.rotLerp(aim.blend(), state.bodyRot, aim.yaw());
+      // Die verbleibende vertikale Ausrichtung übernimmt HumanoidModelMixin am ausgestreckten
+      // Arm. Während des eigentlichen Zugs kippt setupRotations zusätzlich die ganze Figur.
+      state.yRot = Mth.rotLerp(aim.blend(), state.yRot, 0.0F);
+      state.xRot = Mth.lerp(aim.blend(), state.xRot, 0.0F);
    }
 
    /**

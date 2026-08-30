@@ -9,7 +9,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Sperrt die Mausdrehung während des Countdowns.
- *
+ * <p>
  * <p>Fabric API kennt kein Gegenstück zu NeoForges {@code CalculatePlayerTurnEvent}. Der
  * Abbruch ist hier gefahrlos: {@code MouseHandler} setzt {@code accumulatedDX} und
  * {@code accumulatedDY} unmittelbar nach dem Aufruf ohnehin zurück, aufgestaute Mausbewegung

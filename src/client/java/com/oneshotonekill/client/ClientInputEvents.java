@@ -6,7 +6,6 @@ import com.oneshotonekill.client.model.OsokClientModels.GrapplingHookModel;
 import com.oneshotonekill.client.screen.AirstrikeTargetScreen;
 import com.oneshotonekill.client.state.ClientStates.AbilityStatusState;
 import com.oneshotonekill.client.state.ClientStates.GlideState;
-import com.oneshotonekill.client.state.ClientStates.GrapplePullState;
 import com.oneshotonekill.client.state.ClientStates.MatchStartState;
 import com.oneshotonekill.client.state.ClientStates.NukeState;
 import com.oneshotonekill.item.runtime.MinigunRuntime;
@@ -35,15 +34,16 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Eingabe, Kamera und Waffenanimation auf dem Client.
- *
+ * <p>
  * <p>Drei dieser Wege bietet Fabric API als Ereignis an: der Tooltip, der Rechtsklick und der
  * eingehende Systemtext. Sie werden in {@link #register()} angemeldet.</p>
- *
+ * <p>
  * <p>Für alles Übrige – Sichtfeld, Kameraabstand, Handanimation, Nebel, Armhaltung und
  * Namensschild – gibt es weder Ereignis noch Access-Widener-Eintrag. Die Rechnung steht
  * trotzdem hier und nicht im Mixin: Jeder der Mixins unter {@code client/mixin} ist damit auf
  * seinen Einstiegspunkt beschränkt und ruft nur eine der folgenden Methoden auf.</p>
  */
+@SuppressWarnings({"SameReturnValue", "unused"})
 public final class ClientInputEvents {
    /** Kameraabstand während des Countdowns; Vanilla übernimmt die Wandprüfung selbst. */
    private static final float COUNTDOWN_CAMERA_DISTANCE = 3.0F;
@@ -89,7 +89,7 @@ public final class ClientInputEvents {
 
    /**
     * Öffnet das Luftangriffs-Radar beim Rechtsklick.
-    *
+    * <p>
     * Der Rückruf feuert auf beiden Seiten; geöffnet wird nur auf dem Client. {@code PASS} lässt
     * Vanilla anschließend weiterlaufen – das Menü ersetzt die Benutzung nicht, es begleitet sie.
     */
@@ -118,7 +118,7 @@ public final class ClientInputEvents {
 
    /**
     * Sichtfeld: Startstoß beim Match-Beginn, Vibration der laufenden Minigun, Sog im Gleitflug.
-    *
+    * <p>
     * Aufgerufen aus {@code AbstractClientPlayerFovMixin}.
     */
    public static float modifyFovModifier(float modifier) {
@@ -157,7 +157,7 @@ public final class ClientInputEvents {
 
    /**
     * Rückt die Kamera im Countdown vor das Gesicht.
-    *
+    * <p>
     * Aufgerufen aus {@code CameraZoomMixin}; die Verdeckungsprüfung gegen Wände macht Vanilla
     * danach selbst.
     */
@@ -167,12 +167,12 @@ public final class ClientInputEvents {
 
    /**
     * Lässt die Minigun in der Hand rütteln: erst das anlaufende Getriebe, dann der Rückstoß.
-    *
+    * <p>
     * Gerechnet wird mit der Einsatzdauer samt Zwischenbild-Anteil statt mit {@code tickCount} –
     * sonst steht das Bild zwischen zwei Ticks still und das Rütteln wirkt wie ein Bildfehler.
     * Die Auslenkung bleibt klein, denn sie verschiebt auch die sichtbare Mündung gegenüber der
     * Stelle, an der der Server die Schüsse ansetzt.
-    *
+    * <p>
     * Aufgerufen aus {@code ItemInHandRendererMixin}, auf einer eigenen Ebene des Pose-Stapels.
     */
    public static void applyMinigunHandShake(ItemStack itemStack, float partialTick, PoseStack poseStack) {
@@ -201,21 +201,19 @@ public final class ClientInputEvents {
    }
 
    /**
-    * Die Armhaltung für Railgun, Minigun und Grappling Hook.
-    *
+    * Die Armhaltung für Railgun und Minigun sowie die neutrale Ausgangshaltung des Grapplers.
+    * <p>
     * Beide sind schwere Waffen und werden im Anschlag gehalten wie ein gespannter Bogen.
     * Aufgerufen aus {@code AvatarRendererMixin}.
-    *
+    * <p>
     * @return die Haltung, oder {@code null}, wenn Vanilla entscheiden soll
     */
    public static HumanoidModel.@Nullable ArmPose heavyWeaponArmPose(Avatar avatar, ItemStack itemInHand,
                                                                    InteractionHand hand) {
       if (itemInHand.is(ModItems.GRAPPLING_HOOK)) {
-         // Der Pömpel ist während Flug, Zug und Einzug außerhalb der Waffe. In derselben Zeit
-         // bleibt der Waffenarm im Anschlag, statt mitsamt Grappler lose nach unten zu hängen.
-         return GrapplePullState.INSTANCE.isGrappleActive(avatar.getUUID())
-            ? HumanoidModel.ArmPose.BOW_AND_ARROW
-            : HumanoidModel.ArmPose.ITEM;
+         // Die richtungsabhängige Haltung wird nach Vanillas Animation in HumanoidModelMixin
+         // aufgebaut. ITEM ist hier die neutrale Ausgangslage für das weiche Einblenden.
+         return HumanoidModel.ArmPose.ITEM;
       }
       if (!itemInHand.is(ModItems.RAILGUN) && !itemInHand.is(ModItems.MINIGUN)) {
          return null;
@@ -228,7 +226,7 @@ public final class ClientInputEvents {
 
    /**
     * Verhindert das Namensschild über unsichtbaren Spielern.
-    *
+    * <p>
     * Der eigene Spieler bleibt ausgenommen: Sein Schild sieht ohnehin nur er selbst, und zwar
     * nur in der Verfolgeransicht. Aufgerufen aus {@code AvatarRendererMixin}.
     */
@@ -244,7 +242,7 @@ public final class ClientInputEvents {
 
    /**
     * Verwirft Vanillas eigene Beitritts- und Abschiedszeilen.
-    *
+    * <p>
     * Der Server schickt stattdessen die Zeile aus {@code PlayerEvents.PresenceMessages}. Vanilla
     * meldet den Beitritt ohne abbrechbares Ereignis direkt aus {@code PlayerList}, deshalb wird
     * die Zeile hier auf dem Client verworfen. Das ist gefahrlos, weil Client und Server dieselbe
@@ -265,7 +263,7 @@ public final class ClientInputEvents {
 
    /**
     * Legt den Fallout-Schleier über die Welt.
-    *
+    * <p>
     * Aufgerufen aus {@code FogRendererMixin}. Farbe und Reichweite laufen in 26.2 in einem
     * einzigen {@link FogData} zusammen; unter NeoForge waren das zwei getrennte Ereignisse.
     */

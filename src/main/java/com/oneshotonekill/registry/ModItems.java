@@ -14,15 +14,16 @@ import net.minecraft.world.item.Rarity;
 
 /**
  * Registriert die Items der Mod unmittelbar in {@link BuiltInRegistries#ITEM}.
- *
+ * <p>
  * Fabric kennt keinen aufgeschobenen Registrierungslauf: Die Einträge entstehen beim Laden
  * dieser Klasse, und {@link #register()} zwingt genau diesen Zeitpunkt in den
  * {@code ModInitializer}. Weil die Felder danach fertige {@link Item}-Objekte sind, entfällt
  * der Umweg über einen Halter.
- *
+ * <p>
  * Jedes Spezial-Item ist ein eigenes Item mit eigener Klasse und Textur – bewusst kein
  * umbenanntes Vanilla-Item.
  */
+@SuppressWarnings("unused")
 public final class ModItems {
 
    public static final Item MINIGUN = special("minigun", MinigunItem::new);
@@ -38,7 +39,7 @@ public final class ModItems {
    public static final Item FROST_TRAP = special("frost_trap", FrostTrapItem::new);
    /**
     * Der Eiskristall der Frost-Falle – Modellträger für Einschlag und Eiskäfig.
-    *
+    * <p>
     * Er ist wie die Lanze der Railgun gebaut: Spitze nach -Z, genau einen Block lang. Damit
     * passt dieselbe Drehung, und die Skalierung in Z ist unmittelbar seine Länge.
     */
@@ -53,7 +54,7 @@ public final class ModItems {
    public static final Item C4 = special("c4", C4Item::new);
    /**
     * Die klebende Ladung – reiner Modelltraeger.
-    *
+    * <p>
     * Der Gegenstand {@link #C4} zeigt seit dem Wegfall des eigenstaendigen Fernzuenders den
     * Zuendkasten, denn das ist es, was man in der Hand haelt. An der Wand klebt aber eine
     * Sprengladung, und die braucht ihr eigenes Modell. Beide tragen dieselbe einfaerbbare
@@ -62,7 +63,7 @@ public final class ModItems {
    public static final Item C4_CHARGE = special("c4_charge", Item::new);
    /**
     * Der Bomber und seine Ladung – reine Modelltraeger fuer das Matchende.
-    *
+    * <p>
     * Beide sind laengs der Y-Achse gebaut, mit der Nase nach unten; siehe
     * {@code tools/generate_nuke_3d.py}, warum das die drehsichere Bauweise ist.
     */
@@ -71,7 +72,7 @@ public final class ModItems {
    public static final Item RAILGUN = special("railgun", RailgunItem::new);
    /**
     * Die Lanze, die der Railgun-Schuss in die Luft zieht – nur ein Modellträger.
-    *
+    * <p>
     * Sie ist ganz einfärbbar: der Strahl kühlt von Weißglut nach Blau ab, während er verglüht.
     */
    public static final Item RAILGUN_BOLT = special("railgun_bolt", Item::new);
@@ -88,7 +89,7 @@ public final class ModItems {
    public static final Item SENTRY_BASE = special("sentry_base", Item::new);
    /**
     * Der schwenkbare Kopf des Geschützturms – wieder nur ein Modellträger.
-    *
+    * <p>
     * Unterbau und Kopf sind zwei Displays, damit der Turm beim Zielen nicht mit den Beinen
     * mitdreht. Sein Sensorauge ist über {@code minecraft:dye} einfärbbar und zeigt damit an,
     * ob der Turm sucht, erfasst hat oder feuert.
@@ -98,7 +99,7 @@ public final class ModItems {
    public static final Item ITEM_BOX = special("item_box", Item::new);
    /**
     * Nur als Modellträger für die fallenden Ladungen des Bombers registriert.
-    *
+    * <p>
     * Eine {@code Display.ItemDisplay} braucht einen Gegenstand, dessen Modell sie zeigen kann.
     * Weil dieses Item in {@code SpecialItem} nicht auftaucht, kann es weder aus einer Item-Box
     * fallen noch als Killstreak-Belohnung vergeben werden.
@@ -106,7 +107,7 @@ public final class ModItems {
    public static final Item BOMBER_BOMB = special("bomber_bomb", Item::new);
    /**
     * Die drei Bausteine des Atompilzes – Wolkenballen, Druckwellenring und Erdbrocken.
-    *
+    * <p>
     * Auch sie sind reine Modellträger und tauchen in {@code SpecialItem} nicht auf. Ihre Farbe
     * steht nicht in der Textur: die Item-Definition färbt über {@code minecraft:dye} ein, das
     * Modell ist fast weiß, und {@code MushroomCloud} setzt den Farbwert je Teil und Tick. Ein

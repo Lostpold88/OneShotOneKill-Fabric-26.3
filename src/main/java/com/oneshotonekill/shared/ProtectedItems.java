@@ -8,7 +8,7 @@ import net.minecraft.world.item.component.CustomData;
 
 /**
  * Erkennt feste Match-Ausrüstung (Dolch, Bogen, Pfeil) sowie Spezial-Items.
- *
+ * <p>
  * <p>Feste Ausrüstung darf weder bewegt noch gedroppt werden. Spezial-Items dürfen
  * im eigenen Spieler-Inventar frei bewegt, aber nicht weggeworfen oder in Kisten gelegt werden.</p>
  */

@@ -13,39 +13,39 @@ import net.minecraft.world.phys.Vec3;
 
 /**
  * Eine vollständige Abschrift einer Arena – die Karte, wie sie sein soll.
- *
+ * <p>
  * <h2>Warum es das gibt</h2>
- *
+ * <p>
  * <p>Der Rückweg über das Kartenarchiv sieht richtig aus und ist es nicht. Ein Reset packt die
  * Regionsdateien sauber neu aus – nachgemessen, sie sind danach byteweise mit dem Archiv
  * identisch –, aber der Server hält die Chunks derselben Dimension im Arbeitsspeicher und liest
  * sie nie wieder von der Platte. Der Spieler steht anschließend in genau der Karte, die er
  * kaputtgemacht hat, während auf der Platte die heile liegt. Eine Möglichkeit, geladene Chunks
  * von außen zu verwerfen, gibt es nicht.</p>
- *
+ * <p>
  * <p>Die zweite Buchführung – aufschreiben, was zerstört wird – deckt nur ab, was die Mod selbst
  * zerstört. Wer mit TNT arbeitet, geht durch {@code Level#explode} und kommt dort nie vorbei.</p>
- *
+ * <p>
  * <p>Diese Abschrift kennt beides nicht. Sie hält den Sollzustand und schreibt ihn zurück, ohne
  * zu fragen, wie der Istzustand zustande kam.</p>
- *
+ * <p>
  * <h2>Wie sie gespeichert wird</h2>
- *
+ * <p>
  * <p>Als Palette und Indexfeld, nicht als Karte aus Positionen. Eine Arena hat je nach Karte
  * dreißig- bis vierhunderttausend Zellen; als {@code HashMap<BlockPos, BlockState>} wären das
  * zweistellige Megabyte, als {@code short[]} über die Palette sind es unter einem. Die größte
  * der drei Karten braucht damit 0,9 MB – wenig genug, um sie dauerhaft zu halten.</p>
- *
+ * <p>
  * <p>Gespeichert wird der ganze Quader, nicht nur das Polygon der Kampfzone. Die paar Prozent
  * Luft an den Rändern kosten nichts und ersparen die Frage, was mit Schaden knapp außerhalb der
  * Zone geschieht.</p>
  */
+@SuppressWarnings("unused")
 public final class ArenaSnapshot {
    /** Darüber passt kein Index mehr in ein {@code short}; dann wird nicht abgeschrieben. */
    private static final int MAX_PALETTE = Short.MAX_VALUE;
    /** Großzügiger Puffer um Regionen und Lobby, damit die gesamte Karte und Nuke-Krater erfasst werden. */
    private static final int MARGIN_HORIZONTAL = 64;
-   private static final int MARGIN_BELOW = 32;
    private static final int MARGIN_ABOVE = 32;
 
    private final int minX;
@@ -71,11 +71,11 @@ public final class ArenaSnapshot {
 
    /**
     * Liest die gesamte Karte (Kampfbereich, Lobby, Dächer, Bedrock und weite Umgebung) ein.
-    *
+    * <p>
     * <p>Aufgerufen wird das unmittelbar nach dem Auspacken beim Serverstart – der eine
     * Zeitpunkt, an dem die Karte nachweislich unversehrt ist. Später wäre jede Abschrift nur
     * so gut wie der Zustand, den sie vorfindet.</p>
-    *
+    * <p>
     * @return {@code null}, wenn keine Regionen existieren oder die Palette überläuft
     */
    public static ArenaSnapshot capture(ServerLevel level, Arena arena) {
@@ -133,17 +133,17 @@ public final class ArenaSnapshot {
 
    /**
     * Schreibt die Abschrift zurück – ohne Rücksicht darauf, was sie vorfindet.
-    *
+    * <p>
     * <p>Gesetzt wird nur, was abweicht. Das ist nicht bloß schneller: Ein Reset auf einer
     * unbeschädigten Karte schickt damit kein einziges Paket, und einer nach einem einzelnen
     * TNT-Block genau so viele, wie der Krater groß war. Ein stumpfes Überschreiben aller
     * vierhunderttausend Zellen wäre für den Server und die Leitung dasselbe wie eine neue
     * Karte.</p>
-    *
+    * <p>
     * <p>Ohne Nachbarschaftsprüfung ({@code Block.UPDATE_CLIENTS}): Beim Zurückbauen einer
     * ganzen Karte wäre die Kettenreaktion aus fallendem Sand und brechenden Fackeln teurer als
     * das Setzen selbst – und das Ergebnis stünde ohnehin fest.</p>
-    *
+    * <p>
     * @return wie viele Blöcke geändert wurden
     */
    public int restore(ServerLevel level) {

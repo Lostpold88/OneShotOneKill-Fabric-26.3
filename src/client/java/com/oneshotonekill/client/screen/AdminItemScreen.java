@@ -24,11 +24,12 @@ import org.lwjgl.glfw.GLFW;
 
 /**
  * Modernes Admin-Arsenal: Kategorisierte Schnellausgabe aller Spezialitems und Fähigkeiten.
- *
+ * <p>
  * <p>Alle Bewegungen laufen auf {@link Util#getMillis()} und der gemessenen Bildzeit, nicht auf
  * Spielticks – ein Bildschirm soll auch dann flüssig bleiben, wenn der Zeitverzerrer den Takt
  * auf acht Ticks je Sekunde drückt.</p>
  */
+@SuppressWarnings("NullableProblems")
 public final class AdminItemScreen extends Screen {
    private static final int CARD_WIDTH = 580;
    private static final int CONTENT_HEIGHT = 270;
@@ -123,7 +124,7 @@ public final class AdminItemScreen extends Screen {
 
    @Override
    protected void init() {
-      listHeight = Math.max(MIN_CONTENT_HEIGHT, Math.min(CONTENT_HEIGHT, height - CHROME_HEIGHT));
+      listHeight = Math.clamp(height - CHROME_HEIGHT, MIN_CONTENT_HEIGHT, CONTENT_HEIGHT);
       cardHeight = listHeight + CHROME_HEIGHT;
       cardLeft = Math.max(4, width / 2 - CARD_WIDTH / 2);
       cardTop = Math.max(4, height / 2 - cardHeight / 2);
@@ -159,7 +160,7 @@ public final class AdminItemScreen extends Screen {
 
    /**
     * Nur die Unschärfe, kein Vanilla-Hintergrund.
-    *
+    * <p>
     * <p>Der Aufruf gehört hierher und nicht in {@code extractRenderState}: Die Unschärfe trennt
     * die bereits gezeichneten Ebenen von den folgenden, muss also feststehen, bevor der eigene
     * Inhalt beginnt. Vanillas Menühintergrund entfällt ersatzlos – über der unscharfen Welt

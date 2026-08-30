@@ -11,12 +11,12 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Hält geschützte Gegenstände im Inventar, statt sie werfen zu lassen.
- *
+ * <p>
  * <p>Fabric API kennt kein Gegenstück zu NeoForges {@code ItemTossEvent}: Das Item-Modul
  * beschreibt Eigenschaften von Gegenständen, die Player-Events decken Angriff, Benutzen und
  * Blockabbau ab, aber keinen Wurf. Ein Access Widener genügt nicht, weil der Wurf nicht
  * gelesen, sondern verhindert werden muss.</p>
- *
+ * <p>
  * <p>{@code ServerPlayer#drop(ItemStack, boolean, boolean)} ist dabei der einzige Punkt, durch
  * den beide Wege laufen: der Wurf per Taste über {@code ServerPlayer#drop(boolean)} und der aus
  * dem geöffneten Inventar. Nur die Serverfassung wird angefasst – der Client sagt hier ohnehin

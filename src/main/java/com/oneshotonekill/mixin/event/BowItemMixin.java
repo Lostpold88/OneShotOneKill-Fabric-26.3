@@ -15,13 +15,13 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Sperrt Spannen und Lösen des Bogens, wenn ein System der Mod es verlangt.
- *
+ * <p>
  * <p>Fabric API hat weder zu {@code ArrowNockEvent} noch zu {@code ArrowLooseEvent} ein
  * Gegenstück. {@code UseItemCallback} deckt zwar den Rechtsklick ab und fängt damit das
  * Spannen, aber nicht das Lösen: Das läuft über {@code releaseUsing}, wenn der Spieler die
  * Taste loslässt, und ist kein Interaktionsereignis mehr. Ein Access Widener hilft nicht –
  * beide Methoden sind öffentlich, es fehlt die Abbruchmöglichkeit.</p>
- *
+ * <p>
  * <p>Der Rückgabewert entspricht dem, was NeoForge aus den beiden Ereignissen machte:
  * {@code FAIL} beim gesperrten Spannen und ein wirkungsloses Lösen ohne Pfeil. Wer mitredet,
  * steht in {@link InteractionGates}.</p>

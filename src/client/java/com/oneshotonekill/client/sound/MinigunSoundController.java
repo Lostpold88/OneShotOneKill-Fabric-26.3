@@ -11,28 +11,28 @@ import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
-import net.minecraft.client.resources.sounds.SoundInstance.Attenuation;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 
 /**
  * Der Dauerlauf der Minigun aus {@code sounds/items/minigun.ogg} – für jeden, der ihn hören soll.
- *
+ * <p>
  * <p>Vorher lief er nur für den Schützen selbst. Gegner hörten von der Waffe gar nichts, und
  * ein zwischenzeitlich daruntergelegtes Pfeilgeräusch je Schuss war lauter als der Lauf selbst.
  * Jetzt bekommt jeder feuernde Spieler seinen eigenen Lauf: beim eigenen ohne Abstandsdämpfung
  * mitten im Kopf, bei fremden an ihrer Position im Raum.</p>
- *
+ * <p>
  * <p>Beide laufen mit derselben Grundlautstärke. Ein Zuschlag für fremde Waffen stand hier
  * einmal – der sollte über die Entfernung tragen, machte den fremden Lauf aus der Nähe aber
  * lauter als den eigenen, und das nimmt dem Ton seine wichtigste Aufgabe: zu verraten, wo der
  * Schütze steht. Jetzt zählt allein der Abstand, und aus null Metern klingt eine fremde Minigun
  * genauso wie die eigene.</p>
- *
+ * <p>
  * <p>Dass der Client von fremden Spielern überhaupt weiß, ob sie feuern, liegt an Vanilla:
  * {@code isUsingItem} und der gehaltene Gegenstand werden ohnehin synchronisiert. Es braucht
  * dafür also kein eigenes Paket.</p>
  */
+@SuppressWarnings("Java8CollectionRemoveIf")
 public final class MinigunSoundController {
     public static final MinigunSoundController INSTANCE = new MinigunSoundController();
     private final Map<UUID, MinigunLoopSound> loops = new HashMap<>();

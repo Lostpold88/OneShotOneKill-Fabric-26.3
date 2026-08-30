@@ -16,9 +16,9 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Serverseitige Aktionssperren, die genau dort greifen, wo die Aktion ankommt.
- *
+ * <p>
  * <p>Zwei Systeme hängen hier:</p>
- *
+ * <p>
  * <ul>
  *   <li><b>Der Eiskäfig der Frost-Falle.</b> Die Eingaben sind schon auf dem Client tot
  *       ({@code MinecraftInteractionMixin}, {@code KeyboardInputMixin}) – hier steht die
@@ -29,7 +29,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  *       NeoForges {@code LivingSwapItemsEvent.Hands}, und Vanilla führt den Tausch ohne Umweg
  *       im {@code switch} von {@code handlePlayerAction} aus.</li>
  * </ul>
- *
+ * <p>
  * <p><b>Warum nicht am {@code HEAD}:</b> Jeder dieser Handler beginnt mit
  * {@code PacketUtils.ensureRunningOnSameThread}, das ein auf dem Netzwerk-Thread eingetroffenes
  * Paket per Ausnahme zurückstellt. Ein Einstieg davor liefe genau einmal auf dem falschen

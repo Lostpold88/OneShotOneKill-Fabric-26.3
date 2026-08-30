@@ -6,7 +6,6 @@ import com.mojang.blaze3d.framegraph.FrameGraphBuilder;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.oneshotonekill.client.effect.TimeDistortionEffects;
 import java.util.Map;
-import net.minecraft.client.renderer.PostChain;
 import net.minecraft.client.renderer.PostPass;
 import org.spongepowered.asm.mixin.Final;
 import org.spongepowered.asm.mixin.Mixin;

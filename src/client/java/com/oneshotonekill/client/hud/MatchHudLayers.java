@@ -1,6 +1,5 @@
 package com.oneshotonekill.client.hud;
 
-import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.client.screen.OsokWidgets;
 import com.oneshotonekill.client.state.ClientStates.*;
 import static com.oneshotonekill.client.state.ClientStates.*;
@@ -17,6 +16,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 /**
  * Modernes AAA Cyber-Esports HUD-Intro für Match-Start & Countdown.
  */
+@SuppressWarnings({"DuplicateBranchesInSwitch", "NullableProblems", "UnnecessaryLocalVariable"})
 public final class MatchHudLayers {
    private MatchHudLayers() {}
 
@@ -93,7 +93,7 @@ public final class MatchHudLayers {
          }
 
          float remaining = state.getRemainingTicks(partialTick);
-         int second = Math.max(1, Math.min(3, Mth.ceil(remaining / 20.0F)));
+         int second = Math.clamp(Mth.ceil(remaining / 20.0F), 1, 3);
          float withinSecond = 1.0F - (remaining % 20.0F) / 20.0F;
          float overall = 1.0F - remaining / MatchStartState.COUNTDOWN_TICKS;
          int accent = SECOND_COLORS[second - 1];

@@ -34,7 +34,7 @@ import org.joml.Vector3f;
 
 /**
  * Flug, Seil und Zugbewegung des Grappling Hooks.
- *
+ * <p>
  * <p>Die Simulation ist vollständig serverautoritär. Der Haken ist kein Vanilla-Projektil,
  * sondern ein präzise pro Tick geraycasteter Punkt; dadurch kann er bei seinem hohen Tempo
  * keinen dünnen Block überspringen. Nur der tatsächlich fliegende beziehungsweise haftende
@@ -42,6 +42,7 @@ import org.joml.Vector3f;
  * Hakenpunkt direkt an die interpolierte Waffenmündung; so kann keine zweite Entity der
  * Spielerbewegung hinterherhängen.</p>
  */
+@SuppressWarnings({"resource", "SameReturnValue"})
 public final class GrapplingHookSystem {
    public static final GrapplingHookSystem INSTANCE = new GrapplingHookSystem();
 
@@ -282,7 +283,7 @@ public final class GrapplingHookSystem {
 
    /**
     * Serverseitiger Start- und Rückkehrpunkt nahe der sichtbaren Waffenmündung.
-    *
+    * <p>
     * <p>{@link Player#getHandHoldingItemAngle} liefert bereits die Seite des Arms, der das Item
     * tatsächlich hält. Dieser Vektor darf nicht noch einmal negiert werden: Bei einer rechten
     * Hand würde der Pömpel sonst links vom Spieler erscheinen. Die bildgenaue Seilbuchse liest

@@ -4,7 +4,7 @@ import java.util.Arrays;
 
 /**
  * Geometrie und räumliche Grenzen einer Arena.
- *
+ * <p>
  * <p>Enthält das Schnittstellen-Protokoll sowie die konkreten Implementierungen
  * für Polygone (Punkt-in-Polygon Raycasting mit Rastermaske), Quader (Box)
  * und die fest vermessenen Umrissdaten der drei Standard-Karten.</p>

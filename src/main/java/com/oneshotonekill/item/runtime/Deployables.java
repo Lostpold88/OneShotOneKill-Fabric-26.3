@@ -45,18 +45,19 @@ import org.joml.Vector3f;
 
 /**
  * Alles, was in der Arena abgestellt wird: Frost-Falle, C4-Ladung und Geschützturm.
- *
+ * <p>
  * Keines davon verändert die Karte. Die Geräte sind reine Serverobjekte, die sich selbst mit
  * Partikeln zeichnen – so bleibt die Arena garantiert unberührt und muss nach dem Match nicht
  * zurückgesetzt werden.
  */
+@SuppressWarnings({"BooleanMethodIsAlwaysInverted", "ConstantValue", "RedundantCast", "resource", "SuspiciousNameCombination", "unused"})
 public final class Deployables {
    public static final Deployables INSTANCE = new Deployables();
 
    private static final int TRAP_FREEZE_TICKS = 140;
    /**
     * Ab dieser Abweichung vom Ankerpunkt wird ein Eingefrorener zurückgesetzt.
-    *
+    * <p>
     * Derselbe Wert wie im Countdown des Match-Starts: groß genug, dass die üblichen
     * Zehntelblöcke aus Restschwung und Netzwerklauf keine Korrektur auslösen, klein genug,
     * dass niemand aus dem Käfig herausspaziert.
@@ -69,7 +70,7 @@ public final class Deployables {
    private static final double TRAP_LIFT = 0.0781;
    /**
     * Sichtweite der Falle in Vielfachen von 64 Blöcken.
-    *
+    * <p>
     * Bewusst kurz. Eine Haftmine soll man finden können, wenn man hinsieht, und nicht schon
     * beim Betreten des Raums bemerken.
     */
@@ -100,7 +101,7 @@ public final class Deployables {
    private static final int ICE_DEEP = 0x6FB6D8;
    /**
     * Kraterradius der C4 – und zugleich ihr tödlicher Radius.
-    *
+    * <p>
     * Beide aus derselben Zahl, mit Absicht: tödlich ist genau das Loch, das man hinterher
     * sieht, nichts darüber hinaus. Der Luftangriff hält es genauso.
     */
@@ -110,7 +111,7 @@ public final class Deployables {
    private static final int C4_RESTORE_DELAY_TICKS = 20 * 6;
    /**
     * Abstand von der Klebefläche zur Modellmitte.
-    *
+    * <p>
     * Steht so in der Ausgabe von {@code tools/generate_c4_3d.py} und muss mit ihr
     * übereinstimmen. Eine {@code Display} zeichnet ihr Modell um die eigene Position zentriert;
     * ohne diesen Versatz steckte die halbe Ladung in der Wand.
@@ -120,7 +121,7 @@ public final class Deployables {
    private static final double C4_REACH = 4.5;
    /**
     * So weit darf der Blick an der Ladung vorbeigehen und sie trotzdem meinen.
-    *
+    * <p>
     * Knapp bemessen, und das mit Absicht: Seit der Zünder weg ist, greift das Abnehmen bei
     * jedem Rechtsklick – auch mit dem Bogen in der Zweithand. Eine großzügige Toleranz nähme
     * einem in der Nähe der eigenen Ladung sonst jeden Schuss ab.
@@ -132,7 +133,7 @@ public final class Deployables {
    private static final int C4_FLASH_TICKS = 5;
    /**
     * Glimmen zwischen den Blitzen und der Blitz selbst – beides rot, nichts dazwischen.
-    *
+    * <p>
     * Der Blitz geht über reines Rot hinaus: die Einfärbung wirkt als Faktor auf die fast weiße
     * Textur, und bei 255 im roten Kanal ist dort Schluss. Heller wird es nur, indem auch Grün
     * und Blau ein Stück mitgehen – so, wie eine wirklich helle Leuchtdiode in der Mitte
@@ -154,7 +155,7 @@ public final class Deployables {
    private static final int TURRET_INTEGRITY = 4;
    /**
     * Höhe der beiden Displays über der Standfläche und Lage der Mündungen.
-    *
+    * <p>
     * Stehen so in der Ausgabe von {@code tools/generate_sentry_turret_3d.py} und müssen mit
     * ihr übereinstimmen: der Kopf schwenkt um seine Lagerung, und die Mündungsfeuer sollen
     * dort sitzen, wo die Läufe aufhören, nicht irgendwo davor.
@@ -166,7 +167,7 @@ public final class Deployables {
    private static final double MUZZLE_UP = 0.0250;
    /**
     * Schwenkgeschwindigkeit des Kopfes im Bogenmaß je Tick.
-    *
+    * <p>
     * Bewusst begrenzt. Vorher stand der Kopf im selben Tick auf jedem Ziel, egal woher es kam –
     * damit war der Turm von keiner Seite zu umgehen. Rund neun Grad je Tick sind schnell genug,
     * um niemanden entkommen zu lassen, und langsam genug, dass eine Flanke sich lohnt.
@@ -177,10 +178,10 @@ public final class Deployables {
    /** Suchlauf ohne Ziel: Ausschlag und Geschwindigkeit des Schwenks. */
    private static final float TURRET_SCAN_ARC = 1.15F;
    private static final float TURRET_SCAN_SPEED = 0.035F;
-   /** Farbe des Sensorauges je Lage. */
+   /* Farbe des Sensorauges je Lage. */
    /**
     * Das Sensorauge blinkt, statt eine Farbe zu halten.
-    *
+    * <p>
     * Eine feste Farbe sagt zwar, in welcher Lage der Turm ist, aber sie fällt nicht auf. Erst
     * der Takt macht daraus eine Warnung: langsames Atmen beim Suchen, ein Doppelschlag beim
     * Erfassen, hektisches Stroboskop beim Feuern.
@@ -209,7 +210,7 @@ public final class Deployables {
 
    /**
     * Legt eine Frost-Falle flach auf den Boden.
-    *
+    * <p>
     * Sie soll übersehen werden können. Vorher stand eine hochkant gedrehte Bildtafel mit
     * Leuchtrand da, die durch Wände zu sehen war, und zog jeden Tick acht Schneeflocken im
     * Kreis – als Falle damit wertlos. Jetzt liegt dort eine flache dunkle Scheibe ohne
@@ -256,11 +257,11 @@ public final class Deployables {
 
    /**
     * Klebt eine Ladung auf die angeklickte Fläche.
-    *
+    * <p>
     * Anders als Falle und Turm steht sie nicht auf dem Boden – sie haftet, an Wänden und unter
     * Decken genauso. Dafür wird die Oberseite des Modells auf die Flächennormale gedreht und die
     * Entity um die halbe Modellhöhe nach außen gerückt.
-    *
+    * <p>
     * Einen Leuchtrand bekommt sie bewusst nicht. Die anderen Geräte tragen einen, der durch
     * Wände zu sehen ist; bei einer versteckten Ladung nähme das genau den Sinn.
     */
@@ -289,7 +290,7 @@ public final class Deployables {
 
    /**
     * Der Krater, den diese Ladung reißt – abhängig davon, worauf sie klebt.
-    *
+    * <p>
     * Die Kugel wird gegen die Fläche versetzt, an der die Ladung hängt: auf dem Boden nach
     * unten, unter einer Decke nach oben, an einer Wand gar nicht. Ohne diese Fallunterscheidung
     * spränge eine Ladung an der Wand den Boden mehrere Blöcke unter sich weg und ließe die Wand
@@ -302,13 +303,13 @@ public final class Deployables {
 
    /**
     * Ausrichtung der Ladung auf einer Fläche.
-    *
+    * <p>
     * Die Modelloberseite zeigt von der Fläche weg. Auf Boden und Decke dreht sie sich zusätzlich
     * so, dass der Zündkasten den ansieht, der sie gesetzt hat. Der halbe Umlauf im Winkel ist
     * kein Versehen: {@code DisplayRenderer.ItemDisplayRenderer#submitInner} legt vor dem Zeichnen
     * ein {@code Axis.YP.rotation(PI)} auf den Stapel, das Modell steht in der Welt also um
     * 180 Grad verdreht zu seiner Geometrie.
-    *
+    * <p>
     * An einer Wand bleibt der Rollwinkel dem überlassen, was {@code rotationTo} liefert. Ein
     * eigener Wert brächte dort nichts: die zweite Diode sitzt auf dem Deckel und zeigt damit
     * ohnehin von der Wand weg.
@@ -331,7 +332,7 @@ public final class Deployables {
 
    /**
     * Stellt einen Geschützturm auf.
-    *
+    * <p>
     * Er besteht aus zwei Displays: einem Unterbau, der steht, und einem Kopf, der schwenkt.
     * Vorher war es eines, und dann drehte sich das ganze Gerät samt Beinen zum Ziel – es sah
     * aus, als rutschte es über den Boden.
@@ -485,7 +486,7 @@ public final class Deployables {
 
    /**
     * Friert einen Spieler ein und baut den Eiskäfig um ihn.
-    *
+    * <p>
     * Der Käfig ist der eigentliche Effekt: sieben Kristalle fahren im Kreis aus dem Boden und
     * neigen sich über ihn, dazu ein Ring aus Rauhreif zu seinen Füßen. Eine Wolke
     * Schneeflocken täte es nicht – die ist nach einer Sekunde weg, und der Getroffene steht
@@ -544,7 +545,7 @@ public final class Deployables {
 
    /**
     * Setzt den Käfig für diesen Tick: ausfahren, stehen, zerspringen.
-    *
+    * <p>
     * Die Kristalle wachsen in der Länge, nicht in der Größe – sie sollen aus dem Boden fahren
     * und nicht aufgeblasen wirken. Am Ende schrumpfen sie schnell zusammen, dazu der Bruchton.
     */
@@ -578,10 +579,10 @@ public final class Deployables {
       if (colour != state.colour) {
          state.colour = colour;
          for (Display.ItemDisplay shard : state.shards) {
-            shard.getSlot(0).set(shardStack(colour));
+            Hologram.setItem(shard, shardStack(colour));
          }
          if (state.ring != null) {
-            state.ring.getSlot(0).set(iceRingStack(colour));
+            Hologram.setItem(state.ring, iceRingStack(colour));
          }
       }
    }
@@ -598,23 +599,23 @@ public final class Deployables {
       return result & 0xF8F8F8;
    }
 
-   /**
+   /*
     * Hält eingefrorene Spieler wirklich fest.
-    *
+    * <p>
     * Eine reine Verlangsamung reicht nicht – ein bereits begonnener Sprung trüge den Getroffenen
     * weiterhin mehrere Blöcke weit. Deshalb wird die Position zurückgesetzt und die Geschwindigkeit
     * genullt. Umsehen bleibt erlaubt, sonst fühlt es sich wie ein Verbindungsabbruch an.
     */
    /**
     * Hält einen Eingefrorenen auf seinem Ankerpunkt fest.
-    *
+    * <p>
     * <p>Entscheidend ist, <em>wann</em> zurückgesetzt wird. Vorher lief hier in jedem Tick ein
     * {@code teleportTo}, und weil das immer ein Positionspaket schickt, waren das über die sieben
     * Sekunden rund einhundertvierzig erzwungene Korrekturen — der Grund für das Ruckeln beim
     * Gegenlaufen. Die Bewegung wird stattdessen schon auf dem Client unterdrückt
     * ({@code KeyboardInputMixin}); hier bleibt nur die Auffanglinie, und die greift erst, wenn
     * der Spieler wirklich weggerutscht ist.</p>
-    *
+    * <p>
     * <p>Genau so hält es der Countdown beim Match-Start in {@code MatchManager.Countdown}.
     * {@code hurtMarked} setzt dabei nur die Korrektur, nicht jeder Tick: Es schickt die
     * genullte Geschwindigkeit zum Client und räumt dessen Restschwung mit aus.</p>
@@ -674,14 +675,14 @@ public final class Deployables {
 
    /**
     * Die scharfe Ladung blinkt, funkt und piept.
-    *
+    * <p>
     * Gefärbt wird dabei nur die Leuchtdiode: das Modell trägt {@code tintindex} allein auf ihren
     * Flächen, die Sprengmasse bleibt unberührt. Der Farbwert steckt im Gegenstand und geht als
     * eigenes Paket hinaus, deshalb wird er nur bei echter Änderung gesetzt.
-    *
+    * <p>
     * Hält der Besitzer eine weitere Ladung in der Hand – und damit den Zünder –, blinkt sie
     * dreimal so schnell: für ihn eine Bestätigung, für jeden anderen die letzte Warnung.
-    *
+    * <p>
     * Ton gibt sie keinen von sich. Eine piepende Ladung wäre um jede Ecke zu hören und damit
     * genau das Gegenteil einer versteckten.
     */
@@ -705,7 +706,7 @@ public final class Deployables {
          return;
       }
       charge.led = colour;
-      charge.display.getSlot(0).set(ledStack(colour));
+      Hologram.setItem(charge.display, ledStack(colour));
    }
 
    /** Ob der Besitzer den Zünder – also die Ladung selbst – gerade in der Hand hält. */
@@ -734,13 +735,13 @@ public final class Deployables {
 
    /**
     * Nimmt die angesehene eigene Ladung wieder von der Wand.
-    *
+    * <p>
     * Gesucht wird entlang der Blickachse: wer zwei Ladungen nebeneinander geklebt hat, soll die
     * abnehmen, die er ansieht, und nicht die, die zufällig näher liegt.
-    *
+    * <p>
     * Zurückgegeben wird nichts – der Gegenstand wurde beim Kleben gar nicht erst verbraucht.
     * Er verschwindet erst beim Zünden, siehe {@link #detonateAll(ServerPlayer)}.
-    *
+    * <p>
     * Meldet {@code false} ohne jede Rückmeldung, wenn der Blick auf keine eigene Ladung zeigt.
     * Das ist wichtig: Aufgerufen wird bei jedem Rechtsklick, und die allermeisten davon meinen
     * etwas ganz anderes.
@@ -870,7 +871,7 @@ public final class Deployables {
 
    /**
     * Richtet den Kopf aus – auf ein Ziel oder im Suchlauf.
-    *
+    * <p>
     * Der Turm hält sein Ziel fest, solange es gültig bleibt. Ohne das verteilt er seine Treffer
     * auf alle Gegner in Reichweite und kommt bei niemandem auf die drei nötigen Treffer.
     */
@@ -978,12 +979,12 @@ public final class Deployables {
          return;
       }
       turret.lensShown = colour;
-      turret.headDisplay.getSlot(0).set(lensStack(colour));
+      Hologram.setItem(turret.headDisplay, lensStack(colour));
    }
 
    /**
     * Pfeile, die den Turm treffen, beschädigen ihn.
-    *
+    * <p>
     * Über den Schadensweg ginge das nicht: der Turm ist keine Entity mit Trefferbox, sondern
     * zwei Displays ganz ohne Kollision – ein Pfeil flöge hindurch, ohne dass irgendetwas
     * feuerte. Deshalb wird hier die Strecke geprüft, die der Pfeil in diesem Tick zurückgelegt
@@ -1010,7 +1011,7 @@ public final class Deployables {
 
    /**
     * Ein Treffer auf den Turm.
-    *
+    * <p>
     * @param credit Wem der Treffer gutgeschrieben wird – der Schütze oder der Besitzer des
     *               feuernden Turms. Darf fehlen: Ein Turm schießt weiter, auch wenn der, der
     *               ihn aufgestellt hat, längst offline ist.
@@ -1051,7 +1052,7 @@ public final class Deployables {
 
    /**
     * Der Turm fällt aus und wird abgebaut – ohne Explosion.
-    *
+    * <p>
     * Er hatte einen Feuerball, und der war irreführend: nichts an ihm detoniert, niemand nimmt
     * Schaden, und wer den Knall hörte, suchte nach einer Sprengladung. Jetzt raucht die
     * Elektrik ab, mehr nicht.
@@ -1125,7 +1126,7 @@ public final class Deployables {
 
    /**
     * Ein Schuss auf einen fremden Turm.
-    *
+    * <p>
     * Ein Treffer kostet dieselbe Widerstandskraft wie ein Pfeil. Vier Schüsse im Takt von acht
     * Ticks heißt: Wer zuerst ausgerichtet ist, gewinnt das Duell – und das ist der Reiz daran,
     * einen Turm gegen einen anderen zu stellen.
@@ -1173,7 +1174,7 @@ public final class Deployables {
 
    /**
     * Ob dieser Turm auf jenen schießen darf.
-    *
+    * <p>
     * Die Prüfung gegen die Liste der lebenden Türme steht mit Absicht mit vorn: Ein Verweis auf
     * einen längst abgeräumten Turm sähe sonst weiter gültig aus, und der Turm feuerte auf eine
     * Stelle, an der nichts mehr steht.
@@ -1237,7 +1238,7 @@ public final class Deployables {
 
    /**
     * Ob noch eine Ladung gesetzt werden darf.
-    *
+    * <p>
     * Eine Ladung je Gegenstand: Wer zwei C4 im Inventar hat, klebt zwei an die Wand. Der
     * Gegenstand bleibt beim Kleben liegen, weil er zugleich der Zünder ist – ohne diese
     * Abrechnung ließe sich mit einem einzigen C4 die halbe Karte zupflastern.
@@ -1401,10 +1402,10 @@ public final class Deployables {
 
    /**
     * Alles, was dieser Spieler abgestellt hat – für die Peilung auf seinem HUD.
-    *
+    * <p>
     * Nur die eigenen Geräte: Eine Frost-Falle ist für Gegner absichtlich unsichtbar, und wer
     * fremde C4 auf dem Schirm hätte, müsste sie nicht mehr suchen.
-    *
+    * <p>
     * Gemeldet wird die Stelle, an der das Gerät wirklich steht – beim Turm sein Kopf, also das,
     * was man von ihm sieht. Wie hoch das Zeichen darüber schwebt, entscheidet das HUD; nur so
     * kann es auch prüfen, ob freie Sicht auf das Gerät selbst besteht.
@@ -1445,7 +1446,7 @@ public final class Deployables {
 
    /**
     * Was ein Tod beendet: nur das Eingefrorensein.
-    *
+    * <p>
     * Fallen, Ladungen und Türme bleiben stehen. Sie sind aufgestellt worden und gehören zur
     * Karte, nicht zum Leben ihres Aufstellers – ein Turm, der mit seinem Besitzer verschwindet,
     * lohnt sich nie.
@@ -1558,7 +1559,7 @@ public final class Deployables {
       private UUID target;
       /**
        * Ein anvisierter fremder Turm.
-       *
+       * <p>
        * Als Verweis und nicht als Kennung: Türme haben keine, und eine einzuführen hieße, sie
        * überall mitzuschleppen. Ob der Verweis noch gilt, sagt die Liste der lebenden Türme –
        * bei einer Handvoll Einträgen ist das billiger als jede Buchführung.
@@ -1603,7 +1604,7 @@ public final class Deployables {
 
       /**
        * Mündung eines der beiden Läufe, aus der Ausrichtung des Kopfes gerechnet.
-       *
+       * <p>
        * Ein fester Abstand über der Lagerung täte es nicht: der Kopf schwenkt, und die Läufe
        * schwenken mit. Wer das Mündungsfeuer an einen festen Punkt setzt, sieht es beim
        * Seitwärtsschießen neben der Waffe hängen.

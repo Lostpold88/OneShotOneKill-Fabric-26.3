@@ -41,15 +41,16 @@ import net.minecraft.client.Minecraft;
 
 /**
  * Nimmt die Pakete entgegen, die nur den Client betreffen.
- *
+ * <p>
  * <p>Fabric trennt Sende- und Empfangsseite: Die Pakettypen stehen im gemeinsamen Source-Set in
  * {@code OsokPayloads}, die Empfänger für Server → Client dagegen hier. Das ist keine bloße
  * Ordnungsfrage – diese Klasse fasst Bildschirme, Klangregler und Anzeigezustände an, die es im
  * Source-Set {@code src/main/java} gar nicht gibt und die auf einem dedizierten Server nie
  * geladen werden.</p>
- *
+ * <p>
  * <p>Fabric ruft die Empfänger bereits auf dem Client-Thread auf.</p>
  */
+@SuppressWarnings("unused")
 public final class OsokClientHandlers {
    private OsokClientHandlers() {
    }

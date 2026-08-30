@@ -10,7 +10,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
 
 /**
  * Startet den bestätigten Zeitbruch genau dann, wenn Vanilla die neue Server-Tickrate übernimmt.
- *
+ * <p>
  * <p>Der Einstieg liegt bewusst am {@code TAIL} und nicht am {@code HEAD}:
  * {@code handleTickingState} ruft als allererste Anweisung
  * {@code PacketUtils.ensureRunningOnSameThread}, das den Aufruf auf den Client-Thread umplant und

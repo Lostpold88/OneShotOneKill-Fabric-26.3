@@ -34,18 +34,19 @@ import org.jspecify.annotations.Nullable;
 
 /**
  * Das Seil des Grappling Hooks als Bestandteil desselben sichtbaren Schusses wie der Haken.
- *
+ * <p>
  * <p>Der Hakenpunkt kommt vom Server. Die Mündung wird dagegen nicht mehr aus Augenposition und
  * geschätzten Offsets gewonnen: Ein unsichtbarer {@link SpecialModelRenderer} sitzt als weitere
  * Ebene im Grappler-Item und liest die echte Modellmatrix am lokalen Rohrmund aus. Damit wirken
  * automatisch First-Person-Transformation, Hand-Bobbing, F5-Armhaltung und die Grappler-Neigung
  * auf denselben Punkt.</p>
- *
+ * <p>
  * <p>Das Kabel selbst bleibt im Weltpass. First-Person-Gegenstände werden nach der Welt mit
  * geleertem Tiefenpuffer gezeichnet; dort ein 38 Meter langes Seil zu zeichnen ließe es durch
  * Wände scheinen. Deshalb speichert der Spezial-Layer nur die unveränderliche Messung, und der
  * nächste Welt-Frame setzt sie relativ zur aktuellen Kamera beziehungsweise Spielerposition ein.</p>
  */
+@SuppressWarnings({"NullableProblems", "resource"})
 public final class GrapplingHookRenderer implements SpecialModelRenderer<GrapplingHookRenderer.CaptureArgument> {
    public static final GrapplingHookRenderer INSTANCE = new GrapplingHookRenderer();
 

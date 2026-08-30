@@ -1,6 +1,6 @@
 package com.oneshotonekill.client.hud;
+import com.oneshotonekill.shared.Hologram;
 
-import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.client.screen.OsokWidgets;
 import static com.oneshotonekill.client.state.ClientStates.*;
 import com.oneshotonekill.client.state.ClientStates.*;
@@ -56,13 +56,12 @@ import org.joml.Quaternionfc;
 import org.joml.Vector3f;
 import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
-import static com.oneshotonekill.item.types.AbilityItems.*;
-import static com.oneshotonekill.item.types.DeployableItems.*;
 import static com.oneshotonekill.item.types.WeaponItems.*;
 
 /**
  * HUD-Layer Gruppe.
  */
+@SuppressWarnings({"NullableProblems", "SameParameterValue", "unused"})
 public final class CombatHudLayers {
    private CombatHudLayers() {}
 
@@ -673,7 +672,7 @@ public final class CombatHudLayers {
    // =========================================================================
    /**
     * Marker fuer die Spezialitem-Boxen am Arenaboden.
-    *
+    * <p>
     * Auf Fabric war das ein Mixin auf {@code Gui}, weil es dort keinen Hook fuer eine eigene
     * HUD-Ebene gibt. Fabric API kennt {@link HudElement} – die Zeichenroutine ist unveraendert, nur
     * angemeldet wird sie jetzt regulaer ueber {@code HudElementRegistry}.
@@ -700,7 +699,7 @@ public final class CombatHudLayers {
    		float beat = 0.5f + 0.5f * Mth.sin((player.tickCount + partialTick) * 0.22f);
    
    		for (Entity entity : client.level.entitiesForRendering()) {
-   			if (!(entity instanceof Display.ItemDisplay box) || !box.getSlot(0).get().is(ModItems.ITEM_BOX)) {
+         if (!(entity instanceof Display.ItemDisplay box) || !Hologram.item(box).is(ModItems.ITEM_BOX)) {
    				continue;
    			}
    			Vec3 at = box.position().add(0.0, 0.55, 0.0);
@@ -741,19 +740,19 @@ public final class CombatHudLayers {
    // =========================================================================
    /**
     * Peilung auf die eigenen abgestellten Geräte: C4-Ladungen, Geschütztürme und Frost-Fallen.
-    *
+    * <p>
     * Die drei haben gemeinsam, dass man sie irgendwo hinstellt und danach wiederfinden muss. Die
     * Frost-Falle sagt es beim Aufstellen sogar ausdrücklich – „merk dir die Stelle“ –, weil sie
     * für alle unsichtbar ist; eine C4 klebt schnell an einer Wand, die von vorne wie jede andere
     * aussieht. Diese Ebene nimmt einem das Merken ab, ohne die Geräte für Gegner zu verraten:
     * gezeichnet wird nur, was der Server als Eigentum des Empfängers meldet.
-    *
+    * <p>
     * Projiziert wird über {@link OsokWidgets.WorldMarker} – derselbe Baustein, den auch der
     * Marker der Item-Boxen benutzt, damit beide Anzeigen an derselben Stelle sitzen.
-    *
+    * <p>
     * <p>Gezeichnet wird ausschließlich, was wirklich im Bild liegt. Es gibt bewusst keinen
     * Randanzeiger und keine Peilung um das Fadenkreuz: Wer wegsieht, soll sein HUD frei haben.
-    *
+    * <p>
     * <p>Und wer sein Gerät ohnehin sieht, braucht kein Zeichen darauf. Steht nichts zwischen
     * Kamera und Gerät, blendet die Plakette aus – siehe {@link Sightlines}. Übrig bleibt genau
     * der Fall, für den die Peilung gedacht ist: Das Gerät liegt hinter einer Wand, unter einem
@@ -784,7 +783,7 @@ public final class CombatHudLayers {
 
       /**
        * Rand des Bildes, in dem ein Zeichen ausblendet.
-       *
+       * <p>
        * Ohne diesen Streifen springt ein Zeichen an der Kante hart an und aus, sobald man den Kopf
        * bewegt. Einen Randanzeiger gibt es bewusst nicht: Was nicht im Bild liegt, wird gar nicht
        * gezeichnet – wer nicht hinschaut, soll sein HUD frei haben.
@@ -875,7 +874,7 @@ public final class CombatHudLayers {
 
       /**
        * Weiches Ausblenden zum Bildrand hin.
-       *
+       * <p>
        * Gerechnet wird über den kleinsten Abstand zu einer der vier Kanten; innerhalb des
        * Ausblendstreifens läuft die Deckkraft linear auf null.
        */
@@ -888,7 +887,7 @@ public final class CombatHudLayers {
 
       /**
        * Die Plakette: Schlagschatten, farbiger Rand, dunkle Füllung.
-       *
+       * <p>
        * Ein gefülltes Achteck mit hellem Zeichen darauf liest sich auf jedem Untergrund sofort –
        * anders als reine Strichzeichnung, die vor heller Karte verschwindet. Die Füllung ist die
        * Gerätefarbe, weit ins Dunkle gezogen: Sie bleibt als Farbton erkennbar, ohne dem weißen
@@ -903,7 +902,7 @@ public final class CombatHudLayers {
 
       /**
        * Gefülltes Achteck als Zeilenfüllung – eine Fläche je Bildzeile.
-       *
+       * <p>
        * Die abgeschrägten Ecken nehmen der Form das Klobige eines Rechtecks, ohne die
        * Rundungsartefakte, die ein echter Kreis auf diesem Raster zeigt.
        */
@@ -1004,17 +1003,17 @@ public final class CombatHudLayers {
 
       /**
        * Merkt je Gerät, ob etwas zwischen ihm und der Kamera steht.
-       *
+       * <p>
        * <p>Geprüft wird wie in {@code LivingEntity#hasLineOfSight}: ein Blockstrahl über
        * {@code Level#clip}, und nur ein {@code HitResult.Type.MISS} gilt als freie Sicht.
        * Anders als dort läuft der Strahl gegen {@link ClipContext.Block#VISUAL} statt gegen die
        * Kollisionsform – gefragt ist hier buchstäblich, ob man das Gerät sieht, und durch eine
        * Glasscheibe sieht man hindurch.
-       *
+       * <p>
        * <p>Gemessen wird von der echten Kameraposition, nicht vom Kopf des Spielers: In der
        * Verfolgeransicht steht die Kamera woanders, und maßgeblich ist, was auf dem Bildschirm
        * ankommt.
-       *
+       * <p>
        * <p>Ein Blockstrahl ist zu teuer, um ihn in jedem Bild zu ziehen; er läuft einmal je Tick.
        * Zwischen zwei Ticks wandert das Ergebnis weich weiter, sonst würde ein Zeichen an jeder
        * Mauerkante flackern, sobald man sich seitlich bewegt.
@@ -1095,7 +1094,7 @@ public final class CombatHudLayers {
    // =========================================================================
    /**
     * Die Liste der laufenden Spezial-Item-Wirkungen.
-    *
+    * <p>
     * Auf Fabric war das ein Mixin auf {@code Gui}, weil es dort keinen Hook fuer eine eigene
     * HUD-Ebene gibt. Fabric API kennt {@link HudElement} – die Zeichenroutine ist unveraendert, nur
     * angemeldet wird sie jetzt regulaer ueber {@code HudElementRegistry}.
@@ -1225,7 +1224,7 @@ public final class CombatHudLayers {
    // =========================================================================
    /**
     * Taktisches Bild-in-Bild (PiP) Drohnen-/Aufklärungs-HUD für den Tarnkappenbomber.
-    *
+    * <p>
     * Zeichnet einen militärischen FLIR-Recon-Monitor oben rechts auf den Bildschirm,
     * der das anvisierte Ziel live in 3D aus der Bomber-Perspektive von oben filmt,
     * inklusive Zielklammern, Telemetrie, Scanlines und EMP-Glitch bei Detonationen.
@@ -1337,7 +1336,7 @@ public final class CombatHudLayers {
          BOMBS.clear();
          for (Entity entity : level.entitiesForRendering()) {
             if (!(entity instanceof Display.ItemDisplay itemDisplay)
-                  || !itemDisplay.getSlot(0).get().is(ModItems.BOMBER_BOMB)) {
+                  || !Hologram.item(itemDisplay).is(ModItems.BOMBER_BOMB)) {
                continue;
             }
             BOMBS.add(new BombView(
@@ -1667,7 +1666,7 @@ public final class CombatHudLayers {
 
       /**
        * Gefüllte Kreisscheibe als Zeilenfüllung: eine Fläche je Bildzeile statt einer je Pixel.
-       *
+       * <p>
        * Die getroffene Pixelmenge ist dieselbe wie bei der früheren Punktprüfung
        * {@code dx*dx + dy*dy <= r*r}, denn das größte zulässige {@code dx} einer Zeile ist genau
        * {@code floor(sqrt(r*r - dy*dy))}. Jedes {@code fill} legt intern eine eigene Matrix und
@@ -1690,7 +1689,7 @@ public final class CombatHudLayers {
 
       /**
        * Orthografische Projektion der Bauchkamera auf Monitorpixel.
-       *
+       * <p>
        * Die PiP-Textur wird von {@code PictureInPictureRenderer#prepare} orthografisch aufgebaut,
        * deshalb genügt hier dieselbe Drehung plus ein linearer Maßstab. Drehung und Ursprung
        * entstehen einmal je Bild; früher legte jeder projizierte Punkt ein eigenes
@@ -1739,20 +1738,20 @@ public final class CombatHudLayers {
 
       /**
        * Zwischenspeicher für den Geländeausschnitt unter dem Bomber.
-       *
+       * <p>
        * <p>Der Ausschnitt wurde vorher in jedem Bild neu abgetastet: 33x33 Säulen mal bis zu 23
        * Y-Ebenen, also bis zu rund 25.000 {@code getBlockState}-Abfragen je Bild. Bei 144 FPS
        * waren das Millionen je Sekunde, obwohl sich die Welt nur zwanzigmal je Sekunde ändert.
        * Der Scan läuft jetzt höchstens einmal je Tick und Ursprungsblock; frisch gerissene Krater
        * erscheinen dadurch unverändert im nächsten Tick.
-       *
+       * <p>
        * <p>Statt jeder Säule pauschal drei Schichten mitzugeben, liefert
        * {@link Heightmap.Types#WORLD_SURFACE} – clientseitig gepflegt, siehe
        * {@link Heightmap.Usage#CLIENT} – direkt die Oberkante. Nach unten wird nur so weit
        * aufgefüllt, wie eine Nachbarsäule tiefer liegt: aus der Nadir-Perspektive ist alles
        * darunter ohnehin verdeckt. Auf ebenem Boden bleibt so eine Schicht statt drei übrig, und
        * Säulen ohne Blöcke – bei BO2 rund ein Drittel der umschließenden Box – fallen ganz weg.
-       *
+       * <p>
        * <p>Die zurückgegebene Liste gehört dem Zwischenspeicher und wird beim nächsten Aufbau
        * wiederverwendet. Das ist zulässig, weil {@code GuiRenderer} alle PiP-Zustände noch im
        * selben Bild zeichnet und {@link BomberCameraPipRenderState} identitätsbasiert vergleicht,
@@ -1911,11 +1910,11 @@ public final class CombatHudLayers {
 
    /**
     * Zustand der Bomber-Bauchkamera für einen Bildaufbau.
-    *
+    * <p>
     * <p>{@code terrain} liegt relativ zu einem ganzzahligen Weltursprung und wird über
     * {@code terrainOffset} an die Kamera gerückt; {@code effects} und {@code entities} liegen
     * bereits relativ zur Kamera.
-    *
+    * <p>
     * <p><b>{@code equals}/{@code hashCode} sind bewusst identitätsbasiert.</b> Die von
     * {@code record} erzeugte komponentenweise Fassung liefe über sämtliche Gelände- und
     * Entity-Einträge – ein teurer Vergleich für ein Ergebnis, das nie {@code true} sein kann:

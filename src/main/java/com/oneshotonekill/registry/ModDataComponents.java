@@ -10,7 +10,7 @@ import net.minecraft.util.Unit;
 public final class ModDataComponents {
    /**
     * Markiert einen C4-Gegenstand im Inventar als scharfen Zuender fuer eine bereits platzierte Ladung.
-    *
+    * <p>
     * Gegenstaende ohne dieses Component werden als unplatzierte C4-Sprengstoffriegel gerendert.
     */
    public static final DataComponentType<Unit> C4_ARMED = Registry.register(

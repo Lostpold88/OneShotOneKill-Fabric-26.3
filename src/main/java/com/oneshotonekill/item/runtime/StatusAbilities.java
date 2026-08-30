@@ -4,7 +4,6 @@ import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 import com.oneshotonekill.shared.Hologram;
 import com.oneshotonekill.shared.Feedback;
-import com.oneshotonekill.match.ScoreboardManager;
 
 import com.oneshotonekill.event.KillFeed;
 
@@ -46,10 +45,11 @@ import org.joml.Vector3f;
 /**
  * Zeitlich begrenzte Zustände, die an einem Spieler hängen: Radar-Leuchten, Reflektor-Schild,
  * Unsichtbarkeit, Pfeil-Magnetfeld und Gleitflug.
- *
+ * <p>
  * Alle Zustände laufen über einen gemeinsamen Tick, damit ein Match-Ende, ein Map-Wechsel oder
  * ein Verbindungsabbruch sie an genau einer Stelle wieder abräumen kann.
  */
+@SuppressWarnings({"ConstantValue", "Convert2MethodRef", "resource", "UnusedReturnValue", "SameParameterValue", "unused"})
 public final class StatusAbilities {
    public static final StatusAbilities INSTANCE = new StatusAbilities();
 
@@ -57,7 +57,7 @@ public final class StatusAbilities {
    private static final double RADAR_RANGE = 200.0;
    /**
     * Der Suchlauf: ein Ring, der über den Boden nach außen läuft.
-    *
+    * <p>
     * Vorher stand ein Kranz aus weißen END_ROD-Partikeln um den Benutzer – ein Rahmen, der
     * nichts über die Richtung sagte und in jedem hellen Raum unterging.
     */
@@ -126,7 +126,7 @@ public final class StatusAbilities {
 
    /**
     * Am Boden laeuft die Uhr nicht weiter.
-    *
+    * <p>
     * Eine Landung war einmal das Ende: Wer zwischen zwei Daechern aufsetzte, verlor den Rest
     * seiner acht Sekunden im Stehen. Jetzt haelt der Flug an, und ein doppelter Druck auf die
     * Sprungtaste holt ihn zurueck. Damit das Geschirr nicht den Rest der Runde am Ruecken
@@ -136,12 +136,12 @@ public final class StatusAbilities {
    private static final int GLIDE_GROUND_GRACE = 200;
    /**
     * So lange nach dem Erloeschen des Schubs bleibt der Fall folgenlos.
-    *
+    * <p>
     * Ein Flug endet fast immer in der Luft, und wer dort acht Sekunden lang ueber der Karte
     * stand, faellt danach weit. Das Geschirr eine Sekunde vor dem Aufschlag verglimmen zu lassen
     * und den Spieler dann am Boden zu zerschellen, waere die unfairste Art, eine Fahigkeit zu
     * beenden – zumal er den Zeitpunkt nicht in der Hand hat.
-    *
+    * <p>
     * Zehn Sekunden reichen fuer jeden Sturz innerhalb einer Arena; der Zaehler ist nur die
     * Auffanglinie fuer den Fall, dass der Boden nie kommt.
     */
@@ -149,16 +149,16 @@ public final class StatusAbilities {
    /** Mindestabstand zwischen zwei Starts, in Ticks. */
    private static final int GLIDE_BOOST_COOLDOWN = 10;
 
-   /**
+   /*
     * Die Flügel und ihre Flammen zeichnet jeder Client selbst.
-    *
+    * <p>
     * Als Display-Entities hinkten sie bei Fluggeschwindigkeit sichtbar hinterher: jede Entity
     * läuft über eigene Positionspakete und wird zwischen zwei Ticks interpoliert. Der Server
     * meldet nur noch, wer gerade fliegt – siehe {@code client/renderer/GliderWingRenderer}.
     */
    /**
     * So hoch darf der Flug ueber die Oberkante der Karte hinaus.
-    *
+    * <p>
     * Frueher acht Bloecke – das reichte fuer einen Sprung ueber ein Dach und nicht fuer das,
     * was ein Jetpack koennen soll. Der Wert bleibt unter {@code ArenaShape.ARENA_HEADROOM},
     * denn oberhalb davon gilt man als ausserhalb der Arena, und {@code ArenaContainment} holt
@@ -220,7 +220,7 @@ public final class StatusAbilities {
 
    /**
     * Hängt einen Suchlaufring auf, der über den Boden nach außen läuft und dabei ausbleicht.
-    *
+    * <p>
     * Ein Körper statt Partikel: der Ring bleibt auch bei Tageslicht und aus zwanzig Metern
     * sichtbar, und man sieht ihm an, wie weit der Puls schon gelaufen ist.
     */
@@ -257,7 +257,7 @@ public final class StatusAbilities {
             sweep.tone = colour;
             ItemStack stack = new ItemStack(ModItems.BLAST_RING);
             stack.set(DataComponents.DYED_COLOR, new DyedItemColor(colour));
-            sweep.ring.getSlot(0).set(stack);
+            Hologram.setItem(sweep.ring, stack);
          }
       }
    }
@@ -305,7 +305,7 @@ public final class StatusAbilities {
 
    /**
     * Verbraucht den Schild und meldet, wer woran gescheitert ist.
-    *
+    * <p>
     * Angreifer und Ursache werden durchgereicht, statt sie zu erraten: die Spezial-Items töten
     * über die eigene Buchführung, wo keine Schadensquelle mehr existiert, aus der sich das
     * ablesen ließe.
@@ -399,7 +399,7 @@ public final class StatusAbilities {
 
    /**
     * Zündet den Gleitflug.
-    *
+    * <p>
     * Der Absprung ist eine eigene Bewegung, kein bloßes Aufaddieren: die alte Geschwindigkeit
     * wird verworfen, damit ein Sprung aus dem Lauf nicht anders abhebt als einer aus dem Stand.
     */
@@ -412,7 +412,7 @@ public final class StatusAbilities {
 
    /**
     * Zweiter und jeder weitere Start desselben Flugs – ausgelöst durch doppeltes Springen.
-    *
+    * <p>
     * Gültig ist er auch in der Luft: Wer sich in einem Sprung noch einmal Schub holt, dreht
     * damit die Richtung, und das ist genau der Griff, den ein Flug mit Blickschub braucht. Die
     * kurze Sperre verhindert nur, dass eine klemmende Taste den Vorrat in einem Tick verpulvert.
@@ -434,10 +434,10 @@ public final class StatusAbilities {
 
    /**
     * Der Absprung selbst.
-    *
+    * <p>
     * Er ist eine eigene Bewegung, kein blosses Aufaddieren: die alte Geschwindigkeit wird
     * verworfen, damit ein Start aus dem Lauf nicht anders abhebt als einer aus dem Stand.
-    *
+    * <p>
     * Der waagerechte Anteil kommt dabei aus dem Gierwinkel und nicht aus dem Blickvektor. Wer
     * beim Abspringen senkrecht nach unten sieht, hat in seinem Blick ueberhaupt keine
     * waagerechte Richtung mehr; der Start ginge dann kerzengerade nach oben.
@@ -481,7 +481,7 @@ public final class StatusAbilities {
       return magnets.getOrDefault(player.getUUID(), 0);
    }
 
-   /** Stabile Momentaufnahme für das sichtbare Feld auf allen verbundenen Clients. */
+   /* Stabile Momentaufnahme für das sichtbare Feld auf allen verbundenen Clients. */
    /** Stabile Momentaufnahme der fliegenden Spieler für alle verbundenen Clients. */
    public List<UUID> activeGliders() {
       return gliding.keySet().stream().sorted().toList();
@@ -602,7 +602,7 @@ public final class StatusAbilities {
 
    /**
     * Reflektiert fremde Pfeile exakt an der sichtbaren Kugeloberfläche.
-    *
+    * <p>
     * Die Kollisionsprüfung betrachtet sowohl den seit dem letzten Tick zurückgelegten als auch
     * den nächsten Flugabschnitt. Dadurch kann ein schneller Pfeil die nur drei Blöcke breite
     * Blase nicht zwischen zwei Server-Ticks überspringen.
@@ -694,7 +694,7 @@ public final class StatusAbilities {
 
    /**
     * Ein Tick Flug – oder ein Tick Warten am Boden.
-    *
+    * <p>
     * Die Flugzeit läuft nur in der Luft. Wer landet, behält seinen Rest und startet mit einem
     * doppelten Sprung neu; erst nach {@link #GLIDE_GROUND_GRACE} Ticks am Stück löst sich das
     * Geschirr von selbst auf. Deshalb kommt hier keine gemeinsame {@code countDown}-Schleife
@@ -762,7 +762,7 @@ public final class StatusAbilities {
 
    /**
     * Ein Tick Flugmechanik: aus Blickrichtung und bisheriger Bewegung wird die neue.
-    *
+    * <p>
     * Die Aufteilung in Richtung und Tempo ist Absicht. Ein einzelner Vektor, auf den Kraefte
     * addiert werden, vermischt beides: Eine Kurve bremst dann automatisch, ein Sturzflug
     * beschleunigt nur zufaellig, und jede Aenderung wirkt an der falschen Stelle. Getrennt
@@ -796,7 +796,7 @@ public final class StatusAbilities {
 
    /**
     * Dieselbe Richtung, aber mit gedeckeltem Steiganteil – die waagerechte Richtung bleibt.
-    *
+    * <p>
     * Zeigt die Flugrichtung genau senkrecht, gibt es keine waagerechte Richtung mehr, die sich
     * erhalten liesse. Dann tritt der Gierwinkel an ihre Stelle: Die Nase kippt dorthin, wohin
     * der Spieler ohnehin sieht.
@@ -812,13 +812,13 @@ public final class StatusAbilities {
 
    /**
     * Dreht {@code from} um hoechstens {@code maxRadians} in Richtung {@code to}.
-    *
+    * <p>
     * <p>Eine gewichtete Summe der beiden Richtungen taete es fast – aber eben nur fast, und die
     * Ausnahmen sind genau die Faelle, die beim Fliegen staendig vorkommen. Zeigen beide Vektoren
     * auf dieselbe Achse, bleibt die Summe auf dieser Achse liegen: Wer senkrecht nach oben
     * fliegt und nach unten sieht, kaeme nie herum, und wer geradewegs steigt, bliebe steigen,
     * solange nicht ein Rundungsfehler die Symmetrie bricht. Genau das war vorher zu sehen.</p>
-    *
+    * <p>
     * <p>Eine echte Drehung um die gemeinsame Senkrechte hat das Problem nicht. Fehlt diese
     * Senkrechte – bei genau entgegengesetzten Richtungen –, tut es irgendeine andere; die
     * Drehrichtung ist dort ohnehin beliebig. Nebenbei ergibt das eine gleichmaessige Drehrate in
@@ -847,7 +847,7 @@ public final class StatusAbilities {
 
    /**
     * Haelt den Fallschaden nach einem beendeten Flug zurueck, bis der Spieler aufsetzt.
-    *
+    * <p>
     * Die Fallhoehe wird jeden Tick auf null gesetzt, statt den Schaden abzufangen. Das ist der
     * ruhigere Weg: Vanilla rechnet den Schaden beim Aufsetzen aus der aufgelaufenen Fallhoehe,
     * und die kommt so ueber einen einzigen Tick nie hinaus – es entsteht also gar kein Schaden,
@@ -907,10 +907,10 @@ public final class StatusAbilities {
 
    // -- Aufräumen -----------------------------------------------------------
 
-   /** Beendet alle Zustände eines Spielers – bei Eliminierung, Respawn oder Verbindungsabbruch. */
+   /* Beendet alle Zustände eines Spielers – bei Eliminierung, Respawn oder Verbindungsabbruch. */
    /**
     * Was ein Tod beendet – und das ist wenig.
-    *
+    * <p>
     * Wer ein Spezial-Item einsetzt und dabei stirbt, soll es nicht verlieren: Schild, Magnetfeld
     * und Radar-Markierung laufen weiter. Nur der Flug endet, denn der Spieler wird beim Respawn
     * versetzt, und ein Schub, der ihn danach weiterzieht, wäre nicht mehr sein eigener.
@@ -974,10 +974,10 @@ public final class StatusAbilities {
       void run(ServerPlayer player, int remaining);
    }
 
-   /** Zählt eine Zustandskarte herunter und räumt abgelaufene sowie offline gegangene Einträge ab. */
+   /* Zählt eine Zustandskarte herunter und räumt abgelaufene sowie offline gegangene Einträge ab. */
    /**
     * Ein laufender Gleitflug.
-    *
+    * <p>
     * {@code ticksLeft} ist reine Flugzeit, {@code groundTicks} zählt den Aufenthalt am Boden
     * und {@code sinceLaunch} den Abstand zum letzten Absprung – daran hängen sowohl der
     * Startschub als auch die Sperre gegen doppelte Auslösung.
@@ -1025,17 +1025,8 @@ public final class StatusAbilities {
       }
    }
 
-   private void pulseRings(ServerLevel level, Vec3 center, net.minecraft.core.particles.SimpleParticleType particle, double radius) {
-      for (int point = 0; point < 28; point++) {
-         double angle = point * (Math.PI * 2 / 28);
-         level.sendParticles(particle,
-            center.x + Math.cos(angle) * radius, center.y + 0.4, center.z + Math.sin(angle) * radius,
-            1, 0.0, 0.02, 0.0, 0.0);
-      }
-   }
 
-
-      public static final class Broadcaster {
+   public static final class Broadcaster {
       public static final Broadcaster INSTANCE = new Broadcaster();
    
       /** Grobes Raster: Restzeiten werden nur alle halbe Sekunde nachgeführt. */
@@ -1103,7 +1094,7 @@ public final class StatusAbilities {
 
       /**
        * Schickt die Peilung der eigenen abgestellten Geräte, wenn sie sich geändert hat.
-       *
+       * <p>
        * Die Liste ist kurz, ändert sich aber ständig ein wenig – ein Turm dreht sich, eine Falle
        * wird ausgelöst. Verglichen wird deshalb das fertige Paket: Solange Positionen und
        * Zustände gleich bleiben, geht nichts über die Leitung.

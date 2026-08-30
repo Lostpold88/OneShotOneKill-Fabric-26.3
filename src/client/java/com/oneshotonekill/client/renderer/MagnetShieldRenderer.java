@@ -26,11 +26,12 @@ import org.joml.Matrix4fc;
 
 /**
  * Sichtbares Schutzfeld des Pfeilmagneten für alle Spieler.
- *
+ * <p>
  * <p>Die Kugel ist keine Entity. Jeder Client setzt sie unmittelbar an die interpolierte
  * Position des jeweiligen Spielers. Zwei weiche Energieschalen mit rot-blauen Magnetpolen und
  * gebogenen Feldlinien von einem Pol zum anderen ergeben ein deutlich magnetisches Feld.</p>
  */
+@SuppressWarnings({"resource", "SuspiciousNameCombination"})
 public final class MagnetShieldRenderer {
    private static final RenderStateDataKey<List<MagnetFrame>> FRAMES =
       RenderStateDataKey.create(() -> OneShotOneKill.MOD_ID + ":magnet_shield_frames");
@@ -50,7 +51,7 @@ public final class MagnetShieldRenderer {
 
    /**
     * Hängt die Magnetfelder in den Renderdurchlauf ein.
-    *
+    * <p>
     * {@code END_EXTRACTION} entspricht NeoForges {@code ExtractLevelRenderStateEvent} und
     * sammelt am Ende der Zustandserfassung die unveränderlichen Zahlen dieses Bildes ein;
     * {@code COLLECT_SUBMITS} entspricht {@code SubmitCustomGeometryEvent} und zeichnet daraus.

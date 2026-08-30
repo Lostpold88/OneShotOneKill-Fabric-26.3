@@ -1,8 +1,6 @@
 package com.oneshotonekill.item.types;
 import com.oneshotonekill.shared.SpecialItemRules;
 
-import com.oneshotonekill.OneShotOneKill;
-import com.oneshotonekill.item.SpecialItem;
 import com.oneshotonekill.item.runtime.Deployables;
 import com.oneshotonekill.shared.DeviceLights;
 import com.oneshotonekill.item.runtime.StealthBomberSystem;
@@ -25,13 +23,14 @@ import net.minecraft.world.phys.Vec3;
 /**
  * Klassensammlung aller platzierbaren und geworfenen Spezial-Items.
  */
+@SuppressWarnings("NullableProblems")
 public final class DeployableItems {
    private DeployableItems() {}
 
    // --- PlacedSpecialItem.java ---
    /**
     * Basis für Spezial-Items, die auf einen Block gesetzt werden (Frost-Falle, C4, Geschützturm).
-    *
+    * <p>
     * Gesetzt wird immer auf die Fläche, die angeklickt wurde – die Ladung liegt also dort, wo der
     * Spieler hinzeigt, und nie im Block selbst.
     */
@@ -70,7 +69,7 @@ public final class DeployableItems {
    // --- SentryTurretItem.java ---
    /**
     * Stellt einen Geschützturm auf, der 20 Sekunden lang selbstständig feuert.
-    *
+    * <p>
     * Als einzige Waffe im Spiel tötet er nicht mit einem Treffer: Er zielt automatisch und ohne
     * Fehler, mit Sofort-Kill wäre jede von ihm eingesehene Deckung unbetretbar.
     */
@@ -90,7 +89,7 @@ public final class DeployableItems {
    /**
     * Legt eine Frostplatte aus, die den ersten Spieler sieben Sekunden festfriert – den Besitzer
     * eingeschlossen, sobald er die Platte verlassen hat und wieder hineintritt.
-    *
+    * <p>
     * Die Platte bleibt liegen, bis jemand hineintritt – sie verfällt nicht von selbst und wird nur
     * bei Match-Ende, Map-Wechsel und Serverstopp eingesammelt.
     */
@@ -109,7 +108,7 @@ public final class DeployableItems {
    // --- SmokeBombItem.java ---
    /**
     * Wirft eine Rauchgranate: dichte, blendende Wand da, wo sie liegen bleibt.
-    *
+    * <p>
     * Sie versetzt niemanden mehr. Das machte aus ihr eine Fluchttaste, bei der der Nebel nur
     * Beiwerk war; jetzt ist der Nebel das ganze Gerät.
     */
@@ -127,7 +126,7 @@ public final class DeployableItems {
    // --- SingularityItem.java ---
    /**
     * Reißt fünf Sekunden lang alle Gegner im Umkreis von 10 Blöcken zum Zentrum.
-    *
+    * <p>
     * Richtet selbst keinen Schaden an – die Singularität ist ein Aufbau-Item für Luftangriff,
     * C4 und Tarnkappenbomber. Der Werfer bleibt vom Sog ausgenommen.
     */
@@ -145,7 +144,7 @@ public final class DeployableItems {
    // --- TeleportGrenadeItem.java ---
    /**
     * Versetzt den Werfer an den Einschlag und stößt alle Gegner im Umkreis von 5 Blöcken weg.
-    *
+    * <p>
     * Der Ankunftspunkt wird geprüft: liegt die Granate in einer Nische oder halb im Boden,
     * unterbleibt der Sprung, statt den Werfer in einer Wand festzusetzen.
     */
@@ -176,7 +175,7 @@ public final class DeployableItems {
    
       /**
        * Lässt die Anzeige blinken, solange das Gerät in der Hand liegt.
-       *
+       * <p>
        * Nur in der Haupthand: {@code inventoryTick} läuft für jeden Gegenstand in jedem Inventar,
        * und ein Gerät tief in der Tasche muss niemandem etwas anzeigen.
        */
@@ -201,7 +200,7 @@ public final class DeployableItems {
    // --- StealthBomberItem.java ---
    /**
     * Setzt einen bombenwerfenden Tarnkappenbomber auf einen Gegner an.
-    *
+    * <p>
     * Der Rechtsklick fordert nur die Zielliste beim Server an; geöffnet wird das Menü, sobald sie
     * eintrifft. Verbraucht wird das Item erst mit der Wahl – wer das Menü wieder schließt, behält es.
     */

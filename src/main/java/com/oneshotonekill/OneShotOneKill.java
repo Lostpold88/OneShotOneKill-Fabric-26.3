@@ -29,7 +29,7 @@ import org.slf4j.LoggerFactory;
 
 /**
  * Einstiegspunkt der Mod.
- *
+ * <p>
  * Fabric kennt keinen Mod- und keinen Spiel-Bus. Registrierungen und Ereignisanmeldungen laufen
  * beide durch {@link #onInitialize()}; die Reihenfolge darin ist die Reihenfolge, in der die
  * Teile voneinander abhängen. Die Zustandshalter ({@link #getServer()}, {@link #getArenas()})
@@ -91,7 +91,7 @@ public final class OneShotOneKill implements ModInitializer {
 
    /**
     * Räumt alle laufenden Spezial-Item-Wirkungen ab (Match-Ende, Map-Wechsel, Serverstopp).
-    *
+    * <p>
     * Zum Schluss geht ein Besen durch die Welten: nach einem Absturz können Displays aus der
     * vorigen Sitzung herumstehen, die keine Liste mehr kennt.
     */

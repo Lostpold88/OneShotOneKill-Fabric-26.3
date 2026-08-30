@@ -1,6 +1,5 @@
 package com.oneshotonekill.arena;
 import com.oneshotonekill.shared.ArenaShape;
-import com.oneshotonekill.shared.ArenaDemolition;
 
 import com.oneshotonekill.OneShotOneKill;
 import java.util.List;
@@ -15,6 +14,7 @@ import net.minecraft.world.level.Level;
 import net.minecraft.world.phys.Vec3;
 
 /** The mod's available arena dimensions and their measured combat boundaries. */
+@SuppressWarnings("unused")
 public enum Arena {
     STANDARD("standard", "Standard", "Standard.zip", new Vec3(223.5, 48.0, 55.5),
         List.of(ArenaShape.polygon(58.0, 64.0, ArenaShape.Outlines.STANDARD)), 69.0, true, false),

@@ -23,13 +23,14 @@ import net.minecraft.world.phys.Vec3;
 import com.oneshotonekill.item.types.WeaponItems.MinigunItem;
 
 
+@SuppressWarnings({"ConstantValue", "resource", "unused"})
 public final class MinigunRuntime {
    public static final MinigunRuntime INSTANCE = new MinigunRuntime();
    public static final int USE_DURATION_TICKS = 160;
    public static final int HISS_DURATION_TICKS = 30;
    /**
     * Treffer bis zur Eliminierung.
-    *
+    * <p>
     * Die Minigun feuert zwei Schüsse je Tick; vier Treffer waren damit ein Wimpernschlag und
     * die Waffe eine bessere Railgun. Zehn zwingen dazu, das Ziel wirklich zu halten.
     */
@@ -200,7 +201,6 @@ public final class MinigunRuntime {
       private static final double BARREL_RADIUS = 0.0553;
       private static final double AIM_RANGE = 80.0;
       private static final double WALL_CLEARANCE = 0.15;
-      private static final double MIN_CONVERGENCE = 1.5;
       private static final Vec3 WORLD_UP = new Vec3(0.0, 1.0, 0.0);
 
       private Muzzle() {

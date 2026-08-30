@@ -4,7 +4,6 @@ import static com.oneshotonekill.client.state.ClientStates.*;
 import com.oneshotonekill.client.state.ClientStates.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
-import net.minecraft.client.resources.sounds.SoundInstance.Attenuation;
 import net.minecraft.sounds.SoundEvent;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
@@ -12,22 +11,22 @@ import net.minecraft.util.RandomSource;
 
 /**
  * Die Tonspur des Matchendes.
- *
+ * <p>
  * <h2>Die Ansage</h2>
- *
+ * <p>
  * <p>{@code endgame/TacticalNukeIncoming.ogg} laeuft vom ersten Tick der Sequenz an durch – das
  * Original aus Call of Duty, und der ganze Ablauf ist darauf gelegt: Bei 12,031 Sekunden
  * schlaegt es in der Aufnahme ein, und {@code NukePhase.DETONATION} liegt auf Tick 241, also
  * bei 12,050 Sekunden. Naeher kommt man mit tickgebundener Steuerung nicht heran.</p>
- *
+ * <p>
  * <p>Sie liegt allerdings nicht hier, sondern auf der Serverseite: {@code NukeSequenceManager}
  * schickt sie im ersten Tick der Sequenz als Klangpaket, das an der Spieler-Entity haengt. Der
  * Umweg ueber den Client hatte ein Fenster von drei Ticks, in dem er sie starten durfte – und
  * wer es verpasste, weil ein Paket spaeter ankam, hoerte gar nichts. Ein Paket, das den Ton
  * mitbringt, kann man nicht verpassen.</p>
- *
+ * <p>
  * <h2>Der Nachhall</h2>
- *
+ * <p>
  * <p>Nach dem Einschlag bleibt ein tiefes Grollen stehen, bis die Sequenz endet. Das ist ein
  * gehaltener Vanilla-Ton eine Oktave tiefer und halb so laut – dafuer braucht es keine eigene
  * Datei, weil ein Grollen keine Melodie hat.</p>
@@ -80,7 +79,7 @@ public final class NukeSoundController {
 
    /**
     * Ein Dauerklang ohne Abstandsdaempfung, der weich auslaeuft.
-    *
+    * <p>
     * Das Auslaufen ist wichtig: Ein Grollen, das hart abbricht, klingt nach einem Fehler.
     */
    private static final class NukeLoopSound extends AbstractTickableSoundInstance {

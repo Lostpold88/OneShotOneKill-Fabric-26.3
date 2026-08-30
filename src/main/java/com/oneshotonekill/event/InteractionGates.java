@@ -7,7 +7,7 @@ import net.minecraft.world.item.ItemStack;
 
 /**
  * Die drei Interaktionswege, für die Fabric API kein Ereignis anbietet.
- *
+ * <p>
  * <p>Zwei Systeme der Mod müssen den Beginn einer Item-Nutzung sowie das Spannen und Lösen des
  * Bogens abfangen: das Abnehmen einer Haftladung und die Nuke-Sequenz. Der Eiskäfig der
  * Frost-Falle stand hier ebenfalls, wird inzwischen aber schon eine Ebene früher abgefangen –
@@ -17,7 +17,7 @@ import net.minecraft.world.item.ItemStack;
  * {@code ArrowNockEvent} und {@code ArrowLooseEvent}. Fabric API hat zu keinem der drei ein
  * Gegenstück, und ein Access Widener hilft nicht: Es fehlt kein Zugriff, sondern eine
  * Abbruchmöglichkeit mitten in einer Vanilla-Methode.</p>
- *
+ * <p>
  * <p>Statt drei Mixins je System gibt es zwei ({@code LivingEntityUseItemMixin} und
  * {@code BowItemMixin}), die hierher fragen. Diese Klasse ist die einzige Stelle, an der steht,
  * wer alles mitreden darf.</p>
