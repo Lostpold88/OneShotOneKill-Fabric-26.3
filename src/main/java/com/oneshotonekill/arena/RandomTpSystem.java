@@ -164,14 +164,15 @@ public final class RandomTpSystem {
       if (!ground.isCollisionShapeFullBlock((BlockGetter) level, groundPos)
          || !ground.getFluidState().isEmpty()
          || isBlockedSpawnGround(ground)
+         || itemSpace.is(Blocks.BARRIER)
          || (!itemSpace.isAir() && !itemSpace.canBeReplaced())
          || !itemSpace.getFluidState().isEmpty()) {
          return false;
       }
-      // Ausreichend Freiraum nach oben (mindestens 2 Blöcke Luft)
+      // Ausreichend Freiraum nach oben (mindestens 2 Blöcke Luft, keine Barrieren)
       BlockPos aboveHead = groundPos.above(2);
       BlockState headSpace = level.getBlockState(aboveHead);
-      if (!headSpace.isAir() && !headSpace.canBeReplaced()) {
+      if (headSpace.is(Blocks.BARRIER) || (!headSpace.isAir() && !headSpace.canBeReplaced())) {
          return false;
       }
       // Horizontale Nachbarblöcke prüfen: Box nicht direkt an Ecken/Wandnischen quetschen
@@ -188,7 +189,8 @@ public final class RandomTpSystem {
 
    private boolean isBlockedSpawnGround(BlockState state) {
       // 26.2 fasst farbige Bloecke in ColorCollection zusammen; BLACK_WOOL gibt es nicht mehr.
-      return state.is(Blocks.WOOL.black())
+      return state.is(Blocks.BARRIER)
+         || state.is(Blocks.WOOL.black())
          || state.is(Blocks.BRICKS)
          || state.is(Blocks.BRICK_SLAB)
          || state.is(Blocks.BRICK_STAIRS)

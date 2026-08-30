@@ -32,6 +32,7 @@ import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import com.oneshotonekill.match.ScoreboardManager;
 import net.minecraft.world.entity.player.Inventory;
@@ -394,14 +395,14 @@ public final class SpecialItemManager {
    }
 
    private static boolean isSolidGround(BlockState state, double currentY, BlockPos pos) {
-      if (state.isAir() || state.canBeReplaced()) {
+      if (state.isAir() || state.canBeReplaced() || state.is(Blocks.BARRIER)) {
          return false;
       }
       return currentY <= pos.getY() + 1.05;
    }
 
    private static boolean isSolidBlock(BlockState state) {
-      return !state.isAir() && !state.canBeReplaced();
+      return !state.isAir() && !state.canBeReplaced() && !state.is(Blocks.BARRIER);
    }
 
    /**
