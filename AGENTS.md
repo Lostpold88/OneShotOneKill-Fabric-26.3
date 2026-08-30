@@ -3,6 +3,7 @@
 ## Kurzfassung
 
 - **IntelliJ IDEA & MCP (`intellij-index`)** sind das primäre Werkzeug für Code-Intelligence, Navigation und Refactoring. Die vollständige Anleitung und Werkzeugreferenz liegt im Ordner [`ide-index-mcp/`](ide-index-mcp/) und ist vor jeglichen Code-Operationen **definitiv und verbindlich anzuschauen und zu befolgen**.
+- **JetBrains Debugger MCP (`jetbrains-debugger`)** ist das primäre Werkzeug für interaktives Runtime-Debugging, Haltepunkte und Variableninspektion. Die vollständige Anleitung liegt im Ordner [`jetbrains-debugger/`](jetbrains-debugger/) und ist bei Fehlersuchen an Laufzeitlogik verbindlich zu nutzen.
 - **Fabric-API, Access Widener und Mixins** sind vollwertige Werkzeuge und dürfen jederzeit frei und gezielt nach Zweckmäßigkeit genutzt werden.
 - Externe Bibliotheken (Minecraft, Fabric API, Fabric Loader, Sponge Mixin, MixinExtras, Brigadier, Netty, Java SDK etc.) werden direkt über die **IntelliJ IDEA MCP-Engine** (`scope: "project_and_libraries"`) semantisch analysiert.
 - Nach externen Datei- oder Strukturänderungen durch Agenten wird das Dateisystem mit der IDE synchronisiert.
@@ -22,6 +23,25 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 > Vor der Navigation, Recherche oder Bearbeitung von Code muss zwingend die Dokumentation im Ordner [`ide-index-mcp/`](ide-index-mcp/) konsultiert werden:
 > - **[`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md):** Umfassender Agenten-Leitfaden, Workflows, Dumb/Smart-Mode-Strategien und Best Practices.
 > - **[`ide-index-mcp/references/tools-reference.md`](ide-index-mcp/references/tools-reference.md):** Vollständige Referenz aller verfügbaren MCP-Werkzeuge, Scopes, Filter und Parameter.
+
+---
+
+## Runtime-Debugging & Inspektion (JetBrains Debugger MCP)
+
+Die Anbindung an den Debugger erfolgt über das **jetbrains-debugger MCP** (`http://127.0.0.1:29190/debugger-mcp/streamable-http`).
+
+> [!IMPORTANT]
+> **Verbindliche Dokumentation im Ordner [`jetbrains-debugger/`](jetbrains-debugger/):**
+> Bei unklarem Laufzeitverhalten, fehlerhaften Werten, NullPointern oder unvorhergesehenem Kontrollfluss wird nicht im Code geraten, sondern programmatisch gedebuggt:
+> - **[`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md):** Umfassender Leitfaden, Debugging-Muster, Pausen-Handling und Best Practices.
+> - **[`jetbrains-debugger/references/tool-reference.md`](jetbrains-debugger/references/tool-reference.md):** Vollständige Referenz aller Debugger-Werkzeuge (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, etc.).
+>
+> **Kernregeln für Debugging:**
+> 1. Breakpoints **vor** dem Starten der Session setzen (`set_breakpoint`).
+> 2. Nach Stepping (`step_over`, `step_into`, etc.) oder `resume_execution` immer mit `wait_for_pause` auf die Pause warten.
+> 3. Dateipfade für Breakpoints müssen **absolut** sein, Zeilennummern **1-basiert**.
+> 4. Zur Status- und Variableninspektion primär `get_debug_session_status` nutzen (bündelt Stack, Variablen, Code und Lokation in einem Aufruf).
+> 5. Nach Abschluss der Untersuchung die Session immer sauber mit `stop_debug_session` beenden.
 
 ---
 
