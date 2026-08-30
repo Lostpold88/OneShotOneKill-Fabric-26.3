@@ -21,6 +21,18 @@ public final class ModDataComponents {
          .networkSynchronized(Unit.STREAM_CODEC)
          .build());
 
+   /**
+    * Markiert feste Match-Ausrüstung (Dolch, Bogen, Pfeil), die an ihren Slot gebunden ist
+    * und weder bewegt noch weggeworfen werden darf.
+    */
+   public static final DataComponentType<Unit> SLOT_LOCKED = Registry.register(
+      BuiltInRegistries.DATA_COMPONENT_TYPE,
+      OneShotOneKill.INSTANCE.id("slot_locked"),
+      DataComponentType.<Unit>builder()
+         .persistent(Unit.CODEC)
+         .networkSynchronized(Unit.STREAM_CODEC)
+         .build());
+
    private ModDataComponents() {
    }
 

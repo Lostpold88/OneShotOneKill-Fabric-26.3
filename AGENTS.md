@@ -2,8 +2,8 @@
 
 ## Kurzfassung
 
-- **IntelliJ IDEA & MCP (`intellij-index`)** sind das primäre Werkzeug für Code-Intelligence, Navigation und Refactoring. Die vollständige Anleitung und Werkzeugreferenz liegt im Ordner [`ide-index-mcp/`](ide-index-mcp/) und ist vor jeglichen Code-Operationen **definitiv und verbindlich anzuschauen und zu befolgen**.
-- **JetBrains Debugger MCP (`jetbrains-debugger`)** ist das primäre Werkzeug für interaktives Runtime-Debugging, Haltepunkte und Variableninspektion. Die vollständige Anleitung liegt im Ordner [`jetbrains-debugger/`](jetbrains-debugger/) und ist bei Fehlersuchen an Laufzeitlogik verbindlich zu nutzen.
+- **IntelliJ IDEA & MCP (`intellij-index`)** sind das primäre Werkzeug für Code-Intelligence, Navigation und Refactoring. Die vollständige Anleitung und Werkzeugreferenz liegt im Ordner [`.agents/skills/ide-index-mcp/`](../.agents/skills/ide-index-mcp/) im Hauptverzeichnis und ist vor jeglichen Code-Operationen **definitiv und verbindlich anzuschauen und zu befolgen**.
+- **JetBrains Debugger MCP (`jetbrains-debugger`)** ist das primäre Werkzeug für interaktives Runtime-Debugging, Haltepunkte und Variableninspektion. Die vollständige Anleitung liegt im Ordner [`.agents/skills/jetbrains-debugger/`](../.agents/skills/jetbrains-debugger/) im Hauptverzeichnis und ist bei Fehlersuchen an Laufzeitlogik verbindlich zu nutzen.
 - **Fabric-API, Access Widener und Mixins** sind vollwertige Werkzeuge und dürfen jederzeit frei und gezielt nach Zweckmäßigkeit genutzt werden.
 - Externe Bibliotheken (Minecraft, Fabric API, Fabric Loader, Sponge Mixin, MixinExtras, Brigadier, Netty, Java SDK etc.) werden direkt über die **IntelliJ IDEA MCP-Engine** (`scope: "project_and_libraries"`) semantisch analysiert.
 - Nach externen Datei- oder Strukturänderungen durch Agenten wird das Dateisystem mit der IDE synchronisiert.
@@ -19,10 +19,10 @@
 Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http://127.0.0.1:29170/index-mcp/streamable-http`).
 
 > [!IMPORTANT]
-> **Verbindliche Dokumentation im Ordner [`ide-index-mcp/`](ide-index-mcp/):**
-> Vor der Navigation, Recherche oder Bearbeitung von Code muss zwingend die Dokumentation im Ordner [`ide-index-mcp/`](ide-index-mcp/) konsultiert werden:
-> - **[`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md):** Umfassender Agenten-Leitfaden, Workflows, Dumb/Smart-Mode-Strategien und Best Practices.
-> - **[`ide-index-mcp/references/tools-reference.md`](ide-index-mcp/references/tools-reference.md):** Vollständige Referenz aller verfügbaren MCP-Werkzeuge, Scopes, Filter und Parameter.
+> **Verbindliche Dokumentation im Ordner [`.agents/skills/ide-index-mcp/`](../.agents/skills/ide-index-mcp/):**
+> Vor der Navigation, Recherche oder Bearbeitung von Code muss zwingend die Dokumentation im Ordner [`.agents/skills/ide-index-mcp/`](../.agents/skills/ide-index-mcp/) konsultiert werden:
+> - **[`ide-index-mcp/SKILL.md`](../.agents/skills/ide-index-mcp/SKILL.md):** Umfassender Agenten-Leitfaden, Workflows, Dumb/Smart-Mode-Strategien und Best Practices.
+> - **[`ide-index-mcp/references/tools-reference.md`](../.agents/skills/ide-index-mcp/references/tools-reference.md):** Vollständige Referenz aller verfügbaren MCP-Werkzeuge, Scopes, Filter und Parameter.
 
 ---
 
@@ -31,10 +31,10 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 Die Anbindung an den Debugger erfolgt über das **jetbrains-debugger MCP** (`http://127.0.0.1:29190/debugger-mcp/streamable-http`).
 
 > [!IMPORTANT]
-> **Verbindliche Dokumentation im Ordner [`jetbrains-debugger/`](jetbrains-debugger/):**
+> **Verbindliche Dokumentation im Ordner [`.agents/skills/jetbrains-debugger/`](../.agents/skills/jetbrains-debugger/):**
 > Bei unklarem Laufzeitverhalten, fehlerhaften Werten, NullPointern oder unvorhergesehenem Kontrollfluss wird nicht im Code geraten, sondern programmatisch gedebuggt:
-> - **[`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md):** Umfassender Leitfaden, Debugging-Muster, Pausen-Handling und Best Practices.
-> - **[`jetbrains-debugger/references/tool-reference.md`](jetbrains-debugger/references/tool-reference.md):** Vollständige Referenz aller Debugger-Werkzeuge (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, etc.).
+> - **[`jetbrains-debugger/SKILL.md`](../.agents/skills/jetbrains-debugger/SKILL.md):** Umfassender Leitfaden, Debugging-Muster, Pausen-Handling und Best Practices.
+> - **[`jetbrains-debugger/references/tool-reference.md`](../.agents/skills/jetbrains-debugger/references/tool-reference.md):** Vollständige Referenz aller Debugger-Werkzeuge (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, etc.).
 >
 > **Kernregeln für Debugging:**
 > 1. **Client-Start via IntelliJ Debugger MCP:** Den Minecraft Client immer über `execute_run_configuration` mit `name: "Minecraft Client", mode: "debug"` (oder `start_debug_session(configuration_name: "Minecraft Client")`) starten, damit die JVM-Instanz dauerhaft im Debugger eingeklinkt ist.

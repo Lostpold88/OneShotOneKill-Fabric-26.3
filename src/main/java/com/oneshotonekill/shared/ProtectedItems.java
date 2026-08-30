@@ -1,7 +1,9 @@
 package com.oneshotonekill.shared;
 
 import com.oneshotonekill.item.SpecialItem;
+import com.oneshotonekill.registry.ModDataComponents;
 import net.minecraft.core.component.DataComponents;
+import net.minecraft.util.Unit;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.item.component.CustomData;
@@ -20,7 +22,7 @@ public final class ProtectedItems {
 
    /** Markiert Vanilla-Gegenstände wie Dolch, Bogen und Pfeil eindeutig als feste OSOK-Ausrüstung. */
    public static ItemStack lockToSlot(ItemStack stack) {
-      CustomData.update(DataComponents.CUSTOM_DATA, stack, tag -> tag.putBoolean(LOCK_TAG, true));
+      stack.set(ModDataComponents.SLOT_LOCKED, Unit.INSTANCE);
       return stack;
    }
 
@@ -28,6 +30,10 @@ public final class ProtectedItems {
    public static boolean isSlotLocked(ItemStack stack) {
       if (stack.isEmpty()) {
          return false;
+      }
+
+      if (stack.has(ModDataComponents.SLOT_LOCKED)) {
+         return true;
       }
 
       CustomData customData = stack.get(DataComponents.CUSTOM_DATA);

@@ -196,34 +196,9 @@ public final class OsokPayloads {
       public static final Type<DeployableMarkersPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("deployable_markers"));
       public static final DeployableMarkersPayload EMPTY = new DeployableMarkersPayload(List.of());
 
-      public static final StreamCodec<ByteBuf, DeployableMarkersPayload> STREAM_CODEC = new StreamCodec<>() {
-         @Override
-         public DeployableMarkersPayload decode(ByteBuf buffer) {
-            int count = ByteBufCodecs.VAR_INT.decode(buffer);
-            List<Marker> markers = new ArrayList<>(count);
-            for (int index = 0; index < count; index++) {
-               markers.add(new Marker(
-                  Kind.byId(ByteBufCodecs.VAR_INT.decode(buffer)),
-                  ByteBufCodecs.DOUBLE.decode(buffer),
-                  ByteBufCodecs.DOUBLE.decode(buffer),
-                  ByteBufCodecs.DOUBLE.decode(buffer),
-                  ByteBufCodecs.BOOL.decode(buffer)));
-            }
-            return new DeployableMarkersPayload(markers);
-         }
-
-         @Override
-         public void encode(ByteBuf buffer, DeployableMarkersPayload payload) {
-            ByteBufCodecs.VAR_INT.encode(buffer, payload.markers.size());
-            for (Marker marker : payload.markers) {
-               ByteBufCodecs.VAR_INT.encode(buffer, marker.kind().ordinal());
-               ByteBufCodecs.DOUBLE.encode(buffer, marker.x());
-               ByteBufCodecs.DOUBLE.encode(buffer, marker.y());
-               ByteBufCodecs.DOUBLE.encode(buffer, marker.z());
-               ByteBufCodecs.BOOL.encode(buffer, marker.alerted());
-            }
-         }
-      };
+      public static final StreamCodec<ByteBuf, DeployableMarkersPayload> STREAM_CODEC =
+         Marker.STREAM_CODEC.apply(ByteBufCodecs.list())
+            .map(DeployableMarkersPayload::new, DeployableMarkersPayload::markers);
 
       @Override
       public Type<DeployableMarkersPayload> type() {
@@ -251,6 +226,13 @@ public final class OsokPayloads {
        * Zünder in der Hand liegt, und ein Turm, der ein Ziel hat, feuert gerade.
        */
       public record Marker(Kind kind, double x, double y, double z, boolean alerted) {
+         public static final StreamCodec<ByteBuf, Marker> STREAM_CODEC = StreamCodec.composite(
+            ByteBufCodecs.VAR_INT.map(Kind::byId, Kind::ordinal), Marker::kind,
+            ByteBufCodecs.DOUBLE, Marker::x,
+            ByteBufCodecs.DOUBLE, Marker::y,
+            ByteBufCodecs.DOUBLE, Marker::z,
+            ByteBufCodecs.BOOL, Marker::alerted,
+            Marker::new);
       }
    }
 
@@ -379,45 +361,26 @@ public final class OsokPayloads {
     */
    public record BomberTargetsPayload(List<Target> targets) implements CustomPacketPayload {
       public static final Type<BomberTargetsPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("bomber_targets"));
-   
-      public static final StreamCodec<ByteBuf, BomberTargetsPayload> STREAM_CODEC = new StreamCodec<>() {
-         @Override
-         public BomberTargetsPayload decode(ByteBuf buffer) {
-            int count = ByteBufCodecs.VAR_INT.decode(buffer);
-            List<Target> targets = new ArrayList<>(count);
-            for (int index = 0; index < count; index++) {
-               targets.add(new Target(
-                  UUIDUtil.STREAM_CODEC.decode(buffer),
-                  ByteBufCodecs.STRING_UTF8.decode(buffer),
-                  ByteBufCodecs.DOUBLE.decode(buffer),
-                  ByteBufCodecs.DOUBLE.decode(buffer),
-                  ByteBufCodecs.DOUBLE.decode(buffer),
-                  ByteBufCodecs.VAR_INT.decode(buffer)));
-            }
-            return new BomberTargetsPayload(targets);
-         }
-   
-         @Override
-         public void encode(ByteBuf buffer, BomberTargetsPayload payload) {
-            ByteBufCodecs.VAR_INT.encode(buffer, payload.targets.size());
-            for (Target target : payload.targets) {
-               UUIDUtil.STREAM_CODEC.encode(buffer, target.id());
-               ByteBufCodecs.STRING_UTF8.encode(buffer, target.name());
-               ByteBufCodecs.DOUBLE.encode(buffer, target.x());
-               ByteBufCodecs.DOUBLE.encode(buffer, target.y());
-               ByteBufCodecs.DOUBLE.encode(buffer, target.z());
-               ByteBufCodecs.VAR_INT.encode(buffer, target.killstreak());
-            }
-         }
-      };
-   
+
+      public static final StreamCodec<ByteBuf, BomberTargetsPayload> STREAM_CODEC =
+         Target.STREAM_CODEC.apply(ByteBufCodecs.list())
+            .map(BomberTargetsPayload::new, BomberTargetsPayload::targets);
+
       @Override
       public Type<BomberTargetsPayload> type() {
          return TYPE;
       }
-   
+
       /** Ein wählbarer Gegner samt allem, was das Menü über ihn anzeigt. */
       public record Target(UUID id, String name, double x, double y, double z, int killstreak) {
+         public static final StreamCodec<ByteBuf, Target> STREAM_CODEC = StreamCodec.composite(
+            UUIDUtil.STREAM_CODEC, Target::id,
+            ByteBufCodecs.STRING_UTF8, Target::name,
+            ByteBufCodecs.DOUBLE, Target::x,
+            ByteBufCodecs.DOUBLE, Target::y,
+            ByteBufCodecs.DOUBLE, Target::z,
+            ByteBufCodecs.VAR_INT, Target::killstreak,
+            Target::new);
       }
    }
 
@@ -569,72 +532,42 @@ public final class OsokPayloads {
     * wäre diese Anzeige falsch, deshalb gibt es hier ein Paket, das nichts weiter tut als
     * erschüttern. Wie stark, entscheidet der Client anhand seiner Entfernung.
     */
-   public static final class ExplosionShakePayload implements CustomPacketPayload {
+   public record ExplosionShakePayload(double x, double y, double z, float maxDistance, float intensity, int durationTicks) implements CustomPacketPayload {
       public static final Type<ExplosionShakePayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("explosion_shake"));
-   
-      public static final StreamCodec<ByteBuf, ExplosionShakePayload> STREAM_CODEC = new StreamCodec<>() {
-         @Override
-         public ExplosionShakePayload decode(ByteBuf buffer) {
-            return new ExplosionShakePayload(
-               ByteBufCodecs.DOUBLE.decode(buffer),
-               ByteBufCodecs.DOUBLE.decode(buffer),
-               ByteBufCodecs.DOUBLE.decode(buffer),
-               ByteBufCodecs.FLOAT.decode(buffer),
-               ByteBufCodecs.FLOAT.decode(buffer),
-               ByteBufCodecs.VAR_INT.decode(buffer));
-         }
-   
-         @Override
-         public void encode(ByteBuf buffer, ExplosionShakePayload payload) {
-            ByteBufCodecs.DOUBLE.encode(buffer, payload.x);
-            ByteBufCodecs.DOUBLE.encode(buffer, payload.y);
-            ByteBufCodecs.DOUBLE.encode(buffer, payload.z);
-            ByteBufCodecs.FLOAT.encode(buffer, payload.maxDistance);
-            ByteBufCodecs.FLOAT.encode(buffer, payload.intensity);
-            ByteBufCodecs.VAR_INT.encode(buffer, payload.durationTicks);
-         }
-      };
-   
-      private final double x;
-      private final double y;
-      private final double z;
-      private final float maxDistance;
-      private final float intensity;
-      private final int durationTicks;
-   
-      public ExplosionShakePayload(double x, double y, double z, float maxDistance, float intensity, int durationTicks) {
-         this.x = x;
-         this.y = y;
-         this.z = z;
-         this.maxDistance = maxDistance;
-         this.intensity = intensity;
-         this.durationTicks = durationTicks;
-      }
-   
+
+      public static final StreamCodec<ByteBuf, ExplosionShakePayload> STREAM_CODEC = StreamCodec.composite(
+         ByteBufCodecs.DOUBLE, ExplosionShakePayload::x,
+         ByteBufCodecs.DOUBLE, ExplosionShakePayload::y,
+         ByteBufCodecs.DOUBLE, ExplosionShakePayload::z,
+         ByteBufCodecs.FLOAT, ExplosionShakePayload::maxDistance,
+         ByteBufCodecs.FLOAT, ExplosionShakePayload::intensity,
+         ByteBufCodecs.VAR_INT, ExplosionShakePayload::durationTicks,
+         ExplosionShakePayload::new);
+
       public double getX() {
          return x;
       }
-   
+
       public double getY() {
          return y;
       }
-   
+
       public double getZ() {
          return z;
       }
-   
+
       public float getMaxDistance() {
          return maxDistance;
       }
-   
+
       public float getIntensity() {
          return intensity;
       }
-   
+
       public int getDurationTicks() {
          return durationTicks;
       }
-   
+
       @Override
       public Type<ExplosionShakePayload> type() {
          return TYPE;
