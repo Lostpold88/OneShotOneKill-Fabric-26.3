@@ -394,14 +394,14 @@ public final class ArenaMenuScreen extends Screen {
       boolean canRespawn = isMatchState(MatchState.RUNNING) && state.isOutsideArena() && !isCountdown && !isNuke;
 
       int x = left;
-      controlButton(graphics, x, y, "▶ Start", canStart, mouseX, mouseY, true, OsokWidgets.COLOR_EMERALD,
+      controlButton(graphics, x, y, "▶ Start", canStart, mouseX, mouseY, true, false, OsokWidgets.COLOR_EMERALD,
          () -> {
             ClientPlayNetworking.send(StartMatchPayload.EMPTY);
             onClose();
          });
       x += CONTROL_BUTTON_WIDTH + 8;
       controlButton(graphics, x, y, isPaused ? "▶ Fortsetzen" : "⏸ Pause",
-         canPause, mouseX, mouseY, false, OsokWidgets.COLOR_AMBER,
+         canPause, mouseX, mouseY, false, !isPaused, OsokWidgets.COLOR_AMBER,
          () -> {
             ClientPlayNetworking.send(isPaused ? StartMatchPayload.EMPTY : PauseMatchPayload.EMPTY);
             onClose();
@@ -490,15 +490,20 @@ public final class ArenaMenuScreen extends Screen {
    }
 
    private void controlButton(GuiGraphicsExtractor graphics, int x, int y, String label, boolean enabled,
-                              int mouseX, int mouseY, boolean closes, int accent, Runnable action) {
+                              int mouseX, int mouseY, boolean closes, boolean playSound, int accent, Runnable action) {
       boolean hovered = OsokWidgets.isOver(mouseX, mouseY, x, y, CONTROL_BUTTON_WIDTH, 24);
       OsokWidgets.cyberButton(graphics, font, x, y, CONTROL_BUTTON_WIDTH, 24, label, enabled, hovered, accent);
-      hotspots.add(new Hotspot(x, y, CONTROL_BUTTON_WIDTH, 24, enabled, () -> {
+      hotspots.add(new Hotspot(x, y, CONTROL_BUTTON_WIDTH, 24, enabled, enabled, true, playSound, () -> {
          action.run();
          if (closes) {
             onClose();
          }
       }));
+   }
+
+   private void controlButton(GuiGraphicsExtractor graphics, int x, int y, String label, boolean enabled,
+                              int mouseX, int mouseY, boolean closes, int accent, Runnable action) {
+      controlButton(graphics, x, y, label, enabled, mouseX, mouseY, closes, true, accent, action);
    }
 
    private void drawMatchTargetTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
@@ -864,7 +869,9 @@ public final class ArenaMenuScreen extends Screen {
             if (hotspot.scrollable && (event.y() < contentTop || event.y() >= contentTop + contentHeight)) {
                continue;
             }
-            clickSound();
+            if (hotspot.playSound) {
+               clickSound();
+            }
             hotspot.action.run();
             return true;
          }
@@ -1049,14 +1056,19 @@ public final class ArenaMenuScreen extends Screen {
    }
 
    private record Hotspot(int x, int y, int width, int height, boolean enabled, boolean pointer,
-                          boolean scrollable, Runnable action) {
+                          boolean scrollable, boolean playSound, Runnable action) {
+      public Hotspot(int x, int y, int width, int height, boolean enabled, boolean pointer,
+                     boolean scrollable, Runnable action) {
+         this(x, y, width, height, enabled, pointer, scrollable, true, action);
+      }
+
       public Hotspot(int x, int y, int width, int height, boolean enabled, boolean scrollable,
                      Runnable action) {
-         this(x, y, width, height, enabled, enabled, scrollable, action);
+         this(x, y, width, height, enabled, enabled, scrollable, true, action);
       }
 
       public Hotspot(int x, int y, int width, int height, boolean enabled, Runnable action) {
-         this(x, y, width, height, enabled, enabled, true, action);
+         this(x, y, width, height, enabled, enabled, true, true, action);
       }
    }
 
