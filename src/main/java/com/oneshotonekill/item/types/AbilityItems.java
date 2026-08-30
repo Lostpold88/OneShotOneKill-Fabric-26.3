@@ -261,12 +261,11 @@ public final class AbilityItems {
 
          ItemStack stack = player.getItemInHand(hand);
          if (player.getCooldowns().isOnCooldown(stack)
-            || !GrapplingHookSystem.INSTANCE.fire(serverLevel, serverPlayer)) {
+            || !GrapplingHookSystem.INSTANCE.fire(serverLevel, serverPlayer, hand)) {
             return InteractionResult.FAIL;
          }
 
          player.getCooldowns().addCooldown(stack, FIRE_COOLDOWN_TICKS);
-         stack.hurtAndBreak(1, player, hand.asEquipmentSlot());
          return InteractionResult.CONSUME;
       }
 

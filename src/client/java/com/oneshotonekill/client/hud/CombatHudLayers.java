@@ -488,18 +488,21 @@ public final class CombatHudLayers {
    // GrapplingHookHudLayer.java
    // =========================================================================
    /**
-    * Visier und Ziel-Rangefinder des Grappling Hooks:
+    * Taktisches Visier und Ziel-Rangefinder des Grappling Hooks:
     * Pneumatisches Harpunen-Reticle mit Live-Entfernungsmesser bis 38 Blöcke,
-    * dynamischen Greifbacken (Target-Lock bei Blockkontakt), 10-Stufen Ladungsanzeige
-    * und kinetischen Zugvektor-Indikatoren.
+    * dynamischen Zielbacken (Target-Lock bei Blockkontakt), 10-Zellen Manometer-Druckanzeige,
+    * kinetischen Zugvektor-Pfeilen und vollständiger deutscher Telemetrie.
     */
    public static final class GrapplingHookHudLayer implements HudElement {
       private static final double MAX_GRAPPLE_RANGE = 38.0;
       private static final int COLOR_LOCK_CYAN = 0xFF00F0FF;
       private static final int COLOR_LOCK_WHITE = 0xFFFFFFFF;
-      private static final int COLOR_DIM_STEEL = 0x88708090;
-      private static final int COLOR_CHARGE_EMPTY = 0x44222830;
-      private static final int COLOR_PULL_ACTIVE = 0xFFFFCC00;
+      private static final int COLOR_AMBER = 0xFFFFCC00;
+      private static final int COLOR_CRITICAL_RED = 0xFFFF3344;
+      private static final int COLOR_DIM_STEEL = 0x88607080;
+      private static final int COLOR_BOX_BG = 0xAA080E14;
+      private static final int COLOR_CELL_EMPTY = 0x33101520;
+      private static final int COLOR_CELL_BORDER = 0x44304050;
 
       @Override
       public void extractRenderState(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
@@ -519,6 +522,7 @@ public final class CombatHudLayers {
          int centerY = (graphics.guiHeight() - 1) / 2;
          float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
 
+         // Live-Raycast zur Oberfläche
          Vec3 eye = player.getEyePosition(partialTick);
          Vec3 look = player.getViewVector(partialTick);
          Vec3 end = eye.add(look.scale(MAX_GRAPPLE_RANGE));
@@ -530,6 +534,7 @@ public final class CombatHudLayers {
          double distance = hitSolid ? eye.distanceTo(hit.getLocation()) : MAX_GRAPPLE_RANGE;
          boolean inRange = hitSolid && distance <= MAX_GRAPPLE_RANGE;
 
+         // Grapple Zustand
          boolean active = GrapplePullState.INSTANCE.isGrappleActive(player.getUUID());
          boolean pulling = active && GrapplePullState.INSTANCE.aimPose(player, partialTick) != null;
 
@@ -546,21 +551,32 @@ public final class CombatHudLayers {
                                       boolean active, boolean pulling,
                                       int charges, int maxCharges, float partialTick) {
          float time = player.tickCount + partialTick;
-         float pulse = 0.5f + 0.5f * Mth.sin(time * 0.5f);
+         float pulse = 0.5f + 0.5f * Mth.sin(time * 0.45f);
 
          int accentColor = active
-            ? (pulling ? COLOR_PULL_ACTIVE : COLOR_LOCK_CYAN)
+            ? (pulling ? COLOR_AMBER : COLOR_LOCK_CYAN)
             : (inRange ? COLOR_LOCK_CYAN : COLOR_DIM_STEEL);
 
-         // 1. Zentraler Präzisionspunkt
-         graphics.fill(cx - 1, cy - 1, cx + 2, cy + 2, 0x55000000);
-         graphics.fill(cx, cy, cx + 1, cy + 1, inRange || active ? COLOR_LOCK_WHITE : COLOR_DIM_STEEL);
+         // 1. Zartes Vignette/Shadow-Backdrop um das Visier für kristallklaren Kontrast
+         graphics.fill(cx - 20, cy - 20, cx + 21, cy + 21, 0x12000000);
 
-         // 2. 4 Greif-Backen (Klammern): ziehen sich bei Lock zusammen
-         int radius = inRange ? 9 : 14;
+         // 2. Zentraler Präzisionspunkt (2x2) mit Kontur
+         graphics.fill(cx - 2, cy - 2, cx + 3, cy + 3, 0x66000000);
+         graphics.fill(cx - 1, cy - 1, cx + 2, cy + 2, inRange || active ? COLOR_LOCK_WHITE : COLOR_DIM_STEEL);
+
+         // 3. 4 Sub-Pixel Achsen-Linien
+         int axisGap = 4;
+         int axisLen = 3;
+         graphics.horizontalLine(cx - axisGap - axisLen, cx - axisGap, cy, accentColor);
+         graphics.horizontalLine(cx + axisGap, cx + axisGap + axisLen, cy, accentColor);
+         graphics.verticalLine(cx, cy - axisGap - axisLen, cy - axisGap, accentColor);
+         graphics.verticalLine(cx, cy + axisGap, cy + axisGap + axisLen, accentColor);
+
+         // 4. 4 Greif-Backen (Calipers): ziehen sich bei Lock zusammen
+         int radius = inRange ? 11 : 16;
          int arm = 4;
          if (active) {
-            radius = 7 + (int) (pulse * 3.0f);
+            radius = 9 + (int) (pulse * 3.0f);
          }
 
          // Oben-Links
@@ -579,47 +595,98 @@ public final class CombatHudLayers {
          graphics.horizontalLine(cx + radius, cx + radius + arm, cy + radius, accentColor);
          graphics.verticalLine(cx + radius, cy + radius - arm, cy + radius, accentColor);
 
-         // 3. Status & Entfernungsanzeige (oberhalb)
-         int textY = cy - 24;
-         if (active) {
-            String status = pulling ? "⛓ PULLING" : "⛓ HOOK IN FLIGHT";
-            int col = pulling ? COLOR_PULL_ACTIVE : COLOR_LOCK_CYAN;
-            graphics.centeredText(font, status, cx, textY, col);
-         } else if (inRange) {
-            String distText = String.format(Locale.ROOT, "%.1f m", distance);
-            graphics.centeredText(font, distText, cx, textY, COLOR_LOCK_CYAN);
-         } else {
-            graphics.centeredText(font, "OUT OF RANGE", cx, textY, COLOR_DIM_STEEL);
+         // 5. Kinetische Zugpfeile (zeigen zur Mitte bei aktivem Zug)
+         if (pulling) {
+            int arrowDist = 7;
+            graphics.fill(cx, cy - arrowDist, cx + 1, cy - arrowDist + 2, COLOR_AMBER);
+            graphics.fill(cx, cy + arrowDist - 1, cx + 1, cy + arrowDist + 1, COLOR_AMBER);
+            graphics.fill(cx - arrowDist, cy, cx - arrowDist + 2, cy + 1, COLOR_AMBER);
+            graphics.fill(cx + arrowDist - 1, cy, cx + arrowDist + 1, cy + 1, COLOR_AMBER);
          }
 
-         // 4. Ladungs-Pips (unterhalb)
-         drawChargePips(graphics, font, cx, cy + 20, charges, maxCharges);
+         // 6. Taktisches Status- & Entfernungs-Badge (oberhalb bei cy - 28)
+         int textY = cy - 28;
+         String statusText;
+         int statusColor;
+         if (pulling) {
+            statusText = "⛓ ZUG AKTIV · " + String.format(Locale.ROOT, "%.1f", distance) + " m";
+            statusColor = COLOR_AMBER;
+         } else if (active) {
+            statusText = "⛓ HAKEN IM FLUG";
+            statusColor = COLOR_LOCK_CYAN;
+         } else if (inRange) {
+            statusText = "🎯 " + String.format(Locale.ROOT, "%.1f", distance) + " m // ZIEL BEREIT";
+            statusColor = COLOR_LOCK_CYAN;
+         } else {
+            statusText = "--- m // AUSSER REICHWEITE";
+            statusColor = COLOR_DIM_STEEL;
+         }
+
+         int textW = font.width(statusText);
+         graphics.fill(cx - textW / 2 - 4, textY - 2, cx + textW / 2 + 4, textY + 9, COLOR_BOX_BG);
+         graphics.horizontalLine(cx - textW / 2 - 4, cx + textW / 2 + 3, textY - 2, 0x4400F0FF);
+         graphics.centeredText(font, statusText, cx, textY, statusColor);
+
+         // 7. 10-Zellen Pneumatik-Druckanzeige (unterhalb bei cy + 22)
+         drawPneumaticPressureGauge(graphics, font, cx, cy + 22, charges, maxCharges, pulse);
       }
 
-      private static void drawChargePips(GuiGraphicsExtractor graphics, Font font, int cx, int y,
-                                         int charges, int maxCharges) {
+      private static void drawPneumaticPressureGauge(GuiGraphicsExtractor graphics, Font font,
+                                                    int cx, int y, int charges, int maxCharges,
+                                                    float pulse) {
          if (maxCharges <= 0) {
             return;
          }
 
-         int pipW = 4;
-         int pipH = 3;
+         int cellW = 5;
+         int cellH = 4;
          int gap = 2;
-         int totalW = maxCharges * pipW + (maxCharges - 1) * gap;
+         int totalW = maxCharges * cellW + (maxCharges - 1) * gap;
          int startX = cx - totalW / 2;
 
-         for (int i = 0; i < maxCharges; i++) {
-            int px = startX + i * (pipW + gap);
-            boolean filled = i < charges;
-            int color = filled
-               ? (charges <= 2 ? 0xFFFF4444 : (charges <= 5 ? 0xFFFFCC00 : COLOR_LOCK_CYAN))
-               : COLOR_CHARGE_EMPTY;
+         // Hintergrund-Rahmen für das Manometer
+         graphics.fill(startX - 3, y - 2, startX + totalW + 3, y + cellH + 2, COLOR_BOX_BG);
 
-            graphics.fill(px, y, px + pipW, y + pipH, color);
+         for (int i = 0; i < maxCharges; i++) {
+            int px = startX + i * (cellW + gap);
+            boolean filled = i < charges;
+
+            // Äußerer Zellenrahmen
+            graphics.fill(px - 1, y - 1, px + cellW + 1, y + cellH + 1, COLOR_CELL_BORDER);
+
+            if (filled) {
+               int cellColor;
+               if (charges <= 1) {
+                  cellColor = MinigunHudLayer.lerpColor(COLOR_CRITICAL_RED, 0xFFFFFFFF, pulse);
+               } else if (charges <= 3) {
+                  cellColor = 0xFFFF9900;
+               } else {
+                  cellColor = COLOR_LOCK_CYAN;
+               }
+               graphics.fill(px, y, px + cellW, y + cellH, cellColor);
+            } else {
+               graphics.fill(px, y, px + cellW, y + cellH, COLOR_CELL_EMPTY);
+            }
          }
 
-         int textColor = charges <= 2 ? 0xFFFF4444 : OsokWidgets.COLOR_TEXT_MUTED;
-         graphics.centeredText(font, "⛓ " + charges + "/" + maxCharges, cx, y + pipH + 4, textColor);
+         // Deutscher Telemetrie-Text darunter
+         String label;
+         int labelColor;
+         if (charges == 1) {
+            label = "⚠ LETZTE LADUNG // KABEL AM LIMIT";
+            labelColor = MinigunHudLayer.lerpColor(COLOR_CRITICAL_RED, 0xFFFFFFFF, pulse);
+         } else if (charges <= 3 && charges > 0) {
+            label = "⛓ DRUCK: " + charges + " / " + maxCharges + " LADUNGEN";
+            labelColor = 0xFFFF9900;
+         } else if (charges > 0) {
+            label = "⛓ DRUCK: " + charges + " / " + maxCharges + " LADUNGEN";
+            labelColor = OsokWidgets.COLOR_TEXT_MUTED;
+         } else {
+            label = "✖ ENTLADEN // KEIN DRUCK";
+            labelColor = COLOR_DIM_STEEL;
+         }
+
+         graphics.centeredText(font, label, cx, y + cellH + 5, labelColor);
       }
    }
 

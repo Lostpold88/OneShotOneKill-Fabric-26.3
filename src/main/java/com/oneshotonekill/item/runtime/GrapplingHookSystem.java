@@ -67,9 +67,10 @@ public final class GrapplingHookSystem {
    }
 
    /** Schießt einen neuen Haken; ein noch laufender Schuss desselben Spielers wird sauber ersetzt. */
-   public boolean fire(ServerLevel level, ServerPlayer player) {
+   public boolean fire(ServerLevel level, ServerPlayer player, net.minecraft.world.InteractionHand hand) {
       Grapple previous = active.remove(player.getUUID());
       if (previous != null) {
+         applyCharge(previous, player);
          previous.dismantle();
       }
 
@@ -82,7 +83,7 @@ public final class GrapplingHookSystem {
       }
 
       Grapple grapple = new Grapple(player.getUUID(), level, origin, look.scale(FIRE_SPEED),
-         origin, look, hook);
+         origin, look, hook, hand);
       active.put(player.getUUID(), grapple);
       updateVisuals(grapple);
       syncGrappleState(grapple, true);
@@ -100,6 +101,7 @@ public final class GrapplingHookSystem {
          Grapple grapple = iterator.next();
          ServerPlayer owner = server.getPlayerList().getPlayer(grapple.owner);
          if (!isUsable(grapple, owner)) {
+            applyCharge(grapple, owner);
             grapple.dismantle();
             iterator.remove();
             continue;
@@ -111,12 +113,23 @@ public final class GrapplingHookSystem {
             case RETRACTING -> tickRetracting(grapple, owner);
          };
          if (finished) {
+            applyCharge(grapple, owner);
             grapple.dismantle();
             iterator.remove();
          } else {
             updateVisuals(grapple);
             syncGrappleState(grapple, true);
          }
+      }
+   }
+
+   private static void applyCharge(Grapple grapple, ServerPlayer owner) {
+      if (owner == null) {
+         return;
+      }
+      ItemStack stack = owner.getItemInHand(grapple.hand);
+      if (stack.is(ModItems.GRAPPLING_HOOK)) {
+         stack.hurtAndBreak(1, owner, grapple.hand.asEquipmentSlot());
       }
    }
 
@@ -329,6 +342,7 @@ public final class GrapplingHookSystem {
       private final ServerLevel level;
       private final Vec3 launchOrigin;
       private final Display.ItemDisplay hook;
+      private final net.minecraft.world.InteractionHand hand;
       private Vec3 position;
       private Vec3 velocity;
       private Vec3 aimDirection;
@@ -340,7 +354,8 @@ public final class GrapplingHookSystem {
       private boolean visualsInitialized;
 
       private Grapple(UUID owner, ServerLevel level, Vec3 position, Vec3 velocity,
-                      Vec3 launchOrigin, Vec3 aimDirection, Display.ItemDisplay hook) {
+                      Vec3 launchOrigin, Vec3 aimDirection, Display.ItemDisplay hook,
+                      net.minecraft.world.InteractionHand hand) {
          this.owner = owner;
          this.level = level;
          this.position = position;
@@ -348,6 +363,7 @@ public final class GrapplingHookSystem {
          this.launchOrigin = launchOrigin;
          this.aimDirection = aimDirection;
          this.hook = hook;
+         this.hand = hand;
       }
 
       private void dismantle() {
