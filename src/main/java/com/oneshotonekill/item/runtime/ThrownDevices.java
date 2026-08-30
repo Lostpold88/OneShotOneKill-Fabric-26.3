@@ -28,6 +28,7 @@ import net.minecraft.world.effect.MobEffects;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.core.BlockPos;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
@@ -341,20 +342,21 @@ public final class ThrownDevices {
    }
 
    /**
-    * Sucht am Einschlag einen Platz, an dem ein Spieler wirklich stehen kann.
+    * Sucht am Einschlag einen passenden Platz für die Landung des Spielers.
     * <p>
-    * Geprüft werden der Punkt selbst und die beiden darüber – eine Granate, die an einer Wand
-    * abprallt, liegt gern einen halben Block im Boden.
+    * Geprüft werden der Punkt selbst und bis zu zwei Blöcke darüber.
     */
    private static Vec3 freeSpotNear(ServerLevel level, Vec3 target) {
       for (int step = 0; step <= 2; step++) {
-         Vec3 candidate = target.add(0.0, 0.2 + step, 0.0);
+         Vec3 candidate = target.add(0.0, 0.1 + step, 0.0);
          BlockPos feet = BlockPos.containing(candidate);
-         if (level.getBlockState(feet).isAir() && level.getBlockState(feet.above()).isAir()) {
+         BlockState feetState = level.getBlockState(feet);
+         BlockState headState = level.getBlockState(feet.above());
+         if (!feetState.blocksMotion() && !headState.blocksMotion()) {
             return candidate;
          }
       }
-      return null;
+      return target.add(0.0, 0.1, 0.0);
    }
 
    /**
@@ -470,20 +472,9 @@ public final class ThrownDevices {
 
    /**
     * Setzt den Werfer an den Einschlag und stößt alle anderen im Umkreis weg.
-    * <p>
-    * Der Ankunftspunkt wird geprüft, statt blind übernommen: die Granate kann an einer Decke
-    * oder in einer Nische liegen bleiben, und ein Sprung mitten in einen Block setzte den Werfer
-    * fest. Findet sich nichts Freies, bleibt er stehen, wo er ist – lieber kein Sprung als ein
-    * Sprung in die Wand.
     */
    private void teleportAndPush(MinecraftServer server, ServerLevel level, ServerPlayer thrower, Vec3 target) {
       Vec3 landing = freeSpotNear(level, target);
-      if (landing == null) {
-         Feedback.actionBar(thrower, "§5✦ TELEPORT — kein Platz am Einschlag");
-         level.playSound(null, target.x, target.y, target.z, SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.8F, 1.6F);
-         return;
-      }
-
       Vec3 origin = thrower.position();
       openWarp(level, origin.add(0.0, 1.0, 0.0), false);
       thrower.teleportTo(level, landing.x, landing.y, landing.z, Set.of(), thrower.getYRot(), thrower.getXRot(), false);
