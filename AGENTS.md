@@ -4,12 +4,12 @@
 
 - **IntelliJ IDEA & MCP (`intellij-index`)** sind das primäre Werkzeug für semantische Code-Navigation, Typ-Hierarchien, Referenzprüfungen und sichere Refactorings.
 - **Fabric-API, Access Widener und Mixins** sind vollwertige Werkzeuge und dürfen jederzeit frei und gezielt nach Zweckmäßigkeit genutzt werden.
-- Alle externen Bibliotheken (Minecraft, Fabric API, Fabric Loader, Sponge Mixin, MixinExtras, Brigadier, Netty, Java SDK etc.) werden direkt über die **IntelliJ IDEA MCP-Engine** (`scope: "project_and_libraries"`) semantisch durchsucht und analysiert.
-- Nach Datei- oder Strukturänderungen durch Agenten wird [`ide_sync_files`](file:///E:/OneShotOneKill) aufgerufen, um das Virtual File System (VFS) der IDE aktuell zu halten.
-- Zielplattform: **Java 25, Minecraft 26.2, Fabric Loader 0.19.4, Fabric API 0.158.0+26.2, Fabric Loom 1.17.20, Gradle 9.5.1**. Alle Versionen stehen in `gradle.properties`.
+- Externe Bibliotheken (Minecraft, Fabric API, Fabric Loader, Sponge Mixin, MixinExtras, Brigadier, Netty, Java SDK etc.) werden direkt über die **IntelliJ IDEA MCP-Engine** (`scope: "project_and_libraries"`) semantisch durchsucht und analysiert.
+- Nach externen Datei- oder Strukturänderungen durch Agenten wird [`ide_sync_files`](file:///E:/OneShotOneKill) aufgerufen, um das Virtual File System (VFS) der IDE aktuell zu halten.
+- Zielplattform: **Java 25, Minecraft 26.2, Fabric Loader 0.19.5, Fabric API 0.158.0+26.2, Fabric Loom 1.17-SNAPSHOT, Gradle 9.5.1**. Alle Versionen stehen in `gradle.properties`.
 - Mod-ID `oneshotonekill`, Package `com.oneshotonekill`.
 - Geteilte Source-Sets: `src/main/java` läuft auf Server und Client, `src/client/java` ausschließlich auf dem Client.
-- Build und Deployment laufen über `.\build.ps1` (bzw. die IntelliJ Run Configuration `BUILD`).
+- Build und Deployment laufen über [`.\build.ps1`](file:///E:/OneShotOneKill/MOD/build.ps1) (bzw. die verknüpfte IntelliJ Run Configuration `BUILD`).
 
 ---
 
@@ -17,23 +17,31 @@
 
 Die Anbindung erfolgt über das **intellij-index MCP** (`http://127.0.0.1:29170/index-mcp/streamable-http`).
 
-### 1. Verbindliche MCP-Nutzung für Recherche und Analyse
+### 1. Verbindliche MCP-Regeln (nach `ide-index-mcp` Standard)
 
-Statt ungenauer Textsuche (Grep) wird für Java-Code immer die semantische MCP-Engine bevorzugt:
+* **Semantik vor Textsuche:** Für Codeverständnis, Refactorings und Navigation immer die IDE-Tools nutzen. Grep/Regex sieht nur Text und übersieht Vererbung, Typen, Aliase und Overrides.
+* **1-basierte Koordinaten:** Alle Zeilen- und Spaltenangaben sind **1-basiert** (erste Zeile = 1, erste Spalte = 1).
+* **Relative Pfade:** Projektdateien werden relativ zur Projektwurzel angegeben (z. B. `src/main/java/com/.../App.java` oder `MOD/src/...`).
+* **Präzise Spaltenzeiger:** Die Spalte muss direkt auf den Namen des Symbols zeigen (z. B. auf den ersten Buchstaben des Methodennamens), nicht auf Modifizierer oder Klammern.
+* **Pre-Flight-Check bei Indexierung:** Falls ein Tool meldet, dass der Index nicht bereit ist (`isDumbMode: true`), mit [`ide_index_status`](file:///E:/OneShotOneKill) prüfen und kurz warten, bis Smart Mode aktiv ist. Niemals blind auf Shell/Grep ausweichen.
+* **Dateisynchronisation:** Nach jeder Datei-Erstellung oder -Bearbeitung über Agentenwerkzeuge muss [`ide_sync_files`](file:///E:/OneShotOneKill) aufgerufen werden, bevor Such- oder Referenzwerkzeuge eingesetzt werden.
 
-1. **Definitionen & Deklarationen:** [`ide_find_definition`](file:///E:/OneShotOneKill) nutzen, um den Ursprung von Methoden, Feldern und Klassen exakt anzuspringen.
-2. **Referenzen & Aufrufer:** [`ide_find_references`](file:///E:/OneShotOneKill) nutzen, um alle echten Verwendungen eines Symbols im Projekt zu ermitteln.
-3. **Klassen & Interfaces:** [`ide_find_class`](file:///E:/OneShotOneKill) mit `scope: "project_and_libraries"` nutzen, um beliebige Minecraft-, Fabric- oder JDK-Klassen nachzuschlagen.
-4. **Vererbung & Hierarchien:** [`ide_type_hierarchy`](file:///E:/OneShotOneKill) und [`ide_find_implementations`](file:///E:/OneShotOneKill) nutzen, um Subtypen, Oberklassen und Interface-Implementierungen zu analysieren.
-5. **Call-Flows:** [`ide_call_hierarchy`](file:///E:/OneShotOneKill) nutzen, um Aufruferketten (Caller/Callee) nachzuvollziehen.
-6. **Text- & Mustersuche:** [`ide_search_text`](file:///E:/OneShotOneKill) mit `context: "code"`, `filePattern` oder Pfad-Filtern einsetzen, um gezielt nach Code-Patterns in den indizierten Bibliotheken zu suchen.
+### 2. Werkzeugauswahl nach Aufgabenstellung
 
-### 2. Refactorings & Dateioperationen
-
-- **Umbenennungen:** Immer [`ide_refactor_rename`](file:///E:/OneShotOneKill) verwenden. Dadurch werden Methoden-, Variablen- und Klassennamen in allen referenzierenden Dateien, Overrides und Gettern/Settern fehlerfrei und semantisch umbenannt.
-- **Sicheres Löschen:** [`ide_refactor_safe_delete`](file:///E:/OneShotOneKill) prüft vor dem Löschen auf verbleibende Verwendungen.
-- **Dateien verschieben:** [`ide_move_file`](file:///E:/OneShotOneKill) passt Paketdeklarationen und Imports automatisch an.
-- **IDE-Synchronisation:** Nach externen Bearbeitungen oder Skriptausführungen [`ide_sync_files`](file:///E:/OneShotOneKill) aufrufen.
+| Anwendungsfall | Empfohlenes IDE-Werkzeug | Parameter & Hinweise |
+| :--- | :--- | :--- |
+| **Klasse/Interface finden** | [`ide_find_class`](file:///E:/OneShotOneKill) | Unterstützt CamelCase (z. B. `SMS` für `SlowMotionSystem`). `scope: "project_and_libraries"` für Minecraft/Fabric. |
+| **Symbol-Definition anspringen** | [`ide_find_definition`](file:///E:/OneShotOneKill) | Benötigt `file`, `line`, `column`. Springt direkt zur Deklaration. |
+| **Alle Verwendungen finden** | [`ide_find_references`](file:///E:/OneShotOneKill) | Findet echte Code-Aufrufe, Feldzugriffe und Imports ohne False Positives. |
+| **Implementierungen finden** | [`ide_find_implementations`](file:///E:/OneShotOneKill) | Zeigt alle Subklassen und Interface-Implementierungen. |
+| **Typ- & Vererbungshierarchie** | [`ide_type_hierarchy`](file:///E:/OneShotOneKill) | Zeigt Oberklassen, Schnittstellen und Subtypen. |
+| **Aufrufhierarchie (Call Graph)** | [`ide_call_hierarchy`](file:///E:/OneShotOneKill) | `direction: "callers"` (wer ruft auf) oder `"callees"` (was wird aufgerufen). |
+| **Übergeordnete Methoden** | [`ide_find_super_methods`](file:///E:/OneShotOneKill) | Zeigt die Basismethode/Interface-Methode, die überschrieben wird. |
+| **Text-/Code-Suche** | [`ide_search_text`](file:///E:/OneShotOneKill) | `context: "code"`, `filePattern` und `paths` (z. B. `["src/**", "!**/*Test.java"]`) zur gezielten Eingrenzung nutzen. |
+| **Sicheres Umbenennen** | [`ide_refactor_rename`](file:///E:/OneShotOneKill) | Benennt Symbole oder Dateien projektweit semantisch um (inkl. Gettern/Settern und Overrides). |
+| **Sicheres Löschen** | [`ide_refactor_safe_delete`](file:///E:/OneShotOneKill) | Prüft vor dem Löschen auf verbleibende Verwendungen. |
+| **Datei verschieben** | [`ide_move_file`](file:///E:/OneShotOneKill) | Passt Paketdeklarationen und Imports automatisch an. |
+| **Code-Diagnostik** | [`ide_diagnostics`](file:///E:/OneShotOneKill) | Zeigt Echtzeit-Fehler, Warnungen und Compiler-Probleme für Dateien oder Builds. |
 
 ---
 
@@ -46,7 +54,7 @@ Fabric-API-Events, Access Widener und Mixins sind vollwertige Werkzeuge und kön
 1. **API-Prüfung per MCP:** Zielklasse und Methoden in Minecraft/Fabric per [`ide_find_class`](file:///E:/OneShotOneKill) oder [`ide_search_text`](file:///E:/OneShotOneKill) (`scope: "project_and_libraries"`) verifizieren.
 2. **Den passenden Weg wählen:**
    - Fabric-API-Events (wenn ein sauberes Callback existiert).
-   - Access Widener in `src/main/resources/oneshotonekill.accesswidener` (für Sichtbarkieterweiterungen oder `mutable`).
+   - Access Widener in `src/main/resources/oneshotonekill.accesswidener` (für Sichtbarkeit oder `mutable`).
    - Mixin (für Eingriffe in Ausführungsflüsse, Werte-Modifikationen oder Rendering).
 3. **Mixin-Deskriptoren exakt ableiten:**
    - Methoden- und Feld-Signaturen über die MCP-Typinformationen prüfen.
