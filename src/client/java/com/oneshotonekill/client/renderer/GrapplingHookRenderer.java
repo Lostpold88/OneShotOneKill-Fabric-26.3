@@ -177,7 +177,8 @@ public final class GrapplingHookRenderer implements SpecialModelRenderer<Grappli
 
       for (AbstractClientPlayer player : context.level().players()) {
          Vec3 hook = GrapplePullState.INSTANCE.hookPosition(player.getUUID(), partialTick);
-         if (hook == null || player.isInvisible()) {
+         if (hook == null || player.isInvisible()
+            || (!player.getMainHandItem().is(ModItems.GRAPPLING_HOOK) && !player.getOffhandItem().is(ModItems.GRAPPLING_HOOK))) {
             continue;
          }
 

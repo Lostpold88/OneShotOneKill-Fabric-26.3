@@ -133,6 +133,9 @@ public final class GrapplingHookSystem {
          ServerPlayer owner = server.getPlayerList().getPlayer(grapple.owner);
          if (!isUsable(grapple, owner)) {
             applyCharge(grapple, owner);
+            if (owner != null) {
+               grantFallImmunity(owner, 60L);
+            }
             grapple.dismantle();
             iterator.remove();
             continue;
@@ -161,12 +164,21 @@ public final class GrapplingHookSystem {
       ItemStack stack = owner.getItemInHand(grapple.hand);
       if (stack.is(ModItems.GRAPPLING_HOOK)) {
          stack.hurtAndBreak(1, owner, grapple.hand.asEquipmentSlot());
+      } else {
+         for (int i = 0; i < owner.getInventory().getContainerSize(); i++) {
+            ItemStack invStack = owner.getInventory().getItem(i);
+            if (invStack.is(ModItems.GRAPPLING_HOOK)) {
+               invStack.hurtAndBreak(1, owner, grapple.hand.asEquipmentSlot());
+               break;
+            }
+         }
       }
    }
 
    private static boolean isUsable(Grapple grapple, ServerPlayer owner) {
       return owner != null && owner.isAlive() && !owner.isSpectator()
-         && owner.level() == grapple.level && SpecialItemRules.canUse(owner);
+         && owner.level() == grapple.level && SpecialItemRules.canUse(owner)
+         && owner.getItemInHand(grapple.hand).is(ModItems.GRAPPLING_HOOK);
    }
 
    private boolean tickFlying(Grapple grapple, ServerPlayer owner) {
