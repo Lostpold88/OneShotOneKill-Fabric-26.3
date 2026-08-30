@@ -11,12 +11,12 @@ Fremdbibliothek über Fabric API hinaus.
 | Komponente | Version / Wert |
 | :--- | :--- |
 | **Minecraft** | 26.2 |
-| **Fabric Loader** | 0.19.4 |
+| **Fabric Loader** | 0.19.5 |
 | **Fabric API** | 0.158.0+26.2 |
-| **Fabric Loom** | 1.17.20 (`1.17-SNAPSHOT`) |
+| **Fabric Loom** | 1.17-SNAPSHOT |
 | **Mod-Version** | 1.0.0 |
 | **Java** | 25 |
-| **Gradle** | 9.5.1 |
+| **Gradle** | 9.7.1 |
 | **Abhängigkeiten** | keine über Fabric API hinaus |
 | **Mixins** | 22 (11 gemeinsam, 11 nur Client) |
 | **Access Widener** | 2 Einträge |

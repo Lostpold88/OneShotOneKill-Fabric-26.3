@@ -27,7 +27,7 @@
 - **Fabric-API, Access Widener und Mixins** sind vollwertige Werkzeuge und dürfen jederzeit frei und gezielt nach Zweckmäßigkeit genutzt werden.
 - Externe Bibliotheken (Minecraft, Fabric API, Fabric Loader, Sponge Mixin, MixinExtras, Brigadier, Netty, Java SDK etc.) werden direkt über die **IntelliJ IDEA MCP-Engine** (`scope: "project_and_libraries"`) semantisch analysiert.
 - Nach externen Datei- oder Strukturänderungen durch Agenten wird das Dateisystem mit der IDE synchronisiert (`ide_sync_files`).
-- Zielplattform: **Java 25, Minecraft 26.2, Fabric Loader 0.19.5, Fabric API 0.158.0+26.2, Fabric Loom 1.17-SNAPSHOT, Gradle 9.5.1**. Alle Versionen stehen in [`gradle.properties`](gradle.properties).
+- Zielplattform: **Java 25, Minecraft 26.2, Fabric Loader 0.19.5, Fabric API 0.158.0+26.2, Fabric Loom 1.17-SNAPSHOT, Gradle 9.7.1**. Alle Versionen stehen in [`gradle.properties`](gradle.properties).
 - Mod-ID `oneshotonekill`, Package `com.oneshotonekill`.
 - Build und Deployment laufen über [`build.ps1`](build.ps1) (bzw. die verknüpfte IntelliJ Run Configuration `BUILD`).
 - **Client-Start:** Der Minecraft Client wird **immer direkt aus IntelliJ IDEA heraus über das Debugger-MCP im Debug-Modus** gestartet (`start_debug_session(configuration_name: "Minecraft Client")` oder `execute_run_configuration(name: "Minecraft Client", mode: "debug")`). Niemals als getrennter Terminal-Prozess ohne Debugger-Anbindung!
