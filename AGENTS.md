@@ -2,8 +2,8 @@
 
 ## Kurzfassung
 
-- **IntelliJ IDEA & MCP (`intellij-index`)** sind das primäre Werkzeug für Code-Intelligence, Navigation und Refactoring. Standard-Aktionen werden **immer direkt über die nativen/lazy MCP-Tools** aufgerufen (`ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, etc.), wie in [`.agents/skills/ide-index-mcp/SKILL.md`](file:///E:/OneShotOneKill/.agents/skills/ide-index-mcp/SKILL.md) definiert.
-- **JetBrains Debugger MCP (`jetbrains-debugger`)** ist das primäre Werkzeug für interaktives Runtime-Debugging, Haltepunkte und Variableninspektion. Standard-Aktionen werden **immer direkt über die nativen/lazy Debugger-MCP-Tools** aufgerufen (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `evaluate_expression`, `resume_execution`, `wait_for_pause`, etc.), wie in [`.agents/skills/jetbrains-debugger/SKILL.md`](file:///E:/OneShotOneKill/.agents/skills/jetbrains-debugger/SKILL.md) definiert.
+- **IntelliJ IDEA & MCP (`intellij-index`)** sind das primäre Werkzeug für Code-Intelligence, Navigation und Refactoring. Standard-Aktionen werden **immer direkt über die nativen/lazy MCP-Tools** aufgerufen (`ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, etc.), wie in [`ide-index-mcp/SKILL.md`](file:///E:/OneShotOneKill/MOD/ide-index-mcp/SKILL.md) definiert.
+- **JetBrains Debugger MCP (`jetbrains-debugger`)** ist das primäre Werkzeug für interaktives Runtime-Debugging, Haltepunkte und Variableninspektion. Standard-Aktionen werden **immer direkt über die nativen/lazy Debugger-MCP-Tools** aufgerufen (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `evaluate_expression`, `resume_execution`, `wait_for_pause`, etc.), wie in [`jetbrains-debugger/SKILL.md`](file:///E:/OneShotOneKill/MOD/jetbrains-debugger/SKILL.md) definiert.
 - **Automatisierte Batch-Skripte in [`MOD/tools/`](file:///E:/OneShotOneKill/MOD/tools/):** Für komplexe Mehrschritt- oder Schleifen-Operationen, die nicht in einem einzelnen MCP-Tool-Aufruf möglich sind, stehen spezialisierte Automatisierungs-Skripte bereit:
   - [`python tools/mcp_index.py scan-project`](file:///E:/OneShotOneKill/MOD/tools/mcp_index.py): Sequentieller Diagnose-Scan über alle 107 Java-Dateien im Projekt in einem Durchlauf.
   - [`python tools/mcp_debugger.py clear-all-bp`](file:///E:/OneShotOneKill/MOD/tools/mcp_debugger.py): Batch-Abfrage und restloses Löschen aller aktiven Breakpoints in einem Schritt.
@@ -22,10 +22,10 @@
 Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http://127.0.0.1:29170/index-mcp/streamable-http`).
 
 > [!IMPORTANT]
-> **Direkte MCP-Nutzung nach [`.agents/skills/ide-index-mcp/SKILL.md`](file:///E:/OneShotOneKill/.agents/skills/ide-index-mcp/SKILL.md):**
+> **Direkte MCP-Nutzung nach [`ide-index-mcp/SKILL.md`](file:///E:/OneShotOneKill/MOD/ide-index-mcp/SKILL.md):**
 > Alle Navigations- und Code-Recherchen müssen direkt über die MCP-Werkzeuge der IDE ausgeführt werden:
-> - **[`ide-index-mcp/SKILL.md`](file:///E:/OneShotOneKill/.agents/skills/ide-index-mcp/SKILL.md):** Umfassender Agenten-Leitfaden, Workflows, Dumb/Smart-Mode-Strategien und Best Practices.
-> - **[`ide-index-mcp/references/tools-reference.md`](file:///E:/OneShotOneKill/.agents/skills/ide-index-mcp/references/tools-reference.md):** Vollständige Referenz aller verfügbaren MCP-Werkzeuge (`ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_search_text`, `ide_call_hierarchy`, `ide_type_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_sync_files`, etc.).
+> - **[`ide-index-mcp/SKILL.md`](file:///E:/OneShotOneKill/MOD/ide-index-mcp/SKILL.md):** Umfassender Agenten-Leitfaden, Workflows, Dumb/Smart-Mode-Strategien und Best Practices.
+> - **[`ide-index-mcp/references/tools-reference.md`](file:///E:/OneShotOneKill/MOD/ide-index-mcp/references/tools-reference.md):** Vollständige Referenz aller verfügbaren MCP-Werkzeuge (`ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_search_text`, `ide_call_hierarchy`, `ide_type_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_sync_files`, etc.).
 > - **Batch-Automatisierung:** Für projektweite Prüfungen steht [`MOD/tools/mcp_index.py`](file:///E:/OneShotOneKill/MOD/tools/mcp_index.py) mit `python tools/mcp_index.py scan-project` zur Verfügung.
 
 ---
@@ -35,10 +35,10 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 Die Anbindung an den Debugger erfolgt über das **jetbrains-debugger MCP** (`http://127.0.0.1:29190/debugger-mcp/streamable-http`).
 
 > [!IMPORTANT]
-> **Direkte MCP-Nutzung nach [`.agents/skills/jetbrains-debugger/SKILL.md`](file:///E:/OneShotOneKill/.agents/skills/jetbrains-debugger/SKILL.md):**
+> **Direkte MCP-Nutzung nach [`jetbrains-debugger/SKILL.md`](file:///E:/OneShotOneKill/MOD/jetbrains-debugger/SKILL.md):**
 > Bei unklarem Laufzeitverhalten, fehlerhaften Werten, NullPointern oder unvorhergesehenem Kontrollfluss wird nicht im Code geraten, sondern programmatisch über MCP gedebuggt:
-> - **[`jetbrains-debugger/SKILL.md`](file:///E:/OneShotOneKill/.agents/skills/jetbrains-debugger/SKILL.md):** Umfassender Leitfaden, Debugging-Muster, Pausen-Handling und Best Practices.
-> - **[`jetbrains-debugger/references/tool-reference.md`](file:///E:/OneShotOneKill/.agents/skills/jetbrains-debugger/references/tool-reference.md):** Vollständige Referenz aller Debugger-Werkzeuge (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `pause_execution`, `step_over`, `step_into`, `step_out`, `run_to_line`, etc.).
+> - **[`jetbrains-debugger/SKILL.md`](file:///E:/OneShotOneKill/MOD/jetbrains-debugger/SKILL.md):** Umfassender Leitfaden, Debugging-Muster, Pausen-Handling und Best Practices.
+> - **[`jetbrains-debugger/references/tool-reference.md`](file:///E:/OneShotOneKill/MOD/jetbrains-debugger/references/tool-reference.md):** Vollständige Referenz aller Debugger-Werkzeuge (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `pause_execution`, `step_over`, `step_into`, `step_out`, `run_to_line`, etc.).
 > - **Batch-Automatisierung:** Für das restlose Bereinigen aller Breakpoints steht [`MOD/tools/mcp_debugger.py`](file:///E:/OneShotOneKill/MOD/tools/mcp_debugger.py) mit `python tools/mcp_debugger.py clear-all-bp` zur Verfügung.
 >
 > **Kernregeln für Debugging:**
