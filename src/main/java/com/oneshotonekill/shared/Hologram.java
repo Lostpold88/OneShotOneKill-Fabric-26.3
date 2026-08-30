@@ -1,6 +1,5 @@
 package com.oneshotonekill.shared;
 
-
 import com.mojang.math.Transformation;
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.entity.OwnerVisibleItemDisplay;
@@ -79,6 +78,7 @@ public final class Hologram {
       }
 
       display.setPos(position.x, position.y, position.z);
+      display.setPosRotInterpolationDuration(1);
       Hologram.setItem(display, stack);
       // Dank Access Transformer direkt aufrufbar – auf Fabric brauchte das einen Accessor-Mixin.
       display.setBrightnessOverride(FULL_BRIGHT);
@@ -91,7 +91,7 @@ public final class Hologram {
       // Eine Interpolationsdauer sorgt dafür, dass Drehung und Bewegung weich laufen statt zu
       // springen; ohne sie ruckelt jedes Update sichtbar.
       display.setTransformationInterpolationDelay(0);
-      display.setTransformationInterpolationDuration(2);
+      display.setTransformationInterpolationDuration(1);
       setTransform(display, scale, 0.0F);
 
       live.add(display.getUUID());
@@ -141,7 +141,7 @@ public final class Hologram {
    }
 
    private static OwnerVisibleItemDisplay spawnOwnerVisible(ServerLevel level, Vec3 position, ItemStack stack,
-                                                              float viewRange, UUID owner, boolean fullBright) {
+                                                             float viewRange, UUID owner, boolean fullBright) {
       OwnerVisibleItemDisplay display = ModEntities.OWNER_VISIBLE_ITEM_DISPLAY
          .create(level, EntitySpawnReason.TRIGGERED);
       if (display != null) {
@@ -164,6 +164,7 @@ public final class Hologram {
       }
 
       display.setPos(position.x, position.y, position.z);
+      display.setPosRotInterpolationDuration(1);
       Hologram.setItem(display, stack);
       if (fullBright) {
          display.setBrightnessOverride(FULL_BRIGHT);
@@ -216,7 +217,7 @@ public final class Hologram {
       }
       // Durch wiederholtes Setzen des Delays triggert der Client auf jedem Frame eine weiche Matrix-Interpolation
       display.setTransformationInterpolationDelay(0);
-      display.setTransformationInterpolationDuration(2);
+      display.setTransformationInterpolationDuration(1);
       display.setTransformation(new Transformation(
          new Vector3f(0.0F, offsetY, 0.0F),
          rotation,
@@ -225,6 +226,10 @@ public final class Hologram {
    }
 
    public static void move(Display.ItemDisplay display, Vec3 position) {
+      if (display == null) {
+         return;
+      }
+      display.setPosRotInterpolationDuration(1);
       display.setPos(position.x, position.y, position.z);
    }
 
