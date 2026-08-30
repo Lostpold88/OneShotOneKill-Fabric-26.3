@@ -1,4 +1,21 @@
-# Projektregeln
+# Projektregeln & KI-Agenten-Direktiven
+
+> [!CRITICAL]
+> ### 🤖 ZWINGENDE BETRIEBSANWEISUNGEN FÜR KI-AGENTEN (AI AGENT DIRECTIVES)
+> 
+> **Als KI-Coding-Assistent in diesem Projekt bist du an folgende absolute Prioritätsregeln gebunden:**
+>
+> 1. **IMMER DIE BEIDEN PROJEKT-SKILLS LESEN & BEFOLGEN:**
+>    - Du **MUSST** vor Beginn deiner Arbeit die beiden projektspezifischen Skill-Dateien vollständig laden und ihre Workflows ausnahmslos befolgen:
+>      - 📖 [`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md) & [`ide-index-mcp/references/tools-reference.md`](ide-index-mcp/references/tools-reference.md)
+>      - 📖 [`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md) & [`jetbrains-debugger/references/tool-reference.md`](jetbrains-debugger/references/tool-reference.md)
+>
+> 2. **PFLICHT ZUR NUTZUNG DER BEIDEN MCP-SERVER (`intellij-index` & `jetbrains-debugger`):**
+>    - Du **MUSST IMMER IMMER IMMER** für alle semantischen Aufgaben die MCP-Tools nutzen, wo immer es möglich ist:
+>      - **Code-Intelligence & Navigation:** `ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_search_text`.
+>      - **Dateisystem-Synchronisation:** `ide_sync_files` nach **jeder** Dateiänderung aufrufen.
+>      - **Client-Start & Runtime-Debugging:** `start_debug_session(configuration_name: "Minecraft Client")`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `stop_debug_session`.
+>    - ⛔ **STRIKT VERBOTEN:** Verwende für semantische Code-Operationen niemals reine Textsuch-Tools (`grep`, Textsuche) oder Vermutungen, wenn semantische IDE-Index-Tools zur Verfügung stehen. Starte den Client niemals ohne Debugger-MCP!
 
 ## Kurzfassung
 

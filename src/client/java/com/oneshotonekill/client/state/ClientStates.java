@@ -502,15 +502,21 @@ public final class ClientStates {
          return new RenderPose(yaw, elevation, blend);
       }
 
-      /** Die Egoansicht rollt mit derselben Zugneigung wie der Körper. */
-      public float cameraRoll(float partialTick) {
+      /** Die Egoansicht neigt sich sanft mit der vertikalen Zugneigung nach oben/unten (ohne seitliches Rollen). */
+      public float cameraPitch(float partialTick) {
          Minecraft client = Minecraft.getInstance();
          LocalPlayer player = client.player;
          if (player == null || !client.options.getCameraType().isFirstPerson()) {
             return 0.0F;
          }
          RenderPose pose = pose(player, partialTick);
-         return pose == null ? 0.0F : -pose.elevation * pose.blend;
+         if (pose == null) {
+            return 0.0F;
+         }
+         float targetPitch = -pose.elevation;
+         float currentPitch = player.getXRot(partialTick);
+         float deltaPitch = Mth.wrapDegrees(targetPitch - currentPitch);
+         return deltaPitch * pose.blend * 0.35F;
       }
 
       public void clear() {

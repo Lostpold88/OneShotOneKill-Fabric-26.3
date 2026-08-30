@@ -66,14 +66,14 @@ public abstract class CameraShakeMixin {
    private void osok$applyCameraEffects(float yRot, float xRot, CallbackInfo ci) {
       CameraShakeState shake = CameraShakeState.INSTANCE;
       float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true);
-      float grappleRoll = GrapplePullState.INSTANCE.cameraRoll(partialTick);
-      if (!shake.isShaking() && Math.abs(grappleRoll) < 0.001F) {
+      float grapplePitch = GrapplePullState.INSTANCE.cameraPitch(partialTick);
+      if (!shake.isShaking() && Math.abs(grapplePitch) < 0.001F) {
          return;
       }
 
       float yaw = yRot + (shake.isShaking() ? shake.getYawOffset(partialTick) : 0.0F);
-      float pitch = xRot + (shake.isShaking() ? shake.getPitchOffset(partialTick) : 0.0F);
-      float roll = grappleRoll + (shake.isShaking() ? shake.getRollOffset(partialTick) : 0.0F);
+      float pitch = xRot + grapplePitch + (shake.isShaking() ? shake.getPitchOffset(partialTick) : 0.0F);
+      float roll = shake.isShaking() ? shake.getRollOffset(partialTick) : 0.0F;
 
       this.rotation.rotationYXZ(
          (float) Math.PI - yaw * (float) (Math.PI / 180.0),
