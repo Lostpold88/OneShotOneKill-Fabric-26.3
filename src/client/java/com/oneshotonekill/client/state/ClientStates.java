@@ -686,9 +686,15 @@ public final class ClientStates {
       public void tick() {
          if (remainingTicks > 0) {
             remainingTicks--;
+            if (remainingTicks == 0 && goTicks <= 0) {
+               Minecraft.getInstance().options.setCameraType(CameraType.FIRST_PERSON);
+            }
          }
          if (goTicks > 0) {
             goTicks--;
+            if (goTicks == 0) {
+               Minecraft.getInstance().options.setCameraType(CameraType.FIRST_PERSON);
+            }
          }
       }
    

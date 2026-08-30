@@ -4,8 +4,9 @@ import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.client.OsokClient;
-import static com.oneshotonekill.client.state.ClientStates.*;
 import com.oneshotonekill.client.state.ClientStates.*;
+import com.oneshotonekill.client.state.ClientStates.NukeState;
+import com.oneshotonekill.client.state.ClientStates.MatchStartState;
 import com.oneshotonekill.item.SpecialItem;
 import com.oneshotonekill.item.box.SpecialItemManager;
 import com.oneshotonekill.network.OsokPayloads.*;
@@ -394,17 +395,29 @@ public final class ArenaMenuScreen extends Screen {
 
       int x = left;
       controlButton(graphics, x, y, "▶ Start", canStart, mouseX, mouseY, true, OsokWidgets.COLOR_EMERALD,
-         () -> ClientPlayNetworking.send(StartMatchPayload.EMPTY));
+         () -> {
+            ClientPlayNetworking.send(StartMatchPayload.EMPTY);
+            onClose();
+         });
       x += CONTROL_BUTTON_WIDTH + 8;
       controlButton(graphics, x, y, isPaused ? "▶ Fortsetzen" : "⏸ Pause",
          canPause, mouseX, mouseY, false, OsokWidgets.COLOR_AMBER,
-         () -> ClientPlayNetworking.send(isPaused ? StartMatchPayload.EMPTY : PauseMatchPayload.EMPTY));
+         () -> {
+            ClientPlayNetworking.send(isPaused ? StartMatchPayload.EMPTY : PauseMatchPayload.EMPTY);
+            onClose();
+         });
       x += CONTROL_BUTTON_WIDTH + 8;
       controlButton(graphics, x, y, "⏹ Stopp", !isMatchState(MatchState.STOPPED), mouseX, mouseY, false, OsokWidgets.COLOR_CRIMSON,
-         () -> ClientPlayNetworking.send(StopMatchPayload.EMPTY));
+         () -> {
+            ClientPlayNetworking.send(StopMatchPayload.EMPTY);
+            onClose();
+         });
       x += CONTROL_BUTTON_WIDTH + 8;
       controlButton(graphics, x, y, "🔄 Respawn", canRespawn, mouseX, mouseY, true, OsokWidgets.COLOR_CYAN,
-         () -> ClientPlayNetworking.send(RequestRespawnPayload.EMPTY));
+         () -> {
+            ClientPlayNetworking.send(RequestRespawnPayload.EMPTY);
+            onClose();
+         });
 
       y += 32;
       boolean isAdmin = Minecraft.getInstance().player != null
