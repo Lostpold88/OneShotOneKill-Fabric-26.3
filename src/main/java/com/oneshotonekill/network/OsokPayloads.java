@@ -614,7 +614,7 @@ public final class OsokPayloads {
     * {@code active} bleibt deshalb vom Abschuss bis zum vollständigen Einzug gesetzt;
     * {@code pulling} bezeichnet nur die Phase, in der der Spieler zum Anker gezogen wird.</p>
     */
-   public record GrapplePullPayload(UUID player, boolean active, boolean pulling,
+   public record GrapplePullPayload(UUID player, boolean active, boolean pulling, boolean retracting,
                                            double hookX, double hookY, double hookZ)
       implements CustomPacketPayload {
       public static final Type<GrapplePullPayload> TYPE = new Type<>(
@@ -624,13 +624,14 @@ public final class OsokPayloads {
          UUIDUtil.STREAM_CODEC, GrapplePullPayload::player,
          ByteBufCodecs.BOOL, GrapplePullPayload::active,
          ByteBufCodecs.BOOL, GrapplePullPayload::pulling,
+         ByteBufCodecs.BOOL, GrapplePullPayload::retracting,
          ByteBufCodecs.DOUBLE, GrapplePullPayload::hookX,
          ByteBufCodecs.DOUBLE, GrapplePullPayload::hookY,
          ByteBufCodecs.DOUBLE, GrapplePullPayload::hookZ,
          GrapplePullPayload::new);
 
       public static GrapplePullPayload inactive(UUID player) {
-         return new GrapplePullPayload(player, false, false, 0.0, 0.0, 0.0);
+         return new GrapplePullPayload(player, false, false, false, 0.0, 0.0, 0.0);
       }
 
       @Override

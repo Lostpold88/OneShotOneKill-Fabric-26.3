@@ -417,16 +417,18 @@ public final class ClientStates {
          if (payload.active()) {
             Vec3 hook = new Vec3(payload.hookX(), payload.hookY(), payload.hookZ());
             if (pull == null) {
-               pulls.put(payload.player(), new Pull(hook, payload.pulling()));
+               pulls.put(payload.player(), new Pull(hook, payload.pulling(), payload.retracting()));
             } else {
                pull.previousHook = pull.grappleActive ? pull.hook : hook;
                pull.hook = hook;
                pull.grappleActive = true;
                pull.pulling = payload.pulling();
+               pull.retracting = payload.retracting();
             }
          } else if (pull != null) {
             pull.grappleActive = false;
             pull.pulling = false;
+            pull.retracting = false;
          }
       }
 
@@ -452,6 +454,16 @@ public final class ClientStates {
       public boolean isGrappleActive(UUID player) {
          Pull pull = pulls.get(player);
          return pull != null && pull.grappleActive;
+      }
+
+      public boolean isPulling(UUID player) {
+         Pull pull = pulls.get(player);
+         return pull != null && pull.grappleActive && pull.pulling;
+      }
+
+      public boolean isRetracting(UUID player) {
+         Pull pull = pulls.get(player);
+         return pull != null && pull.grappleActive && pull.retracting;
       }
 
       /** Pro Bild interpolierter Endpunkt für das Seil; {@code null} nach vollständigem Einzug. */
@@ -531,15 +543,17 @@ public final class ClientStates {
          private Vec3 hook;
          private boolean grappleActive = true;
          private boolean pulling;
+         private boolean retracting;
          private float previousBlend;
          private float blend;
          private float previousAimBlend;
          private float aimBlend;
 
-         private Pull(Vec3 hook, boolean pulling) {
+         private Pull(Vec3 hook, boolean pulling, boolean retracting) {
             this.previousHook = hook;
             this.hook = hook;
             this.pulling = pulling;
+            this.retracting = retracting;
          }
       }
    }

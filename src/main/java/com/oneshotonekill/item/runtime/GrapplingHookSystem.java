@@ -372,6 +372,7 @@ public final class GrapplingHookSystem {
    private static void syncGrappleState(Grapple grapple, boolean active) {
       GrapplePullPayload payload = active
          ? new GrapplePullPayload(grapple.owner, true, grapple.phase == Phase.PULLING,
+            grapple.phase == Phase.RETRACTING,
             grapple.position.x, grapple.position.y, grapple.position.z)
          : GrapplePullPayload.inactive(grapple.owner);
       for (ServerPlayer listener : grapple.level.players()) {
