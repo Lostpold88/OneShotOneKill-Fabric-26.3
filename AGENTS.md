@@ -10,20 +10,24 @@
 >      - 📖 [`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md) & [`ide-index-mcp/references/tools-reference.md`](ide-index-mcp/references/tools-reference.md)
 >      - 📖 [`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md) & [`jetbrains-debugger/references/tool-reference.md`](jetbrains-debugger/references/tool-reference.md)
 >
-> 2. **PFLICHT ZUR AUSSCHLIESSLICHEN NUTZUNG DER BEIDEN MCP-SERVER (`intellij-index` & `jetbrains-debugger`):**
->    - Du **MUSST IMMER IMMER IMMER** für ausnahmslos alle semantischen Aufgaben, Recherchen, Typabfragen, Methodensignaturen und Code-Analysen die MCP-Tools nutzen:
->      - **Code-Intelligence & Navigation (`intellij-index`):** `ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_search_text`.
->      - **Dateisystem-Synchronisation:** `ide_sync_files` nach **jeder** Dateiänderung aufrufen.
->      - **Client-Start & Runtime-Debugging (`jetbrains-debugger`):** `start_debug_session(configuration_name: "Minecraft Client")`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `stop_debug_session`.
+> 2. **PFLICHT ZUR AUSNAHMSLOSEN BEVORZUGUNG & NUTZUNG ALLER MCP-WERKZEUGE BEIDER SERVER:**
+>    - Alle Werkzeuge beider MCP-Server (`intellij-index` & `jetbrains-debugger`) sind in der IDE vollständig aktiviert. Du **MUSST AUSNAHMSLOS ALLE** von beiden Plugins bereitgestellten Tools für sämtliche Aufgaben (Dateierstellung, Code-Modifikation, Member-Editing, Refactoring, Formatierung, Imports, Conversion, Diagnostics, Build, Test, Debugging) bevorzugen und aktiv nutzen:
+>      - **Code-Modifikation & Refactoring (`intellij-index`):** `ide_reformat_code`, `ide_optimize_imports`, `ide_convert_java_to_kotlin`, `ide_edit_member`, `ide_insert_member`, `ide_replace_member`, `ide_change_signature`, `ide_structural_search_replace`, `ide_replace_text_in_file`, `ide_refactor_rename`, `ide_refactor_safe_delete`, `ide_move_file`.
+>      - **Dateien, VFS & Bibliotheken (`intellij-index`):** `ide_create_file` (direkt im VFS anlegen), `ide_read_file` (Quellcode aus JARs/Dateien lesen), `ide_open_file`, `ide_open_project`, `ide_reload_project`, `ide_get_active_file`.
+>      - **Code-Intelligence & Analyse (`intellij-index`):** `ide_symbol_info`, `ide_file_structure`, `ide_find_symbol`, `ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_project_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_search_text`.
+>      - **Build & Testing (`intellij-index`):** `ide_build_project`, `ide_list_tests`, `ide_run_tests`.
+>      - **Dateisystem-Synchronisation:** `ide_sync_files` nach jeder Dateiänderung aufrufen.
+>      - **Client-Start & Runtime-Debugging (`jetbrains-debugger`):** `start_debug_session(configuration_name: "Minecraft Client")`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `pause_execution`, `step_over`, `step_into`, `step_out`, `run_to_line`, `get_stack_trace`, `select_stack_frame`, `list_threads`, `get_variables`, `set_variable`, `stop_debug_session`.
 >    - ⛔ **STRIKT VERBOTEN:** 
->      - Verwende **NIEMALS** CLI-Bytecode-Tools wie `javap`, `disassemble` oder Disassembler-Skripte! Alle Typen, Methoden, Parameter und Klassenstrukturen werden ausschließlich semantisch über `intellij-index` (`ide_find_class`, `ide_find_definition`, `ide_type_hierarchy` etc.) analysiert.
+>      - Verwende **NIEMALS** CLI-Bytecode-Tools wie `javap`, `disassemble` oder Disassembler-Skripte! Alle Typen, Methoden, Parameter und Klassenstrukturen werden ausschließlich semantisch über `intellij-index` (`ide_find_class`, `ide_find_definition`, `ide_symbol_info`, `ide_type_hierarchy` etc.) analysiert.
 >      - Verwende **NIEMALS** reine Textsuch-Tools (`grep`, Textsuche) oder Vermutungen, wenn semantische IDE-Index-Tools zur Verfügung stehen.
+>      - Führe Datei- und Member-Änderungen bevorzugt über die IDE-Tools (`ide_create_file`, `ide_edit_member`, `ide_insert_member`, `ide_refactor_rename` etc.) aus.
 >      - Starte den Client **NIEMALS** ohne Debugger-MCP!
 
 ## Kurzfassung
 
-- **IntelliJ IDEA & MCP (`intellij-index`)** sind das **einzige und primäre Werkzeug** für Code-Intelligence, Navigation, Klassenstrukturen, Methodensignaturen und Refactoring. Standard-Aktionen werden **immer direkt über die nativen/lazy MCP-Tools** aufgerufen (`ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, etc.), wie in [`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md) definiert.
-- **JetBrains Debugger MCP (`jetbrains-debugger`)** ist das primäre Werkzeug für interaktives Runtime-Debugging, Haltepunkte und Variableninspektion. Standard-Aktionen werden **immer direkt über die nativen/lazy Debugger-MCP-Tools** aufgerufen (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `evaluate_expression`, `resume_execution`, `wait_for_pause`, etc.), wie in [`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md) definiert.
+- **IntelliJ IDEA & MCP (`intellij-index`)** sind das **einzige und primäre Werkzeug** für Code-Intelligence, Navigation, Klassenstrukturen, Methodensignaturen, File-Creation, Import-Optimierung, Reformatting und Refactoring. Sämtliche Aktionen werden **ausnahmslos und immer direkt über die MCP-Tools** aufgerufen, wie in [`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md) definiert.
+- **JetBrains Debugger MCP (`jetbrains-debugger`)** ist das primäre Werkzeug für interaktives Runtime-Debugging, Haltepunkte und Variableninspektion. Standard-Aktionen werden **immer direkt über die Debugger-MCP-Tools** aufgerufen, wie in [`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md) definiert.
 - **Automatisierte Batch-Skripte in [`tools/`](tools/):** Für komplexe Mehrschritt- oder Schleifen-Operationen, die nicht in einem einzelnen MCP-Tool-Aufruf möglich sind, stehen spezialisierte Automatisierungs-Skripte bereit:
   - [`python tools/mcp_index.py scan-project`](tools/mcp_index.py): Sequentieller Diagnose-Scan über alle Java-Dateien im Projekt in einem Durchlauf.
   - [`python tools/mcp_debugger.py clear-all-bp`](tools/mcp_debugger.py): Batch-Abfrage und restloses Löschen aller aktiven Breakpoints in einem Schritt.
@@ -43,10 +47,60 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 
 > [!IMPORTANT]
 > **Direkte MCP-Nutzung nach [`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md):**
-> Alle Navigations- und Code-Recherchen müssen direkt über die MCP-Werkzeuge der IDE ausgeführt werden:
-> - **[`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md):** Umfassender Agenten-Leitfaden, Workflows, Dumb/Smart-Mode-Strategien und Best Practices.
-> - **[`ide-index-mcp/references/tools-reference.md`](ide-index-mcp/references/tools-reference.md):** Vollständige Referenz aller verfügbaren MCP-Werkzeuge (`ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_search_text`, `ide_call_hierarchy`, `ide_type_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_sync_files`, etc.).
-> - **Batch-Automatisierung:** Für projektweite Prüfungen steht [`tools/mcp_index.py`](tools/mcp_index.py) mit `python tools/mcp_index.py scan-project` zur Verfügung.
+> Alle Werkzeuge sind in der IDE voll aktiviert und **MÜSSEN ausnahmslos bevorzugt** für sämtliche Operationen verwendet werden:
+>
+> ### Vollständige Übersicht aller aktiven MCP-Tools (`intellij-index`):
+> 
+> 1. **Code-Intelligence & Navigation:**
+>    - `ide_find_class`: Klassen nach Namen / CamelCase suchen.
+>    - `ide_find_definition`: Zur Deklaration / Definition springen.
+>    - `ide_find_references`: Semantische Verwendungsstellen projektweit finden.
+>    - `ide_find_symbol`: Beliebige Code-Symbole (Methoden, Felder, Klassen) finden.
+>    - `ide_find_implementations`: Implementierungen von Interfaces & abstrakten Methoden finden.
+>    - `ide_find_super_methods`: Basis-/Interface-Methoden ermitteln, die überschrieben werden.
+>    - `ide_type_hierarchy`: Vollständige Vererbungshierarchie (Super- und Subtypen).
+>    - `ide_call_hierarchy`: Aufrufhierarchie (`callers` / `callees`) analysieren.
+>    - `ide_file_structure`: Strukturbaum / Outline einer Datei mit Zeilenangaben.
+>    - `ide_symbol_info`: Voll aufgelöste Typen, Signaturen & JavaDoc-Dokumentation.
+>    - `ide_search_text`: Textsuche / Regex über den IntelliJ-Index.
+>    - `ide_diagnostics`: Compiler-, Syntaxfehler und Quick-Fixes einer Datei.
+>    - `ide_project_diagnostics`: Projektweiter Batch-Diagnose-Scan aller Dateien.
+>
+> 2. **Code-Modifikation & Refactoring:**
+>    - `ide_refactor_rename`: Sicheres Umbenennen inkl. Getter/Setter, Overrides & Verwendungen.
+>    - `ide_refactor_safe_delete`: Sicheres Löschen mit automatischer Verwendungsprüfung.
+>    - `ide_move_file`: Datei verschieben mit automatischer Package- und Import-Aktualisierung.
+>    - `ide_reformat_code`: Code nach Projekt-Style (.editorconfig / IDE) formatieren.
+>    - `ide_optimize_imports`: Unbenutzte Imports entfernen und sortieren.
+>    - `ide_change_signature`: Methodensignaturen projektweit sicher anpassen.
+>    - `ide_edit_member`: Vollständiges Member (Signatur + Body) ersetzen.
+>    - `ide_insert_member`: Neues Member (Methode/Feld) strukturiert an Position einfügen.
+>    - `ide_replace_member`: Methoden-Body oder Feld-Initializer ersetzen (Signatur bleibt erhalten).
+>    - `ide_replace_text_in_file`: Textersetzung über das IDE-Dokumentenmodell (sofort indexiert).
+>    - `ide_structural_search_replace`: Structural Search and Replace (SSR).
+>    - `ide_convert_java_to_kotlin`: Java-Klassen via IntelliJ J2K zu Kotlin konvertieren.
+>
+> 3. **Dateien, VFS & Workspace:**
+>    - `ide_create_file`: Neue Quellcodedatei direkt im VFS anlegen (sofort indexiert).
+>    - `ide_create_module`: Neues Modul anlegen.
+>    - `ide_find_file`: Dateien im Projekt nach Namen suchen.
+>    - `ide_read_file`: Projektdateien & Quellcode aus externen JARs / Bibliotheken lesen.
+>    - `ide_open_file`: Datei an genauer Zeile/Spalte im Editor öffnen.
+>    - `ide_get_active_file`: Aktuell im Editor fokussierte Datei abfragen.
+>    - `ide_open_project` / `ide_open_workspace`: Projekte / Worktrees per MCP öffnen.
+>    - `ide_close_project` / `ide_reload_project`: Projekte schließen oder neu laden.
+>    - `ide_link_build_system` / `ide_import_modules`: Build-System / Module integrieren.
+>    - `ide_install_plugin` / `ide_restart`: IDE-Plugins installieren / IDE neustarten.
+>    - `ide_sync_files`: Virtuelles Dateisystem mit externen Änderungen synchronisieren.
+>    - `ide_index_status`: Indexierungsstatus & Smart-/Dumb-Mode abfragen.
+>
+> 4. **Build & Tests:**
+>    - `ide_build_project`: Projekt mit IDE-Build-System bauen und Fehler strukturiert erfassen.
+>    - `ide_list_tests`: Alle Unit-/Integrationstests im Projekt auflisten.
+>    - `ide_run_tests`: Tests über den IDE-Test-Runner ausführen und auswerten.
+>
+> 5. **Lifecycle Management:**
+>    - `ide_project_status`, `ide_enroll_all_projects`, `ide_release_all_projects`, `ide_release_project`, `ide_get_project_modes`, `ide_set_project_mode`, `ide_set_all_project_modes`, `ide_set_power_save_mode`, `ide_lifecycle_log`, `ide_set_lifecycle_log_file`.
 
 ---
 
