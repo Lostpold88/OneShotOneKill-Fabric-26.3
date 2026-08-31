@@ -12,11 +12,14 @@
 >
 > 2. **PFLICHT ZUR AUSNAHMSLOSEN BEVORZUGUNG & NUTZUNG ALLER MCP-WERKZEUGE BEIDER SERVER:**
 >    - Alle Werkzeuge beider MCP-Server (`intellij-index` & `jetbrains-debugger`) sind in der IDE vollständig aktiviert. Du **MUSST AUSNAHMSLOS ALLE** von beiden Plugins bereitgestellten Tools für sämtliche Aufgaben (Dateierstellung, Code-Modifikation, Member-Editing, Refactoring, Formatierung, Imports, Conversion, Diagnostics, Build, Test, Debugging) bevorzugen und aktiv nutzen:
+>      - **Dateien Lesen & Quellcode-Inspektion:**
+>        - **Lokale Projektdateien (`src/...`, Konfigurationen, Assets):** Das interne KI-Dateilese-Tool (`view_file`) darf für schnelles und präzises Lesen lokaler Projektdateien verwendet werden.
+>        - **Externe Bibliotheken, Minecraft-Interna & JAR-Archive:** Müssen ausnahmslos über `ide_read_file` (aus `intellij-index`) gelesen werden.
 >      - **Code-Modifikation & Refactoring (`intellij-index`):** `ide_reformat_code`, `ide_optimize_imports`, `ide_convert_java_to_kotlin`, `ide_edit_member`, `ide_insert_member`, `ide_replace_member`, `ide_change_signature`, `ide_structural_search_replace`, `ide_replace_text_in_file`, `ide_refactor_rename`, `ide_refactor_safe_delete`, `ide_move_file`.
->      - **Dateien, VFS & Bibliotheken (`intellij-index`):** `ide_create_file` (direkt im VFS anlegen), `ide_read_file` (Quellcode aus JARs/Dateien lesen), `ide_open_file`, `ide_open_project`, `ide_reload_project`, `ide_get_active_file`.
+>      - **Dateien, VFS & Workspace (`intellij-index`):** `ide_create_file` (direkt im VFS anlegen, sofort indiziert), `ide_open_file`, `ide_open_project`, `ide_reload_project`, `ide_get_active_file`.
 >      - **Code-Intelligence & Analyse (`intellij-index`):** `ide_symbol_info`, `ide_file_structure`, `ide_find_symbol`, `ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_project_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_search_text`.
 >      - **Build & Testing (`intellij-index`):** `ide_build_project`, `ide_list_tests`, `ide_run_tests`.
->      - **Dateisystem-Synchronisation:** `ide_sync_files` nach jeder Dateiänderung aufrufen.
+>      - **Dateisystem-Synchronisation:** `ide_sync_files` nach jeder externen Dateiänderung aufrufen.
 >      - **Client-Start & Runtime-Debugging (`jetbrains-debugger`):** `start_debug_session(configuration_name: "Minecraft Client")`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `pause_execution`, `step_over`, `step_into`, `step_out`, `run_to_line`, `get_stack_trace`, `select_stack_frame`, `list_threads`, `get_variables`, `set_variable`, `stop_debug_session`.
 >    - ⛔ **STRIKT VERBOTEN:** 
 >      - Verwende **NIEMALS** CLI-Bytecode-Tools wie `javap`, `disassemble` oder Disassembler-Skripte! Alle Typen, Methoden, Parameter und Klassenstrukturen werden ausschließlich semantisch über `intellij-index` (`ide_find_class`, `ide_find_definition`, `ide_symbol_info`, `ide_type_hierarchy` etc.) analysiert.
@@ -87,7 +90,7 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 >    - `ide_create_file`: Neue Quellcodedatei direkt im VFS anlegen (sofort indexiert).
 >    - `ide_create_module`: Neues Modul anlegen.
 >    - `ide_find_file`: Dateien im Projekt nach Namen suchen.
->    - `ide_read_file`: Projektdateien & Quellcode aus externen JARs / Bibliotheken lesen.
+>    - `ide_read_file`: Quellcode aus externen JARs / Bibliotheken und Abhängigkeiten lesen (für lokale Projektdateien steht das interne Lesetool `view_file` zur Verfügung).
 >    - `ide_open_file`: Datei an genauer Zeile/Spalte im Editor öffnen.
 >    - `ide_get_active_file`: Aktuell im Editor fokussierte Datei abfragen.
 >    - `ide_open_project` / `ide_open_workspace`: Projekte / Worktrees per MCP öffnen.
