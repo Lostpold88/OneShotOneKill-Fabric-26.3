@@ -10,25 +10,28 @@
 >      - 📖 [`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md) & [`ide-index-mcp/references/tools-reference.md`](ide-index-mcp/references/tools-reference.md)
 >      - 📖 [`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md) & [`jetbrains-debugger/references/tool-reference.md`](jetbrains-debugger/references/tool-reference.md)
 >
-> 2. **PFLICHT ZUR NUTZUNG DER BEIDEN MCP-SERVER (`intellij-index` & `jetbrains-debugger`):**
->    - Du **MUSST IMMER IMMER IMMER** für alle semantischen Aufgaben die MCP-Tools nutzen, wo immer es möglich ist:
->      - **Code-Intelligence & Navigation:** `ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_search_text`.
+> 2. **PFLICHT ZUR AUSSCHLIESSLICHEN NUTZUNG DER BEIDEN MCP-SERVER (`intellij-index` & `jetbrains-debugger`):**
+>    - Du **MUSST IMMER IMMER IMMER** für ausnahmslos alle semantischen Aufgaben, Recherchen, Typabfragen, Methodensignaturen und Code-Analysen die MCP-Tools nutzen:
+>      - **Code-Intelligence & Navigation (`intellij-index`):** `ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_search_text`.
 >      - **Dateisystem-Synchronisation:** `ide_sync_files` nach **jeder** Dateiänderung aufrufen.
->      - **Client-Start & Runtime-Debugging:** `start_debug_session(configuration_name: "Minecraft Client")`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `stop_debug_session`.
->    - ⛔ **STRIKT VERBOTEN:** Verwende für semantische Code-Operationen niemals reine Textsuch-Tools (`grep`, Textsuche) oder Vermutungen, wenn semantische IDE-Index-Tools zur Verfügung stehen. Starte den Client niemals ohne Debugger-MCP!
+>      - **Client-Start & Runtime-Debugging (`jetbrains-debugger`):** `start_debug_session(configuration_name: "Minecraft Client")`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `stop_debug_session`.
+>    - ⛔ **STRIKT VERBOTEN:** 
+>      - Verwende **NIEMALS** CLI-Bytecode-Tools wie `javap`, `disassemble` oder Disassembler-Skripte! Alle Typen, Methoden, Parameter und Klassenstrukturen werden ausschließlich semantisch über `intellij-index` (`ide_find_class`, `ide_find_definition`, `ide_type_hierarchy` etc.) analysiert.
+>      - Verwende **NIEMALS** reine Textsuch-Tools (`grep`, Textsuche) oder Vermutungen, wenn semantische IDE-Index-Tools zur Verfügung stehen.
+>      - Starte den Client **NIEMALS** ohne Debugger-MCP!
 
 ## Kurzfassung
 
-- **IntelliJ IDEA & MCP (`intellij-index`)** sind das primäre Werkzeug für Code-Intelligence, Navigation und Refactoring. Standard-Aktionen werden **immer direkt über die nativen/lazy MCP-Tools** aufgerufen (`ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, etc.), wie in [`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md) definiert.
+- **IntelliJ IDEA & MCP (`intellij-index`)** sind das **einzige und primäre Werkzeug** für Code-Intelligence, Navigation, Klassenstrukturen, Methodensignaturen und Refactoring. Standard-Aktionen werden **immer direkt über die nativen/lazy MCP-Tools** aufgerufen (`ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, etc.), wie in [`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md) definiert.
 - **JetBrains Debugger MCP (`jetbrains-debugger`)** ist das primäre Werkzeug für interaktives Runtime-Debugging, Haltepunkte und Variableninspektion. Standard-Aktionen werden **immer direkt über die nativen/lazy Debugger-MCP-Tools** aufgerufen (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `evaluate_expression`, `resume_execution`, `wait_for_pause`, etc.), wie in [`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md) definiert.
 - **Automatisierte Batch-Skripte in [`tools/`](tools/):** Für komplexe Mehrschritt- oder Schleifen-Operationen, die nicht in einem einzelnen MCP-Tool-Aufruf möglich sind, stehen spezialisierte Automatisierungs-Skripte bereit:
-  - [`python tools/mcp_index.py scan-project`](tools/mcp_index.py): Sequentieller Diagnose-Scan über alle 107 Java-Dateien im Projekt in einem Durchlauf.
+  - [`python tools/mcp_index.py scan-project`](tools/mcp_index.py): Sequentieller Diagnose-Scan über alle Java-Dateien im Projekt in einem Durchlauf.
   - [`python tools/mcp_debugger.py clear-all-bp`](tools/mcp_debugger.py): Batch-Abfrage und restloses Löschen aller aktiven Breakpoints in einem Schritt.
 - **Fabric-API, Access Widener und Mixins** sind vollwertige Werkzeuge und dürfen jederzeit frei und gezielt nach Zweckmäßigkeit genutzt werden.
 - Externe Bibliotheken (Minecraft, Fabric API, Fabric Loader, Sponge Mixin, MixinExtras, Brigadier, Netty, Java SDK etc.) werden direkt über die **IntelliJ IDEA MCP-Engine** (`scope: "project_and_libraries"`) semantisch analysiert.
 - Nach externen Datei- oder Strukturänderungen durch Agenten wird das Dateisystem mit der IDE synchronisiert (`ide_sync_files`).
 - Zielplattform: **Java 25, Minecraft 26.2, Fabric Loader 0.19.5, Fabric API 0.158.0+26.2, Fabric Loom 1.17-SNAPSHOT, Gradle 9.7.1**. Alle Versionen stehen in [`gradle.properties`](gradle.properties).
-- Mod-ID `oneshotonekill`, Package `com.oneshotonekill`.
+- Mod-ID `g-sync-mod`, Package `com.gsyncmod`.
 - Build und Deployment laufen über [`build.ps1`](build.ps1) (bzw. die verknüpfte IntelliJ Run Configuration `BUILD`).
 - **Client-Start:** Der Minecraft Client wird **immer direkt aus IntelliJ IDEA heraus über das Debugger-MCP im Debug-Modus** gestartet (`start_debug_session(configuration_name: "Minecraft Client")` oder `execute_run_configuration(name: "Minecraft Client", mode: "debug")`). Niemals als getrennter Terminal-Prozess ohne Debugger-Anbindung!
 
@@ -74,32 +77,15 @@ Fabric-API-Events, Access Widener und Mixins sind vollwertige Werkzeuge und kön
 
 ### Vorgehen bei der Umsetzung:
 
-1. **API-Prüfung per MCP:** Zielklasse und Methoden in Minecraft/Fabric semantisch über die IDE verifizieren.
+1. **API-Prüfung per MCP:** Zielklasse und Methoden in Minecraft/Fabric semantisch über die IDE (`ide_find_class`, `ide_find_definition`, `ide_type_hierarchy`) verifizieren.
 2. **Den passenden Weg wählen:**
    - Fabric-API-Events (wenn ein sauberes Callback existiert).
-   - Access Widener in [`src/main/resources/oneshotonekill.accesswidener`](src/main/resources/oneshotonekill.accesswidener) (für Sichtbarkeit oder `mutable`).
+   - Access Widener in [`src/main/resources/g-sync-mod.accesswidener`](src/main/resources/g-sync-mod.accesswidener) (für Sichtbarkeit oder `mutable`).
    - Mixin (für Eingriffe in Ausführungsflüsse, Werte-Modifikationen oder Rendering).
 3. **Mixin-Deskriptoren exakt ableiten:**
    - Methoden- und Feld-Signaturen über die MCP-Typinformationen prüfen.
    - Bytecode-Deskriptoren nach JVM-Spezifikation aufbauen.
    - MixinExtras (`@WrapOperation`, `@ModifyExpressionValue`, `@Local`, `@Share`) stehen direkt zur Verfügung und dürfen bevorzugt werden.
-
-### Access Widener
-
-- Datei: [`src/main/resources/oneshotonekill.accesswidener`](src/main/resources/oneshotonekill.accesswidener).
-- Verwendet zwingend den Namespace `official` (mit `named` bricht der Build ab).
-- Validierung: `.\gradlew.bat validateAccessWidener` prüft die Einträge gegen das Minecraft-JAR.
-
-### Bytecode-Inspektion bei komplexen Mixins
-
-Sobald `ordinal`, `slice`, lokale Variablen-Slots (`@Local`, `@ModifyVariable`), Konstanten (`@Constant`) oder interne Lambda-Körper betroffen sind, zusätzlich den Bytecode mit `javap` aus dem Loom-Cache prüfen:
-
-```powershell
-$Jar = (Get-ChildItem .gradle/loom-cache/minecraftMaven -Recurse -Filter '*.jar' |
-    Where-Object { $_.Name -notlike '*-sources.jar' -and $_.Name -like '*common*' } |
-    Select-Object -First 1).FullName
-javap -p -c -l -cp $Jar net.minecraft.server.MinecraftServer
-```
 
 ---
 
@@ -112,10 +98,8 @@ javap -p -c -l -cp $Jar net.minecraft.server.MinecraftServer
 - **Fabric Events:** `Event<T>`-Konstanten mit Callbacks werden per `EVENT.register(...)` abonniert. Das Abbruchverhalten ergibt sich aus dem Rückgabetyp des Callbacks (über MCP prüfbar).
 - **Registrierungen:** Erfolgen über Vanilla-Registries mit `Identifier`.
 - **Netzwerk:** Payload-Typen registrieren und über die Fabric Networking API (z. B. `ServerPlayNetworking`, `ClientPlayNetworking`) senden.
-- **Client-Trennung:** Client-Code gehört strikt nach [`src/client/java`](src/client/java). Ein Zugriff aus [`src/main/java`](src/main/java) darauf führt zu einem Kompilierfehler.
 - **Mixins-Konfiguration:**
-  - [`oneshotonekill.mixins.json`](src/main/resources/oneshotonekill.mixins.json) (gemeinsam)
-  - [`oneshotonekill.client.mixins.json`](src/main/resources/oneshotonekill.client.mixins.json) (nur Client)
+  - [`g-sync-mod.mixins.json`](src/main/resources/g-sync-mod.mixins.json)
   - `compatibilityLevel` ist `JAVA_25`, `defaultRequire` ist `1` (Fehler fallen beim Start sofort auf).
 
 ---
