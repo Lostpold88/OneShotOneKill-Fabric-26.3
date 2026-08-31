@@ -23,11 +23,12 @@
 >      - Verwende **NIEMALS** reine Textsuch-Tools (`grep`, Textsuche) oder Vermutungen, wenn semantische IDE-Index-Tools zur Verfügung stehen.
 >      - Führe Datei- und Member-Änderungen bevorzugt über die IDE-Tools (`ide_create_file`, `ide_edit_member`, `ide_insert_member`, `ide_refactor_rename` etc.) aus.
 >      - Starte den Client **NIEMALS** ohne Debugger-MCP!
+>      - Führe Builds **NIEMALS** über manuelle CLI-Befehle im Terminal aus, wenn die MCP-Tools `ide_build_project` oder `execute_run_configuration` zur Verfügung stehen!
 
 ## Kurzfassung
 
-- **IntelliJ IDEA & MCP (`intellij-index`)** sind das **einzige und primäre Werkzeug** für Code-Intelligence, Navigation, Klassenstrukturen, Methodensignaturen, File-Creation, Import-Optimierung, Reformatting und Refactoring. Sämtliche Aktionen werden **ausnahmslos und immer direkt über die MCP-Tools** aufgerufen, wie in [`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md) definiert.
-- **JetBrains Debugger MCP (`jetbrains-debugger`)** ist das primäre Werkzeug für interaktives Runtime-Debugging, Haltepunkte und Variableninspektion. Standard-Aktionen werden **immer direkt über die Debugger-MCP-Tools** aufgerufen, wie in [`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md) definiert.
+- **IntelliJ IDEA & MCP (`intellij-index`)** sind das **einzige und primäre Werkzeug** für Code-Intelligence, Navigation, Klassenstrukturen, Methodensignaturen, File-Creation, Import-Optimierung, Reformatting, Refactoring und Build (`ide_build_project`). Sämtliche Aktionen werden **ausnahmslos und immer direkt über die MCP-Tools** aufgerufen, wie in [`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md) definiert.
+- **JetBrains Debugger MCP (`jetbrains-debugger`)** ist das primäre Werkzeug für interaktives Runtime-Debugging, Haltepunkte, Variableninspektion und Run-Konfigurationen (`execute_run_configuration(name: "BUILD", mode: "run")`). Standard-Aktionen werden **immer direkt über die Debugger-MCP-Tools** aufgerufen, wie in [`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md) definiert.
 - **Automatisierte Batch-Skripte in [`tools/`](tools/):** Für komplexe Mehrschritt- oder Schleifen-Operationen, die nicht in einem einzelnen MCP-Tool-Aufruf möglich sind, stehen spezialisierte Automatisierungs-Skripte bereit:
   - [`python tools/mcp_index.py scan-project`](tools/mcp_index.py): Sequentieller Diagnose-Scan über alle Java-Dateien im Projekt in einem Durchlauf.
   - [`python tools/mcp_debugger.py clear-all-bp`](tools/mcp_debugger.py): Batch-Abfrage und restloses Löschen aller aktiven Breakpoints in einem Schritt.
@@ -35,8 +36,10 @@
 - Externe Bibliotheken (Minecraft, Fabric API, Fabric Loader, Sponge Mixin, MixinExtras, Brigadier, Netty, Java SDK etc.) werden direkt über die **IntelliJ IDEA MCP-Engine** (`scope: "project_and_libraries"`) semantisch analysiert.
 - Nach externen Datei- oder Strukturänderungen durch Agenten wird das Dateisystem mit der IDE synchronisiert (`ide_sync_files`).
 - Zielplattform: **Java 25, Minecraft 26.2, Fabric Loader 0.19.5, Fabric API 0.158.0+26.2, Fabric Loom 1.17-SNAPSHOT, Gradle 9.7.1**. Alle Versionen stehen in [`gradle.properties`](gradle.properties).
-- Mod-ID `g-sync-mod`, Package `com.gsyncmod`.
-- Build und Deployment laufen über [`build.ps1`](build.ps1) (bzw. die verknüpfte IntelliJ Run Configuration `BUILD`).
+- Mod-ID `oneshotonekill`, Package `com.oneshotonekill`.
+- **Build und Deployment:** Werden **ausnahmslos über MCP-Tools** ausgeführt:
+  - `ide_build_project` (aus `intellij-index`) für schnelle strukturierte Compiler-Prüfungen & Fehlerrückmeldungen.
+  - `execute_run_configuration(name: "BUILD", mode: "run")` (aus `jetbrains-debugger`) für den vollständigen Build- und Deployment-Lauf inklusive Mod-Kopieren.
 - **Client-Start:** Der Minecraft Client wird **immer direkt aus IntelliJ IDEA heraus über das Debugger-MCP im Debug-Modus** gestartet (`start_debug_session(configuration_name: "Minecraft Client")` oder `execute_run_configuration(name: "Minecraft Client", mode: "debug")`). Niemals als getrennter Terminal-Prozess ohne Debugger-Anbindung!
 
 ---
@@ -171,12 +174,12 @@ Fabric-API-Events, Access Widener und Mixins sind vollwertige Werkzeuge und kön
 
 ## Build, Deployment und IDE-Integration
 
-- **Build & Deployment:** Immer über [`build.ps1`](build.ps1) bzw. `powershell -ExecutionPolicy Bypass -File ./build.ps1` (oder die IntelliJ Run Configuration `BUILD`).
+- **Build & Deployment via MCP (Verbindlich):**
+  - **IDE-interner Build & Diagnostics:** `ide_build_project` aus `intellij-index` (führt einen schnellen Build im IDE-Kontext aus und liefert strukturierte Compiler-Meldungen).
+  - **Vollständiger Build & Deployment:** `execute_run_configuration(name: "BUILD", mode: "run")` aus `jetbrains-debugger` (führt die IntelliJ Run Configuration `BUILD` aus, die [`build.ps1`](build.ps1) triggert und das Mod-JAR atomar nach `SERVER/mods` und in das Modrinth-Profil kopiert).
+- **Konfiguration des Build-Skripts [`build.ps1`](build.ps1):**
   - Liest `mod_id` aus [`gradle.properties`](gradle.properties).
   - Liest Zielordner aus [`deploy.properties`](deploy.properties).
   - Baut die Mod mit Gradle und kopiert das JAR atomar in Server- und Client-Mods-Ordner.
-- **Parameter für `build.ps1`:**
-  - `-Reconfigure`: Setzt die Deploy-Pfade neu.
-  - `-Clean`: Führt vorab `gradlew clean` aus.
-  - `-StopDaemons`: Beendet hängende Gradle-Daemons.
+  - Parameter (bei manuellem Bedarf): `-Reconfigure`, `-Clean`, `-StopDaemons`.
 - **IDE Local History:** Bei unerwünschten Dateiänderungen bietet IntelliJ über `Local History > Show History` die Möglichkeit, jeden Zustand sofort per Revert wiederherzustellen.
