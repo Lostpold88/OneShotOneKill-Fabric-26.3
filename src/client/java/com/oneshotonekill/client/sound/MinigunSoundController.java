@@ -1,18 +1,19 @@
 package com.oneshotonekill.client.sound;
 
-import static com.oneshotonekill.client.state.ClientStates.*;
-import com.oneshotonekill.client.state.ClientStates.*;
 import com.oneshotonekill.registry.ModItems;
 import com.oneshotonekill.registry.ModSounds;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.Map;
-import java.util.UUID;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.Map;
+import java.util.UUID;
+
+import static com.oneshotonekill.client.state.ClientStates.MinigunHudState;
 
 /**
  * Der Dauerlauf der Minigun aus {@code sounds/items/minigun.ogg} – für jeden, der ihn hören soll.
@@ -38,19 +39,26 @@ public final class MinigunSoundController {
     private final Map<UUID, MinigunLoopSound> loops = new HashMap<>();
     private MinigunLoopSound loop;
 
-    private MinigunSoundController() { }
+    private MinigunSoundController() {
+    }
 
-    /** Wird von OsokClient bei jedem Client-Tick aufgerufen. */
+    /**
+     * Wird von OsokClient bei jedem Client-Tick aufgerufen.
+     */
     public void tickClient(Minecraft client) {
         tick(client);
     }
 
-    /** Beim Verlassen des Servers muss der laufende Klang sofort weg. */
+    /**
+     * Beim Verlassen des Servers muss der laufende Klang sofort weg.
+     */
     public void stopAll() {
         stop();
     }
 
-    /** Die Waffe ist verbraucht – der Lauf trudelt aus, statt hart abzubrechen. */
+    /**
+     * Die Waffe ist verbraucht – der Lauf trudelt aus, statt hart abzubrechen.
+     */
     public void playExpiryHiss() {
         if (loop != null) loop.beginSpinDown();
     }
@@ -73,8 +81,8 @@ public final class MinigunSoundController {
             // ob deren Waffe gleich leer ist, und ein verstummender Lauf mitten im Feuer waere
             // irrefuehrender als einer, der eine Sekunde zu lang haelt.
             boolean firing = player.isUsingItem()
-                && player.getUseItem().is(ModItems.MINIGUN)
-                && !(self && MinigunHudState.INSTANCE.isExpiring());
+                    && player.getUseItem().is(ModItems.MINIGUN)
+                    && !(self && MinigunHudState.INSTANCE.isExpiring());
             MinigunLoopSound running = loops.get(player.getUUID());
             if (!firing) {
                 if (running != null) running.beginSpinDown();
@@ -102,28 +110,43 @@ public final class MinigunSoundController {
      * Freigeben, danach fallen Tonhöhe und Lautstärke zusammen auf null.
      */
     private static final class MinigunLoopSound extends AbstractTickableSoundInstance {
-        /** Grundlautstärke im Dauerfeuer – bewusst zurückhaltend. */
+        /**
+         * Grundlautstärke im Dauerfeuer – bewusst zurückhaltend.
+         */
         private static final float FIRING_VOLUME = 0.32f;
-        /** Kurzer Lautstärke-Überschwinger direkt beim Loslassen. */
+        /**
+         * Kurzer Lautstärke-Überschwinger direkt beim Loslassen.
+         */
         private static final float RELEASE_SWELL = 1.25f;
         private static final int SPIN_UP_TICKS = 10;
         private static final int RELEASE_SWELL_TICKS = 4;
         private static final int SPIN_DOWN_TICKS = 22;
 
         private final AbstractClientPlayer player;
+        private final boolean self;
         private int spinUpTicks;
         private int spinDownTicks = -1;
 
         private MinigunLoopSound(AbstractClientPlayer player, boolean self) {
             super(ModSounds.MINIGUN, SoundSource.PLAYERS, RandomSource.create());
             this.player = player;
+            this.self = self;
             // Der eigene Lauf sitzt im Kopf, fremde stehen dort, wo ihr Schütze steht.
             this.attenuation = self ? Attenuation.NONE : Attenuation.LINEAR;
-            this.relative = false;
+            this.relative = self;
             this.looping = true;
             this.delay = 0;
             this.volume = FIRING_VOLUME * 0.3f;
             this.pitch = 0.7f;
+            if (self) {
+                this.x = 0;
+                this.y = 0;
+                this.z = 0;
+            } else {
+                this.x = player.getX();
+                this.y = player.getEyeY();
+                this.z = player.getZ();
+            }
         }
 
         @Override
@@ -132,9 +155,11 @@ public final class MinigunSoundController {
                 stop();
                 return;
             }
-            this.x = player.getX();
-            this.y = player.getEyeY();
-            this.z = player.getZ();
+            if (!self) {
+                this.x = player.getX();
+                this.y = player.getEyeY();
+                this.z = player.getZ();
+            }
 
             if (spinDownTicks < 0) {
                 tickSpinUp();
@@ -171,7 +196,9 @@ public final class MinigunSoundController {
             this.pitch = 1.05f - 0.55f * progress;
         }
 
-        /** Erneutes Feuern innerhalb des Auslaufs holt den Lauf wieder auf Drehzahl. */
+        /**
+         * Erneutes Feuern innerhalb des Auslaufs holt den Lauf wieder auf Drehzahl.
+         */
         private void keepFiring() {
             if (spinDownTicks >= 0) {
                 spinUpTicks = Math.max(1, SPIN_UP_TICKS - spinDownTicks);
@@ -183,6 +210,8 @@ public final class MinigunSoundController {
             if (spinDownTicks < 0) spinDownTicks = 0;
         }
 
-        private void stopNow() { stop(); }
+        private void stopNow() {
+            stop();
+        }
     }
 }
