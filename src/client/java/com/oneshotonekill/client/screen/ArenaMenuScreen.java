@@ -77,10 +77,22 @@ public final class ArenaMenuScreen extends Screen {
         this.scroll.set(SCROLL_MEMORY.getOrDefault(currentTab, 0.0F));
     }
 
+    private static String lastActiveArenaId = Arena.STANDARD.getId();
+
+    public static String getLastActiveArenaId() {
+        return lastActiveArenaId;
+    }
+
     /**
      * Aktualisiert ein offenes Menü oder öffnet es, wenn der Server darum bittet.
      */
     public static void show(ArenaMenuStatePayload state, Minecraft client) {
+        if (state == null) {
+            return;
+        }
+        if (state.getActiveArenaId() != null) {
+            lastActiveArenaId = state.getActiveArenaId();
+        }
         if (client.gui.screen() instanceof ArenaMenuScreen screen) {
             screen.state = state;
             if (screen.activeSlider == null) {

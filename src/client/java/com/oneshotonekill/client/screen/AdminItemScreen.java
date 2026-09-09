@@ -284,7 +284,11 @@ public final class AdminItemScreen extends Screen {
       boolean hasItems = !filteredItems.isEmpty();
       OsokWidgets.cyberButton(graphics, font, giveAllX, footerY + 6, giveAllWidth, 20, "📦 Alle +1", hasItems, giveAllHover, OsokWidgets.COLOR_EMERALD);
       hotspots.add(new Hotspot(giveAllX, footerY + 6, giveAllWidth, 20, false, () -> {
+         boolean isTilted = isTiltedActive();
          for (SpecialItem item : filteredItems) {
+            if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
+               continue;
+            }
             ClientPlayNetworking.send(new GiveSpecialItemPayload(item.getId()));
          }
          OsokWidgets.playItemGiveSound();
@@ -303,9 +307,13 @@ public final class AdminItemScreen extends Screen {
       updateCursor(graphics, mouseX, mouseY);
    }
 
+   private boolean isTiltedActive() {
+      return (minecraft.level != null && Arena.TILTED_TOWERS.getDimension().equals(minecraft.level.dimension()))
+         || Arena.TILTED_TOWERS.getId().equalsIgnoreCase(ArenaMenuScreen.getLastActiveArenaId());
+   }
+
    private List<Component> buildTooltip(SpecialItem item, ItemCategory cat, boolean isFav) {
-      boolean isTilted = minecraft.level != null
-         && Arena.TILTED_TOWERS.getDimension().equals(minecraft.level.dimension());
+      boolean isTilted = isTiltedActive();
       if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
          return List.of(
             Component.literal((isFav ? "⭐ " : "") + item.getDisplayName()).withColor(cat.accent),
@@ -313,7 +321,7 @@ public final class AdminItemScreen extends Screen {
             Component.empty(),
             Component.literal("Jeder Spieler besitzt diesen Grappler auf Tilted Towers dauerhaft in Slot 2 mit unendlicher Haltbarkeit.").withColor(OsokWidgets.COLOR_TEXT_WHITE),
             Component.empty(),
-            Component.literal("💡 [+1] / [+16] gibt zusätzliche Exemplare für Testzwecke.").withColor(OsokWidgets.COLOR_TEXT_FAINT)
+            Component.literal("🔒 Auf dieser Map kann der Grappler nicht per Admin-GUI vergeben werden.").withColor(OsokWidgets.COLOR_CRIMSON)
          );
       }
       return List.of(
@@ -404,7 +412,7 @@ public final class AdminItemScreen extends Screen {
 
             graphics.text(font, item.getDisplayName(), left + 48, y + 8, OsokWidgets.COLOR_TEXT_WHITE);
             int nameWidth = font.width(item.getDisplayName());
-            boolean isTilted = minecraft.level != null && Arena.TILTED_TOWERS.getDimension().equals(minecraft.level.dimension());
+            boolean isTilted = isTiltedActive();
             if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
                graphics.text(font, "• Tilted Towers: Start-Ausrüstung", left + 52 + nameWidth, y + 8, OsokWidgets.COLOR_AMBER);
                graphics.text(font, "Dauerhaft in Slot 2 vergeben · Unendlich oft einsetzbar.", left + 48, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
@@ -417,24 +425,31 @@ public final class AdminItemScreen extends Screen {
             int btn16X = right - BTN_WIDTH - 8;
             int btn1X = btn16X - BTN_WIDTH - 6;
 
-            boolean btn1Hover = OsokWidgets.isOver(mouseX, mouseY, btn1X, btnY, BTN_WIDTH, 20)
-               && mouseY >= listTop && mouseY < listBottom;
-            boolean btn16Hover = OsokWidgets.isOver(mouseX, mouseY, btn16X, btnY, BTN_WIDTH, 20)
-               && mouseY >= listTop && mouseY < listBottom;
+            if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
+               String badge = "🔒 START-AUSRÜSTUNG";
+               int badgeWidth = font.width(badge) + 18;
+               int badgeX = right - badgeWidth - 8;
+               OsokWidgets.statusBadge(graphics, font, badgeX, btnY + 3, badge, OsokWidgets.COLOR_AMBER, false);
+            } else {
+               boolean btn1Hover = OsokWidgets.isOver(mouseX, mouseY, btn1X, btnY, BTN_WIDTH, 20)
+                  && mouseY >= listTop && mouseY < listBottom;
+               boolean btn16Hover = OsokWidgets.isOver(mouseX, mouseY, btn16X, btnY, BTN_WIDTH, 20)
+                  && mouseY >= listTop && mouseY < listBottom;
 
-            OsokWidgets.cyberButton(graphics, font, btn1X, btnY, BTN_WIDTH, 20, "+1", true, btn1Hover, OsokWidgets.COLOR_GOLD);
-            OsokWidgets.cyberButton(graphics, font, btn16X, btnY, BTN_WIDTH, 20, "+16", true, btn16Hover, cat.accent);
+               OsokWidgets.cyberButton(graphics, font, btn1X, btnY, BTN_WIDTH, 20, "+1", true, btn1Hover, OsokWidgets.COLOR_GOLD);
+               OsokWidgets.cyberButton(graphics, font, btn16X, btnY, BTN_WIDTH, 20, "+16", true, btn16Hover, cat.accent);
 
-            hotspots.add(new Hotspot(btn1X, btnY, BTN_WIDTH, 20, true, () -> {
-               ClientPlayNetworking.send(new GiveSpecialItemPayload(item.getId()));
-               OsokWidgets.playItemGiveSound();
-            }));
-            hotspots.add(new Hotspot(btn16X, btnY, BTN_WIDTH, 20, true, () -> {
-               for (int i = 0; i < 16; i++) {
+               hotspots.add(new Hotspot(btn1X, btnY, BTN_WIDTH, 20, true, () -> {
                   ClientPlayNetworking.send(new GiveSpecialItemPayload(item.getId()));
-               }
-               OsokWidgets.playItemGiveSound();
-            }));
+                  OsokWidgets.playItemGiveSound();
+               }));
+               hotspots.add(new Hotspot(btn16X, btnY, BTN_WIDTH, 20, true, () -> {
+                  for (int i = 0; i < 16; i++) {
+                     ClientPlayNetworking.send(new GiveSpecialItemPayload(item.getId()));
+                  }
+                  OsokWidgets.playItemGiveSound();
+               }));
+            }
 
             y += ROW_HEIGHT + 4;
          }

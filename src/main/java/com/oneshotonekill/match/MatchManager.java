@@ -606,7 +606,19 @@ public final class MatchManager {
       if (item == null) {
          OneShotOneKill.INSTANCE.getLOGGER().warn("Unbekanntes Spezialitem '{}' von {} abgewiesen.",
             itemId, player.getGameProfile().name());
-      } else if (!player.getInventory().add(item.createStack())) {
+         return;
+      }
+
+      ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
+      Arena activeArena = worlds != null ? worlds.getActive() : null;
+      Arena playerArena = worlds != null ? worlds.arenaOf(player) : null;
+      if ((playerArena == Arena.TILTED_TOWERS || activeArena == Arena.TILTED_TOWERS)
+         && item == SpecialItem.GRAPPLING_HOOK) {
+         Feedback.actionBar(player, "§c✖ Auf Tilted Towers ist der Grappler feste Start-Ausrüstung");
+         return;
+      }
+
+      if (!player.getInventory().add(item.createStack())) {
          Feedback.actionBar(player, "§c✖ Kein freier Slot für das Spezial-Item");
       }
    }
