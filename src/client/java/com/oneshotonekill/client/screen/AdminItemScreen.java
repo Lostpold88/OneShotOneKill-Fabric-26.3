@@ -2,6 +2,7 @@ package com.oneshotonekill.client.screen;
 
 import com.mojang.blaze3d.platform.cursor.CursorType;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
+import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.client.OsokClient;
 import com.oneshotonekill.item.SpecialItem;
 import com.oneshotonekill.network.OsokPayloads.*;
@@ -294,19 +295,35 @@ public final class AdminItemScreen extends Screen {
       if (hoveredItemForTooltip != null) {
          ItemCategory cat = getCategoryFor(hoveredItemForTooltip);
          boolean isFav = FAVORITES.contains(hoveredItemForTooltip);
-         List<Component> tooltip = List.of(
-            Component.literal((isFav ? "⭐ " : "") + hoveredItemForTooltip.getDisplayName()).withColor(cat.accent),
-            Component.literal("Kategorie: " + cat.label).withColor(OsokWidgets.COLOR_TEXT_MUTED),
-            Component.empty(),
-            Component.literal(getItemDescription(hoveredItemForTooltip)).withColor(OsokWidgets.COLOR_TEXT_WHITE),
-            Component.empty(),
-            Component.literal("💡 [★] = Favorit umschalten · [+1] = 1 Stück · [+16] = 16 Stück").withColor(OsokWidgets.COLOR_TEXT_FAINT)
-         );
+         List<Component> tooltip = buildTooltip(hoveredItemForTooltip, cat, isFav);
          graphics.setComponentTooltipForNextFrame(font, tooltip, mouseX, mouseY);
       }
 
       super.extractRenderState(graphics, mouseX, mouseY, partial);
       updateCursor(graphics, mouseX, mouseY);
+   }
+
+   private List<Component> buildTooltip(SpecialItem item, ItemCategory cat, boolean isFav) {
+      boolean isTilted = minecraft.level != null
+         && Arena.TILTED_TOWERS.getDimension().equals(minecraft.level.dimension());
+      if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
+         return List.of(
+            Component.literal((isFav ? "⭐ " : "") + item.getDisplayName()).withColor(cat.accent),
+            Component.literal("Status: Permanente Start-Ausrüstung auf Tilted Towers").withColor(OsokWidgets.COLOR_AMBER),
+            Component.empty(),
+            Component.literal("Jeder Spieler besitzt diesen Grappler auf Tilted Towers dauerhaft in Slot 2 mit unendlicher Haltbarkeit.").withColor(OsokWidgets.COLOR_TEXT_WHITE),
+            Component.empty(),
+            Component.literal("💡 [+1] / [+16] gibt zusätzliche Exemplare für Testzwecke.").withColor(OsokWidgets.COLOR_TEXT_FAINT)
+         );
+      }
+      return List.of(
+         Component.literal((isFav ? "⭐ " : "") + item.getDisplayName()).withColor(cat.accent),
+         Component.literal("Kategorie: " + cat.label).withColor(OsokWidgets.COLOR_TEXT_MUTED),
+         Component.empty(),
+         Component.literal(getItemDescription(item)).withColor(OsokWidgets.COLOR_TEXT_WHITE),
+         Component.empty(),
+         Component.literal("💡 [★] = Favorit umschalten · [+1] = 1 Stück · [+16] = 16 Stück").withColor(OsokWidgets.COLOR_TEXT_FAINT)
+      );
    }
 
    private float entranceScale() {
@@ -387,8 +404,14 @@ public final class AdminItemScreen extends Screen {
 
             graphics.text(font, item.getDisplayName(), left + 48, y + 8, OsokWidgets.COLOR_TEXT_WHITE);
             int nameWidth = font.width(item.getDisplayName());
-            graphics.text(font, "• " + cat.label, left + 52 + nameWidth, y + 8, cat.accent);
-            graphics.text(font, getItemDescription(item), left + 48, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
+            boolean isTilted = minecraft.level != null && Arena.TILTED_TOWERS.getDimension().equals(minecraft.level.dimension());
+            if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
+               graphics.text(font, "• Tilted Towers: Start-Ausrüstung", left + 52 + nameWidth, y + 8, OsokWidgets.COLOR_AMBER);
+               graphics.text(font, "Dauerhaft in Slot 2 vergeben · Unendlich oft einsetzbar.", left + 48, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
+            } else {
+               graphics.text(font, "• " + cat.label, left + 52 + nameWidth, y + 8, cat.accent);
+               graphics.text(font, getItemDescription(item), left + 48, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
+            }
 
             int btnY = y + 8;
             int btn16X = right - BTN_WIDTH - 8;

@@ -28,6 +28,7 @@ import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.SectionPos;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.util.Mth;
@@ -541,7 +542,7 @@ public final class CombatHudLayers {
                                                  double distance, boolean inRange,
                                                  boolean active, boolean pulling, boolean retracting,
                                                  float pullSpeed, int charges, int maxCharges,
-                                                 float partialTick) {
+                                                 boolean isInfinite, float partialTick) {
             float time = player.tickCount + partialTick;
             float pulse = 0.5F + 0.5F * Mth.sin(time * 0.34F);
             float speedFactor = Mth.clamp(pullSpeed / MAX_PULL_SPEED, 0.0F, 1.0F);
@@ -575,7 +576,7 @@ public final class CombatHudLayers {
             drawCentralOptics(graphics, cx, cy, time, accentColor, active, pulling, inRange);
             drawDistanceRail(graphics, font, cx - 62, cy, distance, active || inRange, accentColor);
             drawTensionRail(graphics, font, cx + 62, cy, tension, active, accentColor);
-            drawPressureRail(graphics, font, cx, cy + 45, charges, maxCharges, pulse);
+            drawPressureRail(graphics, font, cx, cy + 45, charges, maxCharges, isInfinite, pulse);
         }
 
         private static void drawStatusHeader(GuiGraphicsExtractor graphics, Font font, int cx, int y,
@@ -672,7 +673,7 @@ public final class CombatHudLayers {
 
         private static void drawPressureRail(GuiGraphicsExtractor graphics, Font font,
                                              int cx, int y, int charges, int maxCharges,
-                                             float pulse) {
+                                             boolean isInfinite, float pulse) {
             if (maxCharges <= 0) {
                 return;
             }
@@ -684,19 +685,21 @@ public final class CombatHudLayers {
 
             for (int i = 0; i < maxCharges; i++) {
                 int x = startX + i * (cellWidth + gap);
-                boolean filled = i < charges;
+                boolean filled = isInfinite || i < charges;
                 int cellColor = filled
-                        ? (charges == 1 ? MinigunHudLayer.lerpColor(COLOR_RED_PRIMARY, COLOR_WHITE, pulse)
-                        : (charges <= 3 ? COLOR_RED_PULL : COLOR_RED_PRIMARY))
+                        ? (isInfinite ? MinigunHudLayer.lerpColor(COLOR_RED_PRIMARY, COLOR_RED_BRIGHT, pulse * 0.35F)
+                        : (charges == 1 ? MinigunHudLayer.lerpColor(COLOR_RED_PRIMARY, COLOR_WHITE, pulse)
+                        : (charges <= 3 ? COLOR_RED_PULL : COLOR_RED_PRIMARY)))
                         : COLOR_RED_EMPTY;
                 drawLine(graphics, x, y + 3, x + cellWidth - 1, y - 1, cellColor);
                 drawLine(graphics, x + 1, y + 4, x + cellWidth, y, MinigunHudLayer.withAlpha(cellColor, filled ? 155 : 70));
             }
 
-            String label = String.format(Locale.ROOT, "DRUCK  %02d/%02d", charges, maxCharges);
-            int labelColor = charges == 0 ? COLOR_RED_DIM
+            String label = isInfinite ? "DRUCK  ∞ / ∞" : String.format(Locale.ROOT, "DRUCK  %02d/%02d", charges, maxCharges);
+            int labelColor = isInfinite ? COLOR_RED_BRIGHT
+                    : (charges == 0 ? COLOR_RED_DIM
                     : (charges <= 3 ? MinigunHudLayer.lerpColor(COLOR_RED_PULL, COLOR_WHITE,
-                    charges == 1 ? pulse * 0.55F : 0.0F) : COLOR_RED_BRIGHT);
+                    charges == 1 ? pulse * 0.55F : 0.0F) : COLOR_RED_BRIGHT));
             graphics.centeredText(font, label, cx, y + 7, labelColor);
         }
 
@@ -902,8 +905,9 @@ public final class CombatHudLayers {
 
             ItemStack hookItem = player.getMainHandItem().is(ModItems.GRAPPLING_HOOK)
                     ? player.getMainHandItem() : player.getOffhandItem();
+            boolean isInfinite = hookItem.has(DataComponents.UNBREAKABLE);
             int maxCharges = hookItem.getMaxDamage();
-            int remainingCharges = Math.max(0, maxCharges - hookItem.getDamageValue());
+            int remainingCharges = isInfinite ? maxCharges : Math.max(0, maxCharges - hookItem.getDamageValue());
 
             drawKineticCorridor(graphics, centerX, centerY, graphics.guiWidth(), graphics.guiHeight(),
                     player.tickCount + partialTick, active, pulling, retracting,
@@ -911,7 +915,7 @@ public final class CombatHudLayers {
                     active ? pullSpeed : lastPullSpeed, corridorBlend, now);
             drawGrappleInterface(graphics, client.font, player, centerX, centerY,
                     distance, inRange, active, pulling, retracting, pullSpeed,
-                    remainingCharges, maxCharges, partialTick);
+                    remainingCharges, maxCharges, isInfinite, partialTick);
 
             previousActive = active;
             previousPulling = pulling;

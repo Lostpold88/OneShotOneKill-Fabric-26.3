@@ -1,4 +1,6 @@
 package com.oneshotonekill.equipment;
+import com.oneshotonekill.arena.Arena;
+import com.oneshotonekill.registry.ModItems;
 import com.oneshotonekill.shared.ProtectedItems;
 
 import com.oneshotonekill.OneShotOneKill;
@@ -23,6 +25,7 @@ public final class EquipmentManager {
    public static final EquipmentManager INSTANCE = new EquipmentManager();
 
    private static final int SLOT_SWORD = 0;
+   private static final int SLOT_GRAPPLER = 1;
    private static final int FULL_FOOD_LEVEL = 20;
    private static final float FULL_SATURATION = 20.0F;
 
@@ -39,6 +42,18 @@ public final class EquipmentManager {
       removeLegacyArrows(player);
       player.getInventory().setItem(SLOT_SWORD, createSword());
       player.setItemInHand(InteractionHand.OFF_HAND, createBow(player));
+
+      Arena activeArena = OneShotOneKill.INSTANCE.getArenas() != null
+         ? OneShotOneKill.INSTANCE.getArenas().getActive() : null;
+      if (activeArena == Arena.TILTED_TOWERS) {
+         player.getInventory().setItem(SLOT_GRAPPLER, createInfiniteGrappler());
+      } else {
+         ItemStack slot1 = player.getInventory().getItem(SLOT_GRAPPLER);
+         if (ProtectedItems.isSlotLocked(slot1) && slot1.is(ModItems.GRAPPLING_HOOK)) {
+            player.getInventory().setItem(SLOT_GRAPPLER, ItemStack.EMPTY);
+         }
+      }
+
       restoreVitals(player);
       player.experienceLevel = 0;
       player.experienceProgress = 0.0F;
@@ -91,6 +106,13 @@ public final class EquipmentManager {
          .get(Enchantments.INFINITY)
          .ifPresent(infinity -> bow.enchant(infinity, 1));
       return ProtectedItems.lockToSlot(bow);
+   }
+
+   private ItemStack createInfiniteGrappler() {
+      ItemStack grappler = new ItemStack(ModItems.GRAPPLING_HOOK);
+      grappler.set(DataComponents.CUSTOM_NAME, Component.literal("🪝 Tilted Grappler").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+      grappler.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
+      return ProtectedItems.lockToSlot(grappler);
    }
 
    private void restoreVitals(ServerPlayer player) {

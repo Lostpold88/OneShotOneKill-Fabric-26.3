@@ -860,27 +860,39 @@ public final class ArenaMenuScreen extends Screen {
         graphics.verticalLine(left, y, y + 27, rowBorder);
         graphics.verticalLine(right - 1, y, y + 27, rowBorder);
 
-        graphics.fill(left + 2, y + 2, left + 5, y + 26, cat.accent);
+        boolean isTilted = state != null && Arena.TILTED_TOWERS.getId().equalsIgnoreCase(state.getActiveArenaId());
+        boolean isTiltedHook = isTilted && item == SpecialItem.GRAPPLING_HOOK;
+
+        graphics.fill(left + 2, y + 2, left + 5, y + 26, isTiltedHook ? OsokWidgets.COLOR_AMBER : cat.accent);
         graphics.item(new ItemStack(item.getIcon()), left + 8, y + 6);
         graphics.text(font, item.getDisplayName(), left + 32, y + 5, OsokWidgets.COLOR_TEXT_WHITE);
 
-        double chance = spawnChanceFor(item);
-        String chanceText = String.format(Locale.GERMANY, "Gewicht: %d · %.1f %%", weightFor(item), chance);
-        graphics.text(font, chanceText, left + 32, y + 16, OsokWidgets.COLOR_TEXT_FAINT);
+        if (isTiltedHook) {
+            String lockedText = "§6✦ Dauerhafte Start-Ausrüstung (Slot 2) · Spawnt nicht in Boxen";
+            graphics.text(font, lockedText, left + 32, y + 16, OsokWidgets.COLOR_TEXT_FAINT);
 
-        int x = right - (WEIGHT_BUTTON_WIDTH + 4) * 4 - 4;
-        for (int[] step : new int[][]{{-5}, {-1}, {1}, {5}}) {
-            int adjustment = step[0];
-            String label = adjustment < 0 ? "−" + Math.abs(adjustment) : "+" + adjustment;
-            boolean btnHover = OsokWidgets.isOver(mouseX, mouseY, x, y + 4, WEIGHT_BUTTON_WIDTH, 20)
-                    && mouseY >= contentTop && mouseY < contentTop + contentHeight;
+            int badgeWidth = 148;
+            int badgeX = right - badgeWidth - 4;
+            OsokWidgets.statusBadge(graphics, font, badgeX, y + 4, "🔒 START-AUSRÜSTUNG", OsokWidgets.COLOR_AMBER, false);
+        } else {
+            double chance = spawnChanceFor(item);
+            String chanceText = String.format(Locale.GERMANY, "Gewicht: %d · %.1f %%", weightFor(item), chance);
+            graphics.text(font, chanceText, left + 32, y + 16, OsokWidgets.COLOR_TEXT_FAINT);
 
-            int accent = adjustment < 0 ? OsokWidgets.COLOR_CRIMSON : OsokWidgets.COLOR_EMERALD;
-            OsokWidgets.cyberButton(graphics, font, x, y + 4, WEIGHT_BUTTON_WIDTH, 20, label, true, btnHover, accent);
+            int x = right - (WEIGHT_BUTTON_WIDTH + 4) * 4 - 4;
+            for (int[] step : new int[][]{{-5}, {-1}, {1}, {5}}) {
+                int adjustment = step[0];
+                String label = adjustment < 0 ? "−" + Math.abs(adjustment) : "+" + adjustment;
+                boolean btnHover = OsokWidgets.isOver(mouseX, mouseY, x, y + 4, WEIGHT_BUTTON_WIDTH, 20)
+                        && mouseY >= contentTop && mouseY < contentTop + contentHeight;
 
-            hotspots.add(new Hotspot(x, y + 4, WEIGHT_BUTTON_WIDTH, 20, true,
-                    () -> ClientPlayNetworking.send(new AdjustSpecialItemWeightPayload(item.getId(), adjustment))));
-            x += WEIGHT_BUTTON_WIDTH + 4;
+                int accent = adjustment < 0 ? OsokWidgets.COLOR_CRIMSON : OsokWidgets.COLOR_EMERALD;
+                OsokWidgets.cyberButton(graphics, font, x, y + 4, WEIGHT_BUTTON_WIDTH, 20, label, true, btnHover, accent);
+
+                hotspots.add(new Hotspot(x, y + 4, WEIGHT_BUTTON_WIDTH, 20, true,
+                        () -> ClientPlayNetworking.send(new AdjustSpecialItemWeightPayload(item.getId(), adjustment))));
+                x += WEIGHT_BUTTON_WIDTH + 4;
+            }
         }
     }
 
@@ -1091,7 +1103,17 @@ public final class ArenaMenuScreen extends Screen {
     }
 
     private double spawnChanceFor(SpecialItem item) {
-        int total = state.getItemWeights().stream().mapToInt(Integer::intValue).sum();
+        boolean isTilted = state != null && Arena.TILTED_TOWERS.getId().equalsIgnoreCase(state.getActiveArenaId());
+        if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
+            return 0.0;
+        }
+        int total = 0;
+        for (SpecialItem i : SpecialItem.values()) {
+            if (isTilted && i == SpecialItem.GRAPPLING_HOOK) {
+                continue;
+            }
+            total += weightFor(i);
+        }
         return total <= 0 ? 0.0 : weightFor(item) * 100.0 / total;
     }
 

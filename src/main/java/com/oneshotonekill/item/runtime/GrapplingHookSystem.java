@@ -13,6 +13,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.UUID;
 import net.minecraft.core.BlockPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -163,12 +164,16 @@ public final class GrapplingHookSystem {
       }
       ItemStack stack = owner.getItemInHand(grapple.hand);
       if (stack.is(ModItems.GRAPPLING_HOOK)) {
-         stack.hurtAndBreak(1, owner, grapple.hand.asEquipmentSlot());
+         if (!stack.has(DataComponents.UNBREAKABLE)) {
+            stack.hurtAndBreak(1, owner, grapple.hand.asEquipmentSlot());
+         }
       } else {
          for (int i = 0; i < owner.getInventory().getContainerSize(); i++) {
             ItemStack invStack = owner.getInventory().getItem(i);
             if (invStack.is(ModItems.GRAPPLING_HOOK)) {
-               invStack.hurtAndBreak(1, owner, grapple.hand.asEquipmentSlot());
+               if (!invStack.has(DataComponents.UNBREAKABLE)) {
+                  invStack.hurtAndBreak(1, owner, grapple.hand.asEquipmentSlot());
+               }
                break;
             }
          }

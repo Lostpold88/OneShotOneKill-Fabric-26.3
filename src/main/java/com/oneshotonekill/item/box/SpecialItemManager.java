@@ -9,6 +9,7 @@ import com.oneshotonekill.match.MatchManager.MatchState;
 import com.oneshotonekill.match.MatchManager;
 import com.oneshotonekill.shared.Hologram;
 import com.oneshotonekill.shared.OsokEffects;
+import com.oneshotonekill.shared.ProtectedItems;
 import com.oneshotonekill.arena.RandomTpSystem;
 import java.util.ArrayList;
 import java.nio.file.Files;
@@ -578,19 +579,35 @@ public final class SpecialItemManager {
    }
 
    private SpecialItem rollItem() {
-      int total = getTotalWeight();
+      ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
+      Arena arena = worlds != null ? worlds.getActive() : null;
+      return rollItem(arena);
+   }
+
+   public SpecialItem rollItem(Arena arena) {
+      boolean isTilted = arena == Arena.TILTED_TOWERS;
+      int total = 0;
+      for (SpecialItem item : SpecialItem.values()) {
+         if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
+            continue;
+         }
+         total += weightOf(item);
+      }
       if (total <= 0) {
          return null;
       }
 
       int roll = ThreadLocalRandom.current().nextInt(total);
       for (SpecialItem item : SpecialItem.values()) {
+         if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
+            continue;
+         }
          roll -= weightOf(item);
          if (roll < 0) {
             return item;
          }
       }
-      return SpecialItem.values()[SpecialItem.values().length - 1];
+      return null;
    }
 
    /** Landeanmeldung: Melodischer Signalton und feiner Lichtblitz ohne Partikel-Spam. */
@@ -614,7 +631,7 @@ public final class SpecialItemManager {
       List<Integer> specialSlots = new ArrayList<>();
       for (int slot = 0; slot < inventory.getContainerSize(); slot++) {
          ItemStack stack = inventory.getItem(slot);
-         if (!stack.isEmpty() && SpecialItem.fromStack(stack) != null) {
+         if (!stack.isEmpty() && SpecialItem.fromStack(stack) != null && !ProtectedItems.isSlotLocked(stack)) {
             specialSlots.add(slot);
          }
       }
