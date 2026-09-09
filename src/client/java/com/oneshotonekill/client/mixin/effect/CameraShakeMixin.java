@@ -67,13 +67,14 @@ public abstract class CameraShakeMixin {
       CameraShakeState shake = CameraShakeState.INSTANCE;
       float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true);
       float grapplePitch = GrapplePullState.INSTANCE.cameraPitch(partialTick);
-      if (!shake.isShaking() && Math.abs(grapplePitch) < 0.001F) {
+      float grappleRoll = GrapplePullState.INSTANCE.cameraRoll(partialTick);
+      if (!shake.isShaking() && Math.abs(grapplePitch) < 0.001F && Math.abs(grappleRoll) < 0.001F) {
          return;
       }
 
       float yaw = yRot + (shake.isShaking() ? shake.getYawOffset(partialTick) : 0.0F);
       float pitch = xRot + grapplePitch + (shake.isShaking() ? shake.getPitchOffset(partialTick) : 0.0F);
-      float roll = shake.isShaking() ? shake.getRollOffset(partialTick) : 0.0F;
+      float roll = (shake.isShaking() ? shake.getRollOffset(partialTick) : 0.0F) + grappleRoll;
 
       this.rotation.rotationYXZ(
          (float) Math.PI - yaw * (float) (Math.PI / 180.0),

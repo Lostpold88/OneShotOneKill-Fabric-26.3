@@ -78,6 +78,12 @@ public abstract class LivingEntityRendererMixin {
       if (pull != null) {
          // Dasselbe Vorzeichen wie Vanillas Fluglage: -90 Grad legt die Figur nach vorn.
          poseStack.mulPose(Axis.XP.rotationDegrees(-pull.elevation() * pull.blend()));
+         // Dynamisches Banking (Roll-Neigung) in Kurvenlage bei Querzug
+         float deltaYaw = Mth.wrapDegrees(pull.yaw() - bodyRot);
+         float roll = Math.clamp(deltaYaw * 0.28F, -18.0F, 18.0F) * pull.blend();
+         if (Math.abs(roll) > 0.01F) {
+            poseStack.mulPose(Axis.ZP.rotationDegrees(roll));
+         }
       }
    }
 

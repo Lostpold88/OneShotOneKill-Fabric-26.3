@@ -615,7 +615,8 @@ public final class OsokPayloads {
     * {@code pulling} bezeichnet nur die Phase, in der der Spieler zum Anker gezogen wird.</p>
     */
    public record GrapplePullPayload(UUID player, boolean active, boolean pulling, boolean retracting,
-                                           double hookX, double hookY, double hookZ)
+                                   byte normalDir,
+                                   double hookX, double hookY, double hookZ)
       implements CustomPacketPayload {
       public static final Type<GrapplePullPayload> TYPE = new Type<>(
          OneShotOneKill.INSTANCE.id("grapple_pull"));
@@ -625,13 +626,14 @@ public final class OsokPayloads {
          ByteBufCodecs.BOOL, GrapplePullPayload::active,
          ByteBufCodecs.BOOL, GrapplePullPayload::pulling,
          ByteBufCodecs.BOOL, GrapplePullPayload::retracting,
+         ByteBufCodecs.BYTE, GrapplePullPayload::normalDir,
          ByteBufCodecs.DOUBLE, GrapplePullPayload::hookX,
          ByteBufCodecs.DOUBLE, GrapplePullPayload::hookY,
          ByteBufCodecs.DOUBLE, GrapplePullPayload::hookZ,
          GrapplePullPayload::new);
 
       public static GrapplePullPayload inactive(UUID player) {
-         return new GrapplePullPayload(player, false, false, false, 0.0, 0.0, 0.0);
+         return new GrapplePullPayload(player, false, false, false, (byte) -1, 0.0, 0.0, 0.0);
       }
 
       @Override

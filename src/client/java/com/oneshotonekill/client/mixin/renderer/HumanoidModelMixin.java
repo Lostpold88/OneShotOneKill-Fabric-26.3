@@ -95,6 +95,30 @@ public abstract class HumanoidModelMixin {
       freeArm.xRot = Mth.rotLerpRad(blend, freeArm.xRot, FREE_ARM_X + localElevation * 0.20F);
       freeArm.yRot = Mth.rotLerpRad(blend, freeArm.yRot, rightHandedShot ? -FREE_ARM_Y : FREE_ARM_Y);
       freeArm.zRot = Mth.rotLerpRad(blend, freeArm.zRot, rightHandedShot ? -FREE_ARM_Z : FREE_ARM_Z);
+
+      if (pull != null && pull.blend() > 0.001F) {
+         float pullWeight = pull.blend();
+         // Dynamische Flieger-Silhouette: Beine strecken/anwinkeln statt in der Luft zu laufen
+         float flightLegRightX = 0.65F;
+         float flightLegLeftX = 0.28F;
+         float flightLegSpread = 0.12F;
+
+         model.rightLeg.xRot = Mth.rotLerpRad(pullWeight, model.rightLeg.xRot, flightLegRightX);
+         model.rightLeg.yRot = Mth.rotLerpRad(pullWeight, model.rightLeg.yRot, 0.0F);
+         model.rightLeg.zRot = Mth.rotLerpRad(pullWeight, model.rightLeg.zRot, flightLegSpread);
+
+         model.leftLeg.xRot = Mth.rotLerpRad(pullWeight, model.leftLeg.xRot, flightLegLeftX);
+         model.leftLeg.yRot = Mth.rotLerpRad(pullWeight, model.leftLeg.yRot, 0.0F);
+         model.leftLeg.zRot = Mth.rotLerpRad(pullWeight, model.leftLeg.zRot, -flightLegSpread);
+
+         // Freier Arm geht in dynamische Flug-Balance-Haltung (aerodynamisch nach hinten-außen)
+         float flightArmX = 0.85F;
+         float flightArmY = rightHandedShot ? 0.25F : -0.25F;
+         float flightArmZ = rightHandedShot ? -0.55F : 0.55F;
+         freeArm.xRot = Mth.rotLerpRad(pullWeight, freeArm.xRot, flightArmX);
+         freeArm.yRot = Mth.rotLerpRad(pullWeight, freeArm.yRot, flightArmY);
+         freeArm.zRot = Mth.rotLerpRad(pullWeight, freeArm.zRot, flightArmZ);
+      }
    }
 
    @Unique

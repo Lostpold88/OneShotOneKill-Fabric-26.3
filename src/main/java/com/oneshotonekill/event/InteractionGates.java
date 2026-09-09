@@ -1,16 +1,20 @@
 package com.oneshotonekill.event;
 
+import com.oneshotonekill.item.runtime.GrapplingHookSystem;
 import com.oneshotonekill.nuke.NukeSequenceManager;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.Items;
+
+import java.util.function.Predicate;
 
 /**
  * Die drei Interaktionswege, für die Fabric API kein Ereignis anbietet.
  * <p>
- * <p>Zwei Systeme der Mod müssen den Beginn einer Item-Nutzung sowie das Spannen und Lösen des
- * Bogens abfangen: das Abnehmen einer Haftladung und die Nuke-Sequenz. Der Eiskäfig der
- * Frost-Falle stand hier ebenfalls, wird inzwischen aber schon eine Ebene früher abgefangen –
+ * <p>Drei Systeme der Mod müssen den Beginn einer Item-Nutzung sowie das Spannen und Lösen des
+ * Bogens abfangen: das Abnehmen einer Haftladung, die Nuke-Sequenz und der Zug des Grappling Hooks.
+ * Der Eiskäfig der Frost-Falle stand hier ebenfalls, wird inzwischen aber schon eine Ebene früher abgefangen –
  * auf dem Client von {@code MinecraftInteractionMixin}, auf dem Server von
  * {@code ServerGamePacketListenerMixin}. Unter NeoForge hing jedes davon an
  * {@code LivingEntityUseItemEvent.Start},
@@ -23,29 +27,57 @@ import net.minecraft.world.item.ItemStack;
  * wer alles mitreden darf.</p>
  */
 public final class InteractionGates {
-   private InteractionGates() {
-   }
+    private static volatile Predicate<Player> clientPullGate;
 
-   /**
-    * @return {@code true}, wenn {@code LivingEntity#startUsingItem} nicht ausgeführt werden darf
-    */
-   public static boolean blocksItemUseStart(LivingEntity entity, ItemStack stack) {
-      return ItemProtectionEvents.ChargeInteractionEvents.blocksItemUseStart(entity, stack);
-   }
+    private InteractionGates() {
+    }
 
-   /**
-    * @return {@code true}, wenn der Bogen nicht gespannt werden darf
-    */
-   public static boolean blocksBowDraw(Player player) {
-      return NukeSequenceManager.LockEvents.blocksBow()
-         || ItemProtectionEvents.ChargeInteractionEvents.blocksBowDraw(player);
-   }
+    public static void registerClientPullGate(Predicate<Player> gate) {
+        clientPullGate = gate;
+    }
 
-   /**
-    * @return {@code true}, wenn kein Pfeil abgehen darf
-    */
-   public static boolean blocksBowRelease(Player player) {
-      return NukeSequenceManager.LockEvents.blocksBow()
-         || ItemProtectionEvents.ChargeInteractionEvents.blocksBowRelease(player);
-   }
+    public static boolean isGrapplePulling(Player player) {
+        if (player == null) {
+            return false;
+        }
+        if (player.level().isClientSide()) {
+            return clientPullGate != null && clientPullGate.test(player);
+        }
+        return GrapplingHookSystem.INSTANCE.isPulling(player);
+    }
+
+    /**
+     * @return {@code true}, wenn {@code LivingEntity#startUsingItem} nicht ausgeführt werden darf
+     */
+    public static boolean blocksItemUseStart(LivingEntity entity, ItemStack stack) {
+        if (entity instanceof Player player && stack.is(Items.BOW) && isGrapplePulling(player)) {
+            player.stopUsingItem();
+            return true;
+        }
+        return ItemProtectionEvents.ChargeInteractionEvents.blocksItemUseStart(entity, stack);
+    }
+
+    /**
+     * @return {@code true}, wenn der Bogen nicht gespannt werden darf
+     */
+    public static boolean blocksBowDraw(Player player) {
+        if (isGrapplePulling(player)) {
+            player.stopUsingItem();
+            return true;
+        }
+        return NukeSequenceManager.LockEvents.blocksBow()
+                || ItemProtectionEvents.ChargeInteractionEvents.blocksBowDraw(player);
+    }
+
+    /**
+     * @return {@code true}, wenn kein Pfeil abgehen darf
+     */
+    public static boolean blocksBowRelease(Player player) {
+        if (isGrapplePulling(player)) {
+            player.stopUsingItem();
+            return true;
+        }
+        return NukeSequenceManager.LockEvents.blocksBow()
+                || ItemProtectionEvents.ChargeInteractionEvents.blocksBowRelease(player);
+    }
 }

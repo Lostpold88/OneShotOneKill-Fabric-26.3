@@ -49,6 +49,7 @@ public abstract class ItemInHandRendererMixin {
       poseStack.pushPose();
       ClientInputEvents.applyMinigunHandShake(itemStack, frameInterp, poseStack);
       ClientInputEvents.applyTimeDistorterHandPose(itemStack, poseStack);
+      ClientInputEvents.applyGrapplerHandShake(itemStack, frameInterp, poseStack);
    }
 
    @Inject(method = "submitArmWithItem", at = @At("RETURN"))

@@ -5,1481 +5,1635 @@ import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.network.OsokPayloads.*;
 import com.oneshotonekill.nuke.NukeSequenceManager.NukePhase;
 import com.oneshotonekill.registry.ModItems;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.Direction;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+
+import java.util.*;
 
 /**
  * Bündelt alle Client-seitigen Zustandshalter für HUDs, Effekte, Fähigkeiten und Animationen.
  */
 @SuppressWarnings({"BooleanMethodIsAlwaysInverted", "unused"})
 public final class ClientStates {
-   private ClientStates() {}
+    private ClientStates() {
+    }
 
-   // =========================================================================
-   // AbilityStatusState.java
-   // =========================================================================
-   /**
-    * Der zuletzt gemeldete Stand der eigenen Spezial-Item-Wirkungen.
-    * <p>
-    * Der Server meldet nur bei Änderung; die Restzeiten laufen hier clientseitig weiter, damit die
-    * Balken gleichmäßig leerlaufen statt in Halbsekundenschritten zu springen.
-    */
-   public static final class AbilityStatusState {
-      public static final AbilityStatusState INSTANCE = new AbilityStatusState();
-   
-      private static boolean shield;
-      private static int vanishTicks;
-      private static int magnetTicks;
-      private static int glideTicks;
-      private static int frozenTicks;
-      private static String armedShot = "";
-      private static int charges;
-      private static int traps;
-      private static int turrets;
-   
-      private AbilityStatusState() {
-      }
-   
-      public boolean hasShield() {
-         return shield;
-      }
-   
-      public int getVanishTicks() {
-         return vanishTicks;
-      }
-   
-      public int getMagnetTicks() {
-         return magnetTicks;
-      }
-   
-      public int getGlideTicks() {
-         return glideTicks;
-      }
-   
-      public int getFrozenTicks() {
-         return frozenTicks;
-      }
-   
-      public boolean isFrozen() {
-         return frozenTicks > 0;
-      }
-   
-      public String getArmedShot() {
-         return armedShot;
-      }
-   
-      public int getCharges() {
-         return charges;
-      }
-   
-      public int getTraps() {
-         return traps;
-      }
-   
-      public int getTurrets() {
-         return turrets;
-      }
-   
-      public boolean isEmpty() {
-         return !shield && vanishTicks <= 0 && magnetTicks <= 0 && glideTicks <= 0 && frozenTicks <= 0
-            && armedShot.isEmpty() && charges <= 0 && traps <= 0 && turrets <= 0;
-      }
-   
-      public void handle(AbilityStatusPayload payload) {
-         shield = payload.shield();
-         vanishTicks = payload.vanishTicks();
-         magnetTicks = payload.magnetTicks();
-         glideTicks = payload.glideTicks();
-         frozenTicks = payload.frozenTicks();
-         armedShot = payload.armedShot();
-         charges = payload.charges();
-         traps = payload.traps();
-         turrets = payload.turrets();
-      }
-   
-      public void tick() {
-         if (vanishTicks > 0) {
-            vanishTicks--;
-         }
-         if (magnetTicks > 0) {
-            magnetTicks--;
-         }
-         if (glideTicks > 0) {
-            glideTicks--;
-         }
-         if (frozenTicks > 0) {
-            frozenTicks--;
-         }
-      }
-   
-      public void clear() {
-         shield = false;
-         vanishTicks = 0;
-         magnetTicks = 0;
-         glideTicks = 0;
-         frozenTicks = 0;
-         armedShot = "";
-         charges = 0;
-         traps = 0;
-         turrets = 0;
-      }
-   }
+    // =========================================================================
+    // AbilityStatusState.java
+    // =========================================================================
 
-   // =========================================================================
-   // AirstrikeAlarmState.java
-   // =========================================================================
-   /**
-    * Zählt den laufenden Bombenalarm für das HUD herunter und rechnet die Flugbahn mit.
-    * Die Höhe wird lokal interpoliert, damit der Marker der Bombe folgt, ohne dass der
-    * Server jede Position einzeln schicken muss.
-    */
-   public static final class AirstrikeAlarmState {
-      public static final AirstrikeAlarmState INSTANCE = new AirstrikeAlarmState();
-   
-      /** Wie lange die Einschlagmeldung nach der Detonation stehen bleibt. */
-      private static final int AFTERMATH_TICKS = 45;
-   
-      private static double targetX;
-      private static double targetZ;
-      private static double launchY;
-      private static double impactY;
-      private static int warningTicks = 1;
-      private static int remainingTicks;
-      private static int aftermathTicks;
-   
-      private AirstrikeAlarmState() {
-      }
-   
-      public boolean isActive() {
-         return remainingTicks > 0 || aftermathTicks > 0;
-      }
-   
-      public boolean isIncoming() {
-         return remainingTicks > 0;
-      }
-   
-      public int getRemainingTicks() {
-         return remainingTicks;
-      }
-   
-      public int getWarningTicks() {
-         return warningTicks;
-      }
-   
-      public double getTargetX() {
-         return targetX;
-      }
-   
-      public double getTargetZ() {
-         return targetZ;
-      }
-   
-      /** Aktuelle Höhe der Bombe, zwischen den Ticks interpoliert; nach dem Einschlag die Kraterhöhe. */
-      public double bombY(float partialTick) {
-         if (!isIncoming()) {
-            return impactY;
-         }
-         float elapsed = warningTicks - remainingTicks + partialTick;
-         float progress = Mth.clamp(elapsed / warningTicks, 0.0F, 1.0F);
-         return launchY + (impactY - launchY) * progress;
-      }
-   
-      /** Abstand des Spielers zum Zielpunkt, oder -1, wenn kein Alarm läuft. */
-      public double distanceToTarget() {
-         LocalPlayer player = Minecraft.getInstance().player;
-         if (player == null || !isActive()) {
-            return -1.0;
-         }
-         return Math.hypot(player.getX() - targetX, player.getZ() - targetZ);
-      }
-   
-      public boolean isInBlastRadius() {
-         double distance = distanceToTarget();
-         return distance >= 0.0 && distance <= AirstrikeSystem.KILL_RADIUS;
-      }
-   
-      public void handle(AirstrikeAlarmPayload payload) {
-         targetX = payload.getTargetX();
-         targetZ = payload.getTargetZ();
-         launchY = payload.getLaunchY();
-         impactY = payload.getImpactY();
-         if (payload.getWarningTicks() <= 0) {
-            // Einschlagmeldung: der Anflug endet sofort, die Anzeige hallt nach.
+    /**
+     * Der zuletzt gemeldete Stand der eigenen Spezial-Item-Wirkungen.
+     * <p>
+     * Der Server meldet nur bei Änderung; die Restzeiten laufen hier clientseitig weiter, damit die
+     * Balken gleichmäßig leerlaufen statt in Halbsekundenschritten zu springen.
+     */
+    public static final class AbilityStatusState {
+        public static final AbilityStatusState INSTANCE = new AbilityStatusState();
+
+        private static boolean shield;
+        private static int vanishTicks;
+        private static int magnetTicks;
+        private static int glideTicks;
+        private static int frozenTicks;
+        private static String armedShot = "";
+        private static int charges;
+        private static int traps;
+        private static int turrets;
+
+        private AbilityStatusState() {
+        }
+
+        public boolean hasShield() {
+            return shield;
+        }
+
+        public int getVanishTicks() {
+            return vanishTicks;
+        }
+
+        public int getMagnetTicks() {
+            return magnetTicks;
+        }
+
+        public int getGlideTicks() {
+            return glideTicks;
+        }
+
+        public int getFrozenTicks() {
+            return frozenTicks;
+        }
+
+        public boolean isFrozen() {
+            return frozenTicks > 0;
+        }
+
+        public String getArmedShot() {
+            return armedShot;
+        }
+
+        public int getCharges() {
+            return charges;
+        }
+
+        public int getTraps() {
+            return traps;
+        }
+
+        public int getTurrets() {
+            return turrets;
+        }
+
+        public boolean isEmpty() {
+            return !shield && vanishTicks <= 0 && magnetTicks <= 0 && glideTicks <= 0 && frozenTicks <= 0
+                    && armedShot.isEmpty() && charges <= 0 && traps <= 0 && turrets <= 0;
+        }
+
+        public void handle(AbilityStatusPayload payload) {
+            shield = payload.shield();
+            vanishTicks = payload.vanishTicks();
+            magnetTicks = payload.magnetTicks();
+            glideTicks = payload.glideTicks();
+            frozenTicks = payload.frozenTicks();
+            armedShot = payload.armedShot();
+            charges = payload.charges();
+            traps = payload.traps();
+            turrets = payload.turrets();
+        }
+
+        public void tick() {
+            if (vanishTicks > 0) {
+                vanishTicks--;
+            }
+            if (magnetTicks > 0) {
+                magnetTicks--;
+            }
+            if (glideTicks > 0) {
+                glideTicks--;
+            }
+            if (frozenTicks > 0) {
+                frozenTicks--;
+            }
+        }
+
+        public void clear() {
+            shield = false;
+            vanishTicks = 0;
+            magnetTicks = 0;
+            glideTicks = 0;
+            frozenTicks = 0;
+            armedShot = "";
+            charges = 0;
+            traps = 0;
+            turrets = 0;
+        }
+    }
+
+    // =========================================================================
+    // AirstrikeAlarmState.java
+    // =========================================================================
+
+    /**
+     * Zählt den laufenden Bombenalarm für das HUD herunter und rechnet die Flugbahn mit.
+     * Die Höhe wird lokal interpoliert, damit der Marker der Bombe folgt, ohne dass der
+     * Server jede Position einzeln schicken muss.
+     */
+    public static final class AirstrikeAlarmState {
+        public static final AirstrikeAlarmState INSTANCE = new AirstrikeAlarmState();
+
+        /**
+         * Wie lange die Einschlagmeldung nach der Detonation stehen bleibt.
+         */
+        private static final int AFTERMATH_TICKS = 45;
+
+        private static double targetX;
+        private static double targetZ;
+        private static double launchY;
+        private static double impactY;
+        private static int warningTicks = 1;
+        private static int remainingTicks;
+        private static int aftermathTicks;
+
+        private AirstrikeAlarmState() {
+        }
+
+        public boolean isActive() {
+            return remainingTicks > 0 || aftermathTicks > 0;
+        }
+
+        public boolean isIncoming() {
+            return remainingTicks > 0;
+        }
+
+        public int getRemainingTicks() {
+            return remainingTicks;
+        }
+
+        public int getWarningTicks() {
+            return warningTicks;
+        }
+
+        public double getTargetX() {
+            return targetX;
+        }
+
+        public double getTargetZ() {
+            return targetZ;
+        }
+
+        /**
+         * Aktuelle Höhe der Bombe, zwischen den Ticks interpoliert; nach dem Einschlag die Kraterhöhe.
+         */
+        public double bombY(float partialTick) {
+            if (!isIncoming()) {
+                return impactY;
+            }
+            float elapsed = warningTicks - remainingTicks + partialTick;
+            float progress = Mth.clamp(elapsed / warningTicks, 0.0F, 1.0F);
+            return launchY + (impactY - launchY) * progress;
+        }
+
+        /**
+         * Abstand des Spielers zum Zielpunkt, oder -1, wenn kein Alarm läuft.
+         */
+        public double distanceToTarget() {
+            LocalPlayer player = Minecraft.getInstance().player;
+            if (player == null || !isActive()) {
+                return -1.0;
+            }
+            return Math.hypot(player.getX() - targetX, player.getZ() - targetZ);
+        }
+
+        public boolean isInBlastRadius() {
+            double distance = distanceToTarget();
+            return distance >= 0.0 && distance <= AirstrikeSystem.KILL_RADIUS;
+        }
+
+        public void handle(AirstrikeAlarmPayload payload) {
+            targetX = payload.getTargetX();
+            targetZ = payload.getTargetZ();
+            launchY = payload.getLaunchY();
+            impactY = payload.getImpactY();
+            if (payload.getWarningTicks() <= 0) {
+                // Einschlagmeldung: der Anflug endet sofort, die Anzeige hallt nach.
+                remainingTicks = 0;
+                aftermathTicks = AFTERMATH_TICKS;
+                CameraShakeState.INSTANCE.trigger(targetX, impactY, targetZ, 48.0, 1.0F, 24);
+                return;
+            }
+            warningTicks = payload.getWarningTicks();
+            remainingTicks = warningTicks;
+            aftermathTicks = 0;
+        }
+
+        public void tick() {
+            if (remainingTicks > 0) {
+                remainingTicks--;
+                if (remainingTicks == 0) {
+                    aftermathTicks = AFTERMATH_TICKS;
+                    CameraShakeState.INSTANCE.trigger(targetX, impactY, targetZ, 48.0, 1.0F, 24);
+                }
+            } else if (aftermathTicks > 0) {
+                aftermathTicks--;
+            }
+        }
+
+        public void clear() {
             remainingTicks = 0;
-            aftermathTicks = AFTERMATH_TICKS;
-            CameraShakeState.INSTANCE.trigger(targetX, impactY, targetZ, 48.0, 1.0F, 24);
-            return;
-         }
-         warningTicks = payload.getWarningTicks();
-         remainingTicks = warningTicks;
-         aftermathTicks = 0;
-      }
-   
-      public void tick() {
-         if (remainingTicks > 0) {
-            remainingTicks--;
-            if (remainingTicks == 0) {
-               aftermathTicks = AFTERMATH_TICKS;
-               CameraShakeState.INSTANCE.trigger(targetX, impactY, targetZ, 48.0, 1.0F, 24);
+            aftermathTicks = 0;
+        }
+    }
+
+    // =========================================================================
+    // CameraShakeState.java
+    // =========================================================================
+
+    /**
+     * Verwaltet ein dynamisches Kamera-Wackeln (Screen Shake) auf dem Client,
+     * z. B. bei nahegelegenen Explosionen oder Luftangriffen.
+     */
+    public static final class CameraShakeState {
+        public static final CameraShakeState INSTANCE = new CameraShakeState();
+
+        private static final float MAX_SHAKE_YAW = 2.8F;
+        private static final float MAX_SHAKE_PITCH = 3.5F;
+        private static final float MAX_SHAKE_ROLL = 4.2F;
+
+        private int totalTicks;
+        private int remainingTicks;
+        private float intensity;
+
+        private CameraShakeState() {
+        }
+
+        public boolean isShaking() {
+            return remainingTicks > 0 && intensity > 0.001F;
+        }
+
+        /**
+         * Löst ein Kamera-Wackeln relativ zu einer Explosionsposition aus.
+         * <p>
+         *
+         * @param explosionX    X-Koordinate der Explosion
+         * @param explosionY    Y-Koordinate der Explosion
+         * @param explosionZ    Z-Koordinate der Explosion
+         * @param maxDistance   Maximaler Radius in Blöcken, in dem die Erschütterung spürbar ist
+         * @param baseIntensity Basis-Stärke (z. B. 1.0F)
+         * @param durationTicks Dauer der Erschütterung in Ticks
+         */
+        public void trigger(double explosionX, double explosionY, double explosionZ, double maxDistance, float baseIntensity, int durationTicks) {
+            LocalPlayer player = Minecraft.getInstance().player;
+            if (player == null) {
+                return;
             }
-         } else if (aftermathTicks > 0) {
-            aftermathTicks--;
-         }
-      }
-   
-      public void clear() {
-         remainingTicks = 0;
-         aftermathTicks = 0;
-      }
-   }
 
-   // =========================================================================
-   // CameraShakeState.java
-   // =========================================================================
-   /**
-    * Verwaltet ein dynamisches Kamera-Wackeln (Screen Shake) auf dem Client,
-    * z. B. bei nahegelegenen Explosionen oder Luftangriffen.
-    */
-   public static final class CameraShakeState {
-      public static final CameraShakeState INSTANCE = new CameraShakeState();
-   
-      private static final float MAX_SHAKE_YAW = 2.8F;
-      private static final float MAX_SHAKE_PITCH = 3.5F;
-      private static final float MAX_SHAKE_ROLL = 4.2F;
-   
-      private int totalTicks;
-      private int remainingTicks;
-      private float intensity;
-   
-      private CameraShakeState() {
-      }
-   
-      public boolean isShaking() {
-         return remainingTicks > 0 && intensity > 0.001F;
-      }
-   
-      /**
-       * Löst ein Kamera-Wackeln relativ zu einer Explosionsposition aus.
-       * <p>
-       * @param explosionX X-Koordinate der Explosion
-       * @param explosionY Y-Koordinate der Explosion
-       * @param explosionZ Z-Koordinate der Explosion
-       * @param maxDistance Maximaler Radius in Blöcken, in dem die Erschütterung spürbar ist
-       * @param baseIntensity Basis-Stärke (z. B. 1.0F)
-       * @param durationTicks Dauer der Erschütterung in Ticks
-       */
-      public void trigger(double explosionX, double explosionY, double explosionZ, double maxDistance, float baseIntensity, int durationTicks) {
-         LocalPlayer player = Minecraft.getInstance().player;
-         if (player == null) {
-            return;
-         }
-   
-         double distance = player.position().distanceTo(new Vec3(explosionX, explosionY, explosionZ));
-         if (distance > maxDistance) {
-            return;
-         }
-   
-         // Quadratisch abfallende Intensität mit zunehmender Distanz
-         float distanceFactor = (float) Math.max(0.0, 1.0 - (distance / maxDistance));
-         float newIntensity = (float) Math.pow(distanceFactor, 1.5) * baseIntensity;
-   
-         if (newIntensity > this.intensity || remainingTicks <= 0) {
-            this.intensity = newIntensity;
-            this.totalTicks = Math.max(1, durationTicks);
-            this.remainingTicks = this.totalTicks;
-         }
-      }
-   
-      /** Direkter Wackler (z. B. beim Match-Startschuss oder Flash). */
-      public void triggerDirect(float baseIntensity, int durationTicks) {
-         if (baseIntensity > this.intensity || remainingTicks <= 0) {
-            this.intensity = baseIntensity;
-            this.totalTicks = Math.max(1, durationTicks);
-            this.remainingTicks = this.totalTicks;
-         }
-      }
-   
-      public void tick() {
-         if (remainingTicks > 0) {
-            remainingTicks--;
-            if (remainingTicks == 0) {
-               intensity = 0.0F;
+            double distance = player.position().distanceTo(new Vec3(explosionX, explosionY, explosionZ));
+            if (distance > maxDistance) {
+                return;
             }
-         }
-      }
-   
-      public void clear() {
-         remainingTicks = 0;
-         totalTicks = 0;
-         intensity = 0.0F;
-      }
-   
-      private float getProgress(float partialTick) {
-         if (remainingTicks <= 0 || totalTicks <= 0) {
-            return 0.0F;
-         }
-         float current = remainingTicks - partialTick;
-         return Mth.clamp(current / (float) totalTicks, 0.0F, 1.0F);
-      }
-   
-      public float getYawOffset(float partialTick) {
-         float progress = getProgress(partialTick);
-         if (progress <= 0.0F) {
-            return 0.0F;
-         }
-         float time = (totalTicks - remainingTicks + partialTick);
-         float decay = progress * progress;
-         return (float) (Math.sin(time * 1.9) * Math.cos(time * 0.9) * MAX_SHAKE_YAW * intensity * decay);
-      }
-   
-      public float getPitchOffset(float partialTick) {
-         float progress = getProgress(partialTick);
-         if (progress <= 0.0F) {
-            return 0.0F;
-         }
-         float time = (totalTicks - remainingTicks + partialTick);
-         float decay = progress * progress;
-         return (float) (Math.cos(time * 2.5) * MAX_SHAKE_PITCH * intensity * decay);
-      }
-   
-      public float getRollOffset(float partialTick) {
-         float progress = getProgress(partialTick);
-         if (progress <= 0.0F) {
-            return 0.0F;
-         }
-         float time = (totalTicks - remainingTicks + partialTick);
-         float decay = progress * progress;
-         return (float) (Math.sin(time * 2.1) * MAX_SHAKE_ROLL * intensity * decay);
-      }
-   }
 
-   // =========================================================================
-   // GlideState.java
-   // =========================================================================
-   /** Clientkopie der Spieler, die gerade im Gleitflug sind. */
-   public static final class GlideState {
-      public static final GlideState INSTANCE = new GlideState();
-   
-      private Set<UUID> activePlayers = Set.of();
-   
-      private GlideState() {
-      }
-   
-      public Set<UUID> activePlayers() {
-         return activePlayers;
-      }
+            // Quadratisch abfallende Intensität mit zunehmender Distanz
+            float distanceFactor = (float) Math.max(0.0, 1.0 - (distance / maxDistance));
+            float newIntensity = (float) Math.pow(distanceFactor, 1.5) * baseIntensity;
 
-      public void handle(GlidingPlayersPayload payload) {
-         activePlayers = Set.copyOf(payload.players());
-      }
+            if (newIntensity > this.intensity || remainingTicks <= 0) {
+                this.intensity = newIntensity;
+                this.totalTicks = Math.max(1, durationTicks);
+                this.remainingTicks = this.totalTicks;
+            }
+        }
 
-      public void clear() {
-         activePlayers = Set.of();
-      }
-   }
+        /**
+         * Direkter Wackler (z. B. beim Match-Startschuss oder Flash).
+         */
+        public void triggerDirect(float baseIntensity, int durationTicks) {
+            if (baseIntensity > this.intensity || remainingTicks <= 0) {
+                this.intensity = baseIntensity;
+                this.totalTicks = Math.max(1, durationTicks);
+                this.remainingTicks = this.totalTicks;
+            }
+        }
 
-   // =========================================================================
-   // GrapplePullState.java
-   // =========================================================================
-   /**
-    * Clientkopie des einen Grappler-Hakens pro Spieler.
-    * <p>
-    * <p>Seil und leeres Handmodell hängen am gesamten Grapple-Zustand. Nur die Neigung von
-    * Körper und Kamera wird mit der eigentlichen Zugphase weich ein- und ausgeblendet.</p>
-    */
-   public static final class GrapplePullState {
-      public static final GrapplePullState INSTANCE = new GrapplePullState();
+        public void tick() {
+            if (remainingTicks > 0) {
+                remainingTicks--;
+                if (remainingTicks == 0) {
+                    intensity = 0.0F;
+                }
+            }
+        }
 
-      private static final float ENTER_STEP = 0.20F;
-      private static final float EXIT_STEP = 0.28F;
-      private static final float AIM_ENTER_STEP = 0.28F;
-      private static final float AIM_EXIT_STEP = 0.35F;
-      private final Map<UUID, Pull> pulls = new HashMap<>();
+        public void clear() {
+            remainingTicks = 0;
+            totalTicks = 0;
+            intensity = 0.0F;
+        }
 
-      private GrapplePullState() {
-      }
+        private float getProgress(float partialTick) {
+            if (remainingTicks <= 0 || totalTicks <= 0) {
+                return 0.0F;
+            }
+            float current = remainingTicks - partialTick;
+            return Mth.clamp(current / (float) totalTicks, 0.0F, 1.0F);
+        }
 
-      public void handle(GrapplePullPayload payload) {
-         Pull pull = pulls.get(payload.player());
-         if (payload.active()) {
-            Vec3 hook = new Vec3(payload.hookX(), payload.hookY(), payload.hookZ());
+        public float getYawOffset(float partialTick) {
+            float progress = getProgress(partialTick);
+            if (progress <= 0.0F) {
+                return 0.0F;
+            }
+            float time = (totalTicks - remainingTicks + partialTick);
+            float decay = progress * progress;
+            return (float) (Math.sin(time * 1.9) * Math.cos(time * 0.9) * MAX_SHAKE_YAW * intensity * decay);
+        }
+
+        public float getPitchOffset(float partialTick) {
+            float progress = getProgress(partialTick);
+            if (progress <= 0.0F) {
+                return 0.0F;
+            }
+            float time = (totalTicks - remainingTicks + partialTick);
+            float decay = progress * progress;
+            return (float) (Math.cos(time * 2.5) * MAX_SHAKE_PITCH * intensity * decay);
+        }
+
+        public float getRollOffset(float partialTick) {
+            float progress = getProgress(partialTick);
+            if (progress <= 0.0F) {
+                return 0.0F;
+            }
+            float time = (totalTicks - remainingTicks + partialTick);
+            float decay = progress * progress;
+            return (float) (Math.sin(time * 2.1) * MAX_SHAKE_ROLL * intensity * decay);
+        }
+    }
+
+    // =========================================================================
+    // GlideState.java
+    // =========================================================================
+
+    /**
+     * Clientkopie der Spieler, die gerade im Gleitflug sind.
+     */
+    public static final class GlideState {
+        public static final GlideState INSTANCE = new GlideState();
+
+        private Set<UUID> activePlayers = Set.of();
+
+        private GlideState() {
+        }
+
+        public Set<UUID> activePlayers() {
+            return activePlayers;
+        }
+
+        public void handle(GlidingPlayersPayload payload) {
+            activePlayers = Set.copyOf(payload.players());
+        }
+
+        public void clear() {
+            activePlayers = Set.of();
+        }
+    }
+
+    // =========================================================================
+    // GrapplePullState.java
+    // =========================================================================
+
+    /**
+     * Clientkopie des einen Grappler-Hakens pro Spieler.
+     * <p>
+     * <p>Seil und leeres Handmodell hängen am gesamten Grapple-Zustand. Nur die Neigung von
+     * Körper und Kamera wird mit der eigentlichen Zugphase weich ein- und ausgeblendet.</p>
+     */
+    public static final class GrapplePullState {
+        public static final GrapplePullState INSTANCE = new GrapplePullState();
+
+        private static final float ENTER_STEP = 0.20F;
+        private static final float EXIT_STEP = 0.28F;
+        private static final float AIM_ENTER_STEP = 0.28F;
+        private static final float AIM_EXIT_STEP = 0.35F;
+        private final Map<UUID, Pull> pulls = new HashMap<>();
+        private float recoil;
+        private float previousRecoil;
+
+        private GrapplePullState() {
+        }
+
+        public void triggerRecoil() {
+            this.recoil = 1.0F;
+            this.previousRecoil = 1.0F;
+        }
+
+        public float recoil(float partialTick) {
+            return Mth.lerp(partialTick, previousRecoil, recoil);
+        }
+
+        public void handle(GrapplePullPayload payload) {
+            Pull pull = pulls.get(payload.player());
+            if (payload.active()) {
+                Vec3 hook = new Vec3(payload.hookX(), payload.hookY(), payload.hookZ());
+                LocalPlayer localPlayer = Minecraft.getInstance().player;
+                if (localPlayer != null && payload.player().equals(localPlayer.getUUID())) {
+                    if (pull == null || !pull.grappleActive) {
+                        triggerRecoil();
+                    }
+                }
+                if (pull == null) {
+                    pulls.put(payload.player(), new Pull(hook, payload.pulling(), payload.retracting(), payload.normalDir()));
+                } else {
+                    boolean freshlyLatched = payload.pulling() && !pull.pulling;
+                    pull.previousHook = (freshlyLatched || !pull.grappleActive) ? hook : pull.hook;
+                    pull.hook = hook;
+                    pull.grappleActive = true;
+                    pull.pulling = payload.pulling();
+                    pull.retracting = payload.retracting();
+                    pull.normalDir = payload.normalDir();
+                }
+            } else if (pull != null) {
+                pull.grappleActive = false;
+                pull.pulling = false;
+                pull.retracting = false;
+            }
+        }
+
+        public void tick() {
+            previousRecoil = recoil;
+            if (recoil > 0.0F) {
+                recoil = Math.max(0.0F, recoil - 0.20F);
+            }
+            LocalPlayer localPlayer = Minecraft.getInstance().player;
+            if (localPlayer != null && isPulling(localPlayer.getUUID())) {
+                if (localPlayer.isUsingItem() && localPlayer.getUseItem().is(Items.BOW)) {
+                    localPlayer.stopUsingItem();
+                }
+            }
+            var iterator = pulls.entrySet().iterator();
+            while (iterator.hasNext()) {
+                Pull pull = iterator.next().getValue();
+                pull.previousBlend = pull.blend;
+                pull.previousAimBlend = pull.aimBlend;
+                float target = pull.pulling ? 1.0F : 0.0F;
+                float step = pull.pulling ? ENTER_STEP : EXIT_STEP;
+                pull.blend += Math.clamp(target - pull.blend, -step, step);
+                float aimTarget = pull.grappleActive ? 1.0F : 0.0F;
+                float aimStep = pull.grappleActive ? AIM_ENTER_STEP : AIM_EXIT_STEP;
+                pull.aimBlend += Math.clamp(aimTarget - pull.aimBlend, -aimStep, aimStep);
+                if (!pull.grappleActive && pull.blend <= 0.001F && pull.aimBlend <= 0.001F) {
+                    iterator.remove();
+                }
+            }
+        }
+
+        /**
+         * Solange dies wahr ist, befindet sich der einzige Pömpel außerhalb der Handwaffe.
+         */
+        public boolean isGrappleActive(UUID player) {
+            Pull pull = pulls.get(player);
+            return pull != null && pull.grappleActive;
+        }
+
+        public boolean isPulling(UUID player) {
+            Pull pull = pulls.get(player);
+            return pull != null && pull.grappleActive && pull.pulling;
+        }
+
+        public boolean isRetracting(UUID player) {
+            Pull pull = pulls.get(player);
+            return pull != null && pull.grappleActive && pull.retracting;
+        }
+
+        public @Nullable Direction hitDirection(UUID player) {
+            Pull pull = pulls.get(player);
+            if (pull == null || pull.normalDir < 0 || pull.normalDir >= 6) {
+                return null;
+            }
+            return Direction.from3DDataValue(pull.normalDir);
+        }
+
+        /**
+         * Pro Bild interpolierter Endpunkt für das Seil; {@code null} nach vollständigem Einzug.
+         */
+        public @Nullable Vec3 hookPosition(UUID player, float partialTick) {
+            Pull pull = pulls.get(player);
+            if (pull == null || !pull.grappleActive) {
+                return null;
+            }
+            return pull.previousHook.lerp(pull.hook, Math.clamp(partialTick, 0.0F, 1.0F));
+        }
+
+        /**
+         * Winkel zur Ankerposition an der interpolierten Augenposition der Figur.
+         */
+        public @Nullable RenderPose pose(LivingEntity entity, float partialTick) {
+            return pose(entity, partialTick, false);
+        }
+
+        /**
+         * Blickrichtung zum fliegenden Haken, weich über dessen vollständige Lebenszeit eingeblendet.
+         * Anders als {@link #pose(LivingEntity, float)} beginnt diese Haltung bereits beim Abschuss.
+         */
+        public @Nullable RenderPose aimPose(LivingEntity entity, float partialTick) {
+            return pose(entity, partialTick, true);
+        }
+
+        private @Nullable RenderPose pose(LivingEntity entity, float partialTick, boolean aiming) {
+            Pull pull = pulls.get(entity.getUUID());
             if (pull == null) {
-               pulls.put(payload.player(), new Pull(hook, payload.pulling(), payload.retracting()));
+                return null;
+            }
+            float blend = aiming
+                    ? Mth.lerp(partialTick, pull.previousAimBlend, pull.aimBlend)
+                    : Mth.lerp(partialTick, pull.previousBlend, pull.blend);
+            if (blend <= 0.001F) {
+                return null;
+            }
+
+            Vec3 anchor = hookPosition(entity.getUUID(), partialTick);
+            if (anchor == null) {
+                return null;
+            }
+            Vec3 delta = anchor.subtract(entity.getEyePosition(partialTick));
+            double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
+            if (delta.lengthSqr() < 1.0E-6) {
+                return null;
+            }
+            float yaw = Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-delta.x, delta.z)));
+            float elevation = (float) Math.toDegrees(Math.atan2(delta.y, horizontal));
+            return new RenderPose(yaw, elevation, blend);
+        }
+
+        /**
+         * Die Egoansicht neigt sich sanft mit der vertikalen Zugneigung nach oben/unten (ohne seitliches Rollen).
+         */
+        public float cameraPitch(float partialTick) {
+            Minecraft client = Minecraft.getInstance();
+            LocalPlayer player = client.player;
+            if (player == null || !client.options.getCameraType().isFirstPerson()) {
+                return 0.0F;
+            }
+            RenderPose pose = pose(player, partialTick);
+            if (pose == null) {
+                return 0.0F;
+            }
+            float targetPitch = -pose.elevation;
+            float currentPitch = player.getXRot(partialTick);
+            float deltaPitch = Mth.wrapDegrees(targetPitch - currentPitch);
+            return deltaPitch * pose.blend * 0.35F;
+        }
+
+        /**
+         * Die Egoansicht rollt sich sanft bei seitlichen Grappler-Schwüngen in die Kurve.
+         */
+        public float cameraRoll(float partialTick) {
+            Minecraft client = Minecraft.getInstance();
+            LocalPlayer player = client.player;
+            if (player == null || !client.options.getCameraType().isFirstPerson()) {
+                return 0.0F;
+            }
+            RenderPose pose = pose(player, partialTick);
+            if (pose == null) {
+                return 0.0F;
+            }
+            float deltaYaw = Mth.wrapDegrees(pose.yaw - player.getYRot(partialTick));
+            return Math.clamp(deltaYaw * 0.045F, -2.5F, 2.5F) * pose.blend;
+        }
+
+        public void clear() {
+            pulls.clear();
+            recoil = 0.0F;
+            previousRecoil = 0.0F;
+        }
+
+        public record RenderPose(float yaw, float elevation, float blend) {
+        }
+
+        private static final class Pull {
+            private Vec3 previousHook;
+            private Vec3 hook;
+            private boolean grappleActive = true;
+            private boolean pulling;
+            private boolean retracting;
+            private byte normalDir;
+            private float previousBlend;
+            private float blend;
+            private float previousAimBlend;
+            private float aimBlend;
+
+            private Pull(Vec3 hook, boolean pulling, boolean retracting, byte normalDir) {
+                this.previousHook = hook;
+                this.hook = hook;
+                this.pulling = pulling;
+                this.retracting = retracting;
+                this.normalDir = normalDir;
+            }
+        }
+    }
+
+    // =========================================================================
+    // MagnetFieldState.java
+    // =========================================================================
+
+    /**
+     * Clientkopie der weltweit sichtbaren, aktiven Pfeilmagnet-Felder.
+     */
+    public static final class MagnetFieldState {
+        public static final MagnetFieldState INSTANCE = new MagnetFieldState();
+
+        private Set<UUID> activePlayers = Set.of();
+
+        private MagnetFieldState() {
+        }
+
+        public Set<UUID> activePlayers() {
+            return activePlayers;
+        }
+
+        public void handle(MagnetFieldsPayload payload) {
+            activePlayers = Set.copyOf(payload.players());
+        }
+
+        public void clear() {
+            activePlayers = Set.of();
+        }
+    }
+
+    // =========================================================================
+    // DeployableMarkerState.java
+    // =========================================================================
+
+    /**
+     * Die eigenen abgestellten Geräte für die HUD-Peilung.
+     * <p>
+     * Reiner Empfangsspeicher: Der Server schickt die Liste bei jeder Änderung und im groben
+     * Raster des {@code Broadcaster}. Eine leere Liste löscht die Peilung, ein eigenes Aufräumen
+     * beim Verlassen der Arena braucht es deshalb nicht.
+     */
+    public static final class DeployableMarkerState {
+        public static final DeployableMarkerState INSTANCE = new DeployableMarkerState();
+
+        private List<DeployableMarkersPayload.Marker> markers = List.of();
+
+        private DeployableMarkerState() {
+        }
+
+        public List<DeployableMarkersPayload.Marker> markers() {
+            return markers;
+        }
+
+        public void handle(DeployableMarkersPayload payload) {
+            markers = List.copyOf(payload.markers());
+        }
+
+        public void clear() {
+            markers = List.of();
+        }
+    }
+
+    // =========================================================================
+    // MatchStartState.java
+    // =========================================================================
+
+    /**
+     * Die Kamera- und Bildeffekte rund um den Match-Start.
+     * <p>
+     * Der Countdown läuft hier lokal weiter: der Server meldet den Stand in Ticks, herunterzählen und
+     * zwischen den Ticks interpolieren macht der Client. Nur so lässt sich die Anzeige flüssig
+     * animieren, statt einmal je Sekunde umzuspringen.
+     */
+    public static final class MatchStartState {
+        public static final MatchStartState INSTANCE = new MatchStartState();
+
+        /**
+         * Länge des Countdowns; der Client kennt sie, um den Gesamtfortschritt zeichnen zu können.
+         */
+        public static final int COUNTDOWN_TICKS = 60;
+        /**
+         * So lange hallt der Startschuss auf dem Bildschirm nach.
+         */
+        private static final int GO_TICKS = 22;
+
+        private static float fovBoost;
+        private static float portalIntensity;
+        private static float confusionIntensity;
+        private static int remainingTicks = -1;
+        private static int goTicks;
+        private static String mapName = "Standard";
+        private static String gameModeName = "Klassisch";
+
+        private MatchStartState() {
+        }
+
+        public float getFovBoost() {
+            return fovBoost;
+        }
+
+        public void setFovBoost(float value) {
+            fovBoost = value;
+        }
+
+        public float getPortalIntensity() {
+            return portalIntensity;
+        }
+
+        public void setPortalIntensity(float value) {
+            portalIntensity = value;
+        }
+
+        public float getConfusionIntensity() {
+            return confusionIntensity;
+        }
+
+        public void setConfusionIntensity(float value) {
+            confusionIntensity = value;
+        }
+
+        public String getMapName() {
+            return mapName;
+        }
+
+        public String getGameModeName() {
+            return gameModeName;
+        }
+
+        public boolean isCountdownActive() {
+            return remainingTicks > 0;
+        }
+
+        /**
+         * Restzeit in Ticks, zwischen zwei Ticks interpoliert – die Grundlage jeder Animation.
+         */
+        public float getRemainingTicks(float partialTick) {
+            return Math.max(0.0F, remainingTicks - partialTick);
+        }
+
+        /**
+         * Restlicher Nachhall des Startschusses von 1 (gerade eben) bis 0.
+         */
+        public float getGoProgress(float partialTick) {
+            return goTicks <= 0 ? 0.0F : Math.max(0.0F, (goTicks - partialTick) / GO_TICKS);
+        }
+
+        /**
+         * Dynamischer Kamera-Abstand während des Countdowns:
+         * Gleitet von nah (1.15m) bei Sekunde 3 sanft zurück auf 1.85m bei Sekunde 1 mit feiner Atmung.
+         */
+        public float getCameraDistance(float partialTick) {
+            if (!isCountdownActive()) {
+                return 4.0F;
+            }
+            float remaining = getRemainingTicks(partialTick);
+            float overall = Math.clamp(1.0F - remaining / (float) COUNTDOWN_TICKS, 0.0F, 1.0F);
+            float dolly = 1.15F + 0.70F * (float) (1.0 - Math.cos(overall * Math.PI * 0.5));
+            float breathing = (float) Math.sin((Util.getMillis() % 2400L) / 2400.0 * Math.PI * 2.0) * 0.025F;
+            return dolly + breathing;
+        }
+
+        public void handle(MatchCountdownPayload payload) {
+            Minecraft client = Minecraft.getInstance();
+            if (payload.getRemainingTicks() < 0) {
+                clear();
+                return;
+            }
+
+            if (!payload.getArenaName().isEmpty()) {
+                mapName = payload.getArenaName();
+            }
+            if (!payload.getGameMode().isEmpty()) {
+                gameModeName = payload.getGameMode();
+            }
+
+            if (payload.isGo()) {
+                // Start: zurück in die Ich-Perspektive, dazu ein druckvoller Kinetik- & Sichtfeldstoß.
+                client.options.setCameraType(CameraType.FIRST_PERSON);
+                fovBoost = 0.65F;
+                portalIntensity = 0.85F;
+                confusionIntensity = 0.50F;
+                remainingTicks = -1;
+                goTicks = GO_TICKS;
+                CameraShakeState.INSTANCE.triggerDirect(0.55F, 18);
             } else {
-               pull.previousHook = pull.grappleActive ? pull.hook : hook;
-               pull.hook = hook;
-               pull.grappleActive = true;
-               pull.pulling = payload.pulling();
-               pull.retracting = payload.retracting();
+                // Countdown: Kamera von vorn, damit man sich selbst im Startfeld stehen sieht.
+                client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+                fovBoost = 0.12F;
+                remainingTicks = payload.getRemainingTicks();
+                goTicks = 0;
             }
-         } else if (pull != null) {
-            pull.grappleActive = false;
-            pull.pulling = false;
-            pull.retracting = false;
-         }
-      }
+        }
 
-      public void tick() {
-         var iterator = pulls.entrySet().iterator();
-         while (iterator.hasNext()) {
-            Pull pull = iterator.next().getValue();
-            pull.previousBlend = pull.blend;
-            pull.previousAimBlend = pull.aimBlend;
-            float target = pull.pulling ? 1.0F : 0.0F;
-            float step = pull.pulling ? ENTER_STEP : EXIT_STEP;
-            pull.blend += Math.clamp(target - pull.blend, -step, step);
-            float aimTarget = pull.grappleActive ? 1.0F : 0.0F;
-            float aimStep = pull.grappleActive ? AIM_ENTER_STEP : AIM_EXIT_STEP;
-            pull.aimBlend += Math.clamp(aimTarget - pull.aimBlend, -aimStep, aimStep);
-            if (!pull.grappleActive && pull.blend <= 0.001F && pull.aimBlend <= 0.001F) {
-               iterator.remove();
+        public void tick() {
+            if (remainingTicks > 0) {
+                remainingTicks--;
+                if (remainingTicks == 0 && goTicks <= 0) {
+                    Minecraft.getInstance().options.setCameraType(CameraType.FIRST_PERSON);
+                }
             }
-         }
-      }
+            if (goTicks > 0) {
+                goTicks--;
+                if (goTicks == 0) {
+                    Minecraft.getInstance().options.setCameraType(CameraType.FIRST_PERSON);
+                }
+            }
+        }
 
-      /** Solange dies wahr ist, befindet sich der einzige Pömpel außerhalb der Handwaffe. */
-      public boolean isGrappleActive(UUID player) {
-         Pull pull = pulls.get(player);
-         return pull != null && pull.grappleActive;
-      }
-
-      public boolean isPulling(UUID player) {
-         Pull pull = pulls.get(player);
-         return pull != null && pull.grappleActive && pull.pulling;
-      }
-
-      public boolean isRetracting(UUID player) {
-         Pull pull = pulls.get(player);
-         return pull != null && pull.grappleActive && pull.retracting;
-      }
-
-      /** Pro Bild interpolierter Endpunkt für das Seil; {@code null} nach vollständigem Einzug. */
-      public @Nullable Vec3 hookPosition(UUID player, float partialTick) {
-         Pull pull = pulls.get(player);
-         if (pull == null || !pull.grappleActive) {
-            return null;
-         }
-         return pull.previousHook.lerp(pull.hook, Math.clamp(partialTick, 0.0F, 1.0F));
-      }
-
-      /** Winkel zur Ankerposition an der interpolierten Augenposition der Figur. */
-      public @Nullable RenderPose pose(LivingEntity entity, float partialTick) {
-         return pose(entity, partialTick, false);
-      }
-
-      /**
-       * Blickrichtung zum fliegenden Haken, weich über dessen vollständige Lebenszeit eingeblendet.
-       * Anders als {@link #pose(LivingEntity, float)} beginnt diese Haltung bereits beim Abschuss.
-       */
-      public @Nullable RenderPose aimPose(LivingEntity entity, float partialTick) {
-         return pose(entity, partialTick, true);
-      }
-
-      private @Nullable RenderPose pose(LivingEntity entity, float partialTick, boolean aiming) {
-         Pull pull = pulls.get(entity.getUUID());
-         if (pull == null) {
-            return null;
-         }
-         float blend = aiming
-            ? Mth.lerp(partialTick, pull.previousAimBlend, pull.aimBlend)
-            : Mth.lerp(partialTick, pull.previousBlend, pull.blend);
-         if (blend <= 0.001F) {
-            return null;
-         }
-
-         Vec3 anchor = hookPosition(entity.getUUID(), partialTick);
-         if (anchor == null) {
-            return null;
-         }
-         Vec3 delta = anchor.subtract(entity.getEyePosition(partialTick));
-         double horizontal = Math.sqrt(delta.x * delta.x + delta.z * delta.z);
-         if (delta.lengthSqr() < 1.0E-6) {
-            return null;
-         }
-         float yaw = Mth.wrapDegrees((float) Math.toDegrees(Math.atan2(-delta.x, delta.z)));
-         float elevation = (float) Math.toDegrees(Math.atan2(delta.y, horizontal));
-         return new RenderPose(yaw, elevation, blend);
-      }
-
-      /** Die Egoansicht neigt sich sanft mit der vertikalen Zugneigung nach oben/unten (ohne seitliches Rollen). */
-      public float cameraPitch(float partialTick) {
-         Minecraft client = Minecraft.getInstance();
-         LocalPlayer player = client.player;
-         if (player == null || !client.options.getCameraType().isFirstPerson()) {
-            return 0.0F;
-         }
-         RenderPose pose = pose(player, partialTick);
-         if (pose == null) {
-            return 0.0F;
-         }
-         float targetPitch = -pose.elevation;
-         float currentPitch = player.getXRot(partialTick);
-         float deltaPitch = Mth.wrapDegrees(targetPitch - currentPitch);
-         return deltaPitch * pose.blend * 0.35F;
-      }
-
-      public void clear() {
-         pulls.clear();
-      }
-
-      public record RenderPose(float yaw, float elevation, float blend) {
-      }
-
-      private static final class Pull {
-         private Vec3 previousHook;
-         private Vec3 hook;
-         private boolean grappleActive = true;
-         private boolean pulling;
-         private boolean retracting;
-         private float previousBlend;
-         private float blend;
-         private float previousAimBlend;
-         private float aimBlend;
-
-         private Pull(Vec3 hook, boolean pulling, boolean retracting) {
-            this.previousHook = hook;
-            this.hook = hook;
-            this.pulling = pulling;
-            this.retracting = retracting;
-         }
-      }
-   }
-
-   // =========================================================================
-   // MagnetFieldState.java
-   // =========================================================================
-   /** Clientkopie der weltweit sichtbaren, aktiven Pfeilmagnet-Felder. */
-   public static final class MagnetFieldState {
-      public static final MagnetFieldState INSTANCE = new MagnetFieldState();
-
-      private Set<UUID> activePlayers = Set.of();
-
-      private MagnetFieldState() {
-      }
-
-      public Set<UUID> activePlayers() {
-         return activePlayers;
-      }
-
-      public void handle(MagnetFieldsPayload payload) {
-         activePlayers = Set.copyOf(payload.players());
-      }
-
-      public void clear() {
-         activePlayers = Set.of();
-      }
-   }
-
-   // =========================================================================
-   // DeployableMarkerState.java
-   // =========================================================================
-   /**
-    * Die eigenen abgestellten Geräte für die HUD-Peilung.
-    * <p>
-    * Reiner Empfangsspeicher: Der Server schickt die Liste bei jeder Änderung und im groben
-    * Raster des {@code Broadcaster}. Eine leere Liste löscht die Peilung, ein eigenes Aufräumen
-    * beim Verlassen der Arena braucht es deshalb nicht.
-    */
-   public static final class DeployableMarkerState {
-      public static final DeployableMarkerState INSTANCE = new DeployableMarkerState();
-
-      private List<DeployableMarkersPayload.Marker> markers = List.of();
-
-      private DeployableMarkerState() {
-      }
-
-      public List<DeployableMarkersPayload.Marker> markers() {
-         return markers;
-      }
-
-      public void handle(DeployableMarkersPayload payload) {
-         markers = List.copyOf(payload.markers());
-      }
-
-      public void clear() {
-         markers = List.of();
-      }
-   }
-
-   // =========================================================================
-   // MatchStartState.java
-   // =========================================================================
-   /**
-    * Die Kamera- und Bildeffekte rund um den Match-Start.
-    * <p>
-    * Der Countdown läuft hier lokal weiter: der Server meldet den Stand in Ticks, herunterzählen und
-    * zwischen den Ticks interpolieren macht der Client. Nur so lässt sich die Anzeige flüssig
-    * animieren, statt einmal je Sekunde umzuspringen.
-    */
-   public static final class MatchStartState {
-      public static final MatchStartState INSTANCE = new MatchStartState();
-
-      /** Länge des Countdowns; der Client kennt sie, um den Gesamtfortschritt zeichnen zu können. */
-      public static final int COUNTDOWN_TICKS = 60;
-      /** So lange hallt der Startschuss auf dem Bildschirm nach. */
-      private static final int GO_TICKS = 22;
-
-      private static float fovBoost;
-      private static float portalIntensity;
-      private static float confusionIntensity;
-      private static int remainingTicks = -1;
-      private static int goTicks;
-      private static String mapName = "Standard";
-      private static String gameModeName = "Klassisch";
-
-      private MatchStartState() {
-      }
-
-      public float getFovBoost() {
-         return fovBoost;
-      }
-
-      public float getPortalIntensity() {
-         return portalIntensity;
-      }
-
-      public float getConfusionIntensity() {
-         return confusionIntensity;
-      }
-
-      public String getMapName() {
-         return mapName;
-      }
-
-      public String getGameModeName() {
-         return gameModeName;
-      }
-
-      public void setFovBoost(float value) {
-         fovBoost = value;
-      }
-
-      public void setPortalIntensity(float value) {
-         portalIntensity = value;
-      }
-
-      public void setConfusionIntensity(float value) {
-         confusionIntensity = value;
-      }
-
-      public boolean isCountdownActive() {
-         return remainingTicks > 0;
-      }
-
-      /** Restzeit in Ticks, zwischen zwei Ticks interpoliert – die Grundlage jeder Animation. */
-      public float getRemainingTicks(float partialTick) {
-         return Math.max(0.0F, remainingTicks - partialTick);
-      }
-
-      /** Restlicher Nachhall des Startschusses von 1 (gerade eben) bis 0. */
-      public float getGoProgress(float partialTick) {
-         return goTicks <= 0 ? 0.0F : Math.max(0.0F, (goTicks - partialTick) / GO_TICKS);
-      }
-
-      /**
-       * Dynamischer Kamera-Abstand während des Countdowns:
-       * Gleitet von nah (1.15m) bei Sekunde 3 sanft zurück auf 1.85m bei Sekunde 1 mit feiner Atmung.
-       */
-      public float getCameraDistance(float partialTick) {
-         if (!isCountdownActive()) {
-            return 4.0F;
-         }
-         float remaining = getRemainingTicks(partialTick);
-         float overall = Math.clamp(1.0F - remaining / (float) COUNTDOWN_TICKS, 0.0F, 1.0F);
-         float dolly = 1.15F + 0.70F * (float) (1.0 - Math.cos(overall * Math.PI * 0.5));
-         float breathing = (float) Math.sin((Util.getMillis() % 2400L) / 2400.0 * Math.PI * 2.0) * 0.025F;
-         return dolly + breathing;
-      }
-
-      public void handle(MatchCountdownPayload payload) {
-         Minecraft client = Minecraft.getInstance();
-         if (payload.getRemainingTicks() < 0) {
-            clear();
-            return;
-         }
-
-         if (!payload.getArenaName().isEmpty()) {
-            mapName = payload.getArenaName();
-         }
-         if (!payload.getGameMode().isEmpty()) {
-            gameModeName = payload.getGameMode();
-         }
-
-         if (payload.isGo()) {
-            // Start: zurück in die Ich-Perspektive, dazu ein druckvoller Kinetik- & Sichtfeldstoß.
-            client.options.setCameraType(CameraType.FIRST_PERSON);
-            fovBoost = 0.65F;
-            portalIntensity = 0.85F;
-            confusionIntensity = 0.50F;
+        /**
+         * Beim Verlassen des Servers muss die Kamera zurück, sonst bleibt sie in der Aussenansicht.
+         */
+        public void clear() {
             remainingTicks = -1;
-            goTicks = GO_TICKS;
-            CameraShakeState.INSTANCE.triggerDirect(0.55F, 18);
-         } else {
-            // Countdown: Kamera von vorn, damit man sich selbst im Startfeld stehen sieht.
-            client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
-            fovBoost = 0.12F;
-            remainingTicks = payload.getRemainingTicks();
             goTicks = 0;
-         }
-      }
+            fovBoost = 0.0F;
+            portalIntensity = 0.0F;
+            confusionIntensity = 0.0F;
+            mapName = "Standard";
+            gameModeName = "Klassisch";
+            Minecraft.getInstance().options.setCameraType(CameraType.FIRST_PERSON);
+        }
+    }
 
-      public void tick() {
-         if (remainingTicks > 0) {
-            remainingTicks--;
-            if (remainingTicks == 0 && goTicks <= 0) {
-               Minecraft.getInstance().options.setCameraType(CameraType.FIRST_PERSON);
-            }
-         }
-         if (goTicks > 0) {
-            goTicks--;
-            if (goTicks == 0) {
-               Minecraft.getInstance().options.setCameraType(CameraType.FIRST_PERSON);
-            }
-         }
-      }
+    // =========================================================================
+    // MinigunHudState.java
+    // =========================================================================
 
-      /** Beim Verlassen des Servers muss die Kamera zurück, sonst bleibt sie in der Aussenansicht. */
-      public void clear() {
-         remainingTicks = -1;
-         goTicks = 0;
-         fovBoost = 0.0F;
-         portalIntensity = 0.0F;
-         confusionIntensity = 0.0F;
-         mapName = "Standard";
-         gameModeName = "Klassisch";
-         Minecraft.getInstance().options.setCameraType(CameraType.FIRST_PERSON);
-      }
-   }
+    /**
+     * Hält die vom Server gemeldeten Minigun-Zustände für das HUD und zählt sie herunter.
+     * <p>
+     * Die Drehzahl selbst steht nicht mehr hier: sie gilt für jeden sichtbaren Spieler und liegt
+     * darum in {@link MinigunSpinState}. Damit zeigt das HUD genau die Drehzahl an, mit der sich
+     * auch das Modell in der Hand dreht.
+     */
+    public static final class MinigunHudState {
+        public static final MinigunHudState INSTANCE = new MinigunHudState();
 
-   // =========================================================================
-   // MinigunHudState.java
-   // =========================================================================
-   /**
-    * Hält die vom Server gemeldeten Minigun-Zustände für das HUD und zählt sie herunter.
-    * <p>
-    * Die Drehzahl selbst steht nicht mehr hier: sie gilt für jeden sichtbaren Spieler und liegt
-    * darum in {@link MinigunSpinState}. Damit zeigt das HUD genau die Drehzahl an, mit der sich
-    * auch das Modell in der Hand dreht.
-    */
-   public static final class MinigunHudState {
-      public static final MinigunHudState INSTANCE = new MinigunHudState();
-   
-      private static final int KILL_EFFECT_DURATION_TICKS = 30;
-      private static final int HIT_EFFECT_DURATION_TICKS = 6;
-   
-      private static int remainingUseTicks;
-      private static int expiringTicks;
-      private static int killEffectTicks;
-      private static int hitEffectTicks;
-      /** Wie oft das zuletzt beschossene Ziel schon getroffen wurde. */
-      private static int hitsOnTarget;
-      /**
-       * Standzeit der Trefferanzeige.
-       * <p>
-       * Der Servertreffer selbst leuchtet nur sechs Ticks – zu kurz, um mitzuzählen. Die Anzeige
-       * bleibt deshalb länger stehen und verfällt in derselben Zeitspanne wie die Trefferserie auf
-       * dem Server, damit sie keinen Vorsprung verspricht, den es nicht mehr gibt.
-       */
-      private static final int TALLY_DURATION_TICKS = MinigunRuntime.HIT_COMBO_TIMEOUT_TICKS;
-      private static int tallyTicks;
-   
-      private MinigunHudState() {
-      }
-   
-      public int getRemainingUseTicks() {
-         return remainingUseTicks;
-      }
-   
-      public int getExpiringTicks() {
-         return expiringTicks;
-      }
-   
-      public int getHitsOnTarget() {
-         return hitsOnTarget;
-      }
-   
-      public int getTallyTicks() {
-         return tallyTicks;
-      }
-   
-      public int getKillEffectTicks() {
-         return killEffectTicks;
-      }
-   
-      public int getHitEffectTicks() {
-         return hitEffectTicks;
-      }
-   
-      public boolean isExpiring() {
-         return expiringTicks > 0;
-      }
-   
-      /** Aktuelle Drehzahl von 0 (steht) bis 1 (volle Feuerrate). */
-      public float getSpin() {
-         LocalPlayer player = Minecraft.getInstance().player;
-         return player == null ? 0.0F : MinigunSpinState.INSTANCE.getSpin(player);
-      }
-   
-      /** Drehwinkel der Laufgruppe, zwischen den Ticks interpoliert. */
-      public float getSpinPhase(float partialTick) {
-         LocalPlayer player = Minecraft.getInstance().player;
-         return player == null ? 0.0F : MinigunSpinState.INSTANCE.getPhase(player, partialTick);
-      }
-   
-      public void handle(MinigunHudPayload payload) {
-         switch (payload.getEvent()) {
-            case MinigunHudPayload.STARTED -> {
-               remainingUseTicks = MinigunRuntime.USE_DURATION_TICKS;
-               expiringTicks = 0;
-               hitsOnTarget = 0;
-            }
-            case MinigunHudPayload.EXPIRING -> {
-               remainingUseTicks = 0;
-               expiringTicks = MinigunRuntime.HISS_DURATION_TICKS;
-            }
-            case MinigunHudPayload.KILL_CONFIRMED -> {
-               hitEffectTicks = HIT_EFFECT_DURATION_TICKS;
-               killEffectTicks = KILL_EFFECT_DURATION_TICKS;
-               hitsOnTarget = 0;
-               tallyTicks = 0;
-            }
-            case MinigunHudPayload.HIT_CONFIRMED -> {
-               hitEffectTicks = HIT_EFFECT_DURATION_TICKS;
-               hitsOnTarget = payload.getValue();
-               tallyTicks = TALLY_DURATION_TICKS;
-            }
-            default -> {
-            }
-         }
-      }
-   
-      public void tick() {
-         if (tallyTicks > 0 && --tallyTicks == 0) {
-            hitsOnTarget = 0;
-         }
-         if (remainingUseTicks > 0) {
-            remainingUseTicks--;
-            if (remainingUseTicks == 0 && expiringTicks == 0) {
-               expiringTicks = MinigunRuntime.HISS_DURATION_TICKS;
-            }
-         }
-   
-         if (expiringTicks > 0) {
-            expiringTicks--;
-         }
-         if (killEffectTicks > 0) {
-            killEffectTicks--;
-         }
-         if (hitEffectTicks > 0) {
-            hitEffectTicks--;
-         }
-      }
-   
-      public void clear() {
-         remainingUseTicks = 0;
-         expiringTicks = 0;
-         killEffectTicks = 0;
-         hitEffectTicks = 0;
-      }
-   }
+        private static final int KILL_EFFECT_DURATION_TICKS = 30;
+        private static final int HIT_EFFECT_DURATION_TICKS = 6;
+        /**
+         * Standzeit der Trefferanzeige.
+         * <p>
+         * Der Servertreffer selbst leuchtet nur sechs Ticks – zu kurz, um mitzuzählen. Die Anzeige
+         * bleibt deshalb länger stehen und verfällt in derselben Zeitspanne wie die Trefferserie auf
+         * dem Server, damit sie keinen Vorsprung verspricht, den es nicht mehr gibt.
+         */
+        private static final int TALLY_DURATION_TICKS = MinigunRuntime.HIT_COMBO_TIMEOUT_TICKS;
+        private static int remainingUseTicks;
+        private static int expiringTicks;
+        private static int killEffectTicks;
+        private static int hitEffectTicks;
+        /**
+         * Wie oft das zuletzt beschossene Ziel schon getroffen wurde.
+         */
+        private static int hitsOnTarget;
+        private static int tallyTicks;
 
-   // =========================================================================
-   // MinigunSpinState.java
-   // =========================================================================
-   /**
-    * Drehzahl und Drehwinkel der Laufgruppe – für jeden sichtbaren Spieler, nicht nur den eigenen.
-    * <p>
-    * Das Modell wird für jedes Bild neu aufgebaut und könnte den Winkel nicht selbst mitzählen;
-    * hier läuft er im Takt der Ticks mit und wird beim Zeichnen dazwischen interpoliert.
-    * <p>
-    * Beim Loslassen fällt die Drehzahl weich ab, statt abzuschneiden: die Läufe trudeln aus wie
-    * der Klang, der dasselbe tut. Solange gefeuert wird, gilt die gemeinsame Kurve aus
-    * {@link com.oneshotonekill.item.runtime.MinigunRuntime.Spin}, damit sich das Bündel genauso schnell dreht, wie der Server rechnet.
-    */
-   public static final class MinigunSpinState {
-      public static final MinigunSpinState INSTANCE = new MinigunSpinState();
-   
-      /** Drehzahlverlust je Tick nach dem Loslassen. */
-      private static final float SPIN_DECAY = 0.035F;
-      private static final float TWO_PI = (float) (Math.PI * 2.0);
-   
-      private static final Map<Integer, Rotor> rotors = new HashMap<>();
-   
-      private MinigunSpinState() {
-      }
-   
-      /** Drehzahl von 0 bis 1; das HUD zeigt sie an. */
-      public float getSpin(LivingEntity holder) {
-         Rotor rotor = rotors.get(holder.getId());
-         return rotor == null ? 0.0F : rotor.spin;
-      }
-   
-      /** Drehwinkel im Bogenmaß, zwischen zwei Ticks interpoliert. */
-      public float getPhase(LivingEntity holder, float partialTick) {
-         Rotor rotor = rotors.get(holder.getId());
-         return rotor == null ? 0.0F : rotor.previousPhase + (rotor.phase - rotor.previousPhase) * partialTick;
-      }
-   
-      public void tick(Minecraft client) {
-         if (client.level == null) {
+        private MinigunHudState() {
+        }
+
+        public int getRemainingUseTicks() {
+            return remainingUseTicks;
+        }
+
+        public int getExpiringTicks() {
+            return expiringTicks;
+        }
+
+        public int getHitsOnTarget() {
+            return hitsOnTarget;
+        }
+
+        public int getTallyTicks() {
+            return tallyTicks;
+        }
+
+        public int getKillEffectTicks() {
+            return killEffectTicks;
+        }
+
+        public int getHitEffectTicks() {
+            return hitEffectTicks;
+        }
+
+        public boolean isExpiring() {
+            return expiringTicks > 0;
+        }
+
+        /**
+         * Aktuelle Drehzahl von 0 (steht) bis 1 (volle Feuerrate).
+         */
+        public float getSpin() {
+            LocalPlayer player = Minecraft.getInstance().player;
+            return player == null ? 0.0F : MinigunSpinState.INSTANCE.getSpin(player);
+        }
+
+        /**
+         * Drehwinkel der Laufgruppe, zwischen den Ticks interpoliert.
+         */
+        public float getSpinPhase(float partialTick) {
+            LocalPlayer player = Minecraft.getInstance().player;
+            return player == null ? 0.0F : MinigunSpinState.INSTANCE.getPhase(player, partialTick);
+        }
+
+        public void handle(MinigunHudPayload payload) {
+            switch (payload.getEvent()) {
+                case MinigunHudPayload.STARTED -> {
+                    remainingUseTicks = MinigunRuntime.USE_DURATION_TICKS;
+                    expiringTicks = 0;
+                    hitsOnTarget = 0;
+                }
+                case MinigunHudPayload.EXPIRING -> {
+                    remainingUseTicks = 0;
+                    expiringTicks = MinigunRuntime.HISS_DURATION_TICKS;
+                }
+                case MinigunHudPayload.KILL_CONFIRMED -> {
+                    hitEffectTicks = HIT_EFFECT_DURATION_TICKS;
+                    killEffectTicks = KILL_EFFECT_DURATION_TICKS;
+                    hitsOnTarget = 0;
+                    tallyTicks = 0;
+                }
+                case MinigunHudPayload.HIT_CONFIRMED -> {
+                    hitEffectTicks = HIT_EFFECT_DURATION_TICKS;
+                    hitsOnTarget = payload.getValue();
+                    tallyTicks = TALLY_DURATION_TICKS;
+                }
+                default -> {
+                }
+            }
+        }
+
+        public void tick() {
+            if (tallyTicks > 0 && --tallyTicks == 0) {
+                hitsOnTarget = 0;
+            }
+            if (remainingUseTicks > 0) {
+                remainingUseTicks--;
+                if (remainingUseTicks == 0 && expiringTicks == 0) {
+                    expiringTicks = MinigunRuntime.HISS_DURATION_TICKS;
+                }
+            }
+
+            if (expiringTicks > 0) {
+                expiringTicks--;
+            }
+            if (killEffectTicks > 0) {
+                killEffectTicks--;
+            }
+            if (hitEffectTicks > 0) {
+                hitEffectTicks--;
+            }
+        }
+
+        public void clear() {
+            remainingUseTicks = 0;
+            expiringTicks = 0;
+            killEffectTicks = 0;
+            hitEffectTicks = 0;
+        }
+    }
+
+    // =========================================================================
+    // MinigunSpinState.java
+    // =========================================================================
+
+    /**
+     * Drehzahl und Drehwinkel der Laufgruppe – für jeden sichtbaren Spieler, nicht nur den eigenen.
+     * <p>
+     * Das Modell wird für jedes Bild neu aufgebaut und könnte den Winkel nicht selbst mitzählen;
+     * hier läuft er im Takt der Ticks mit und wird beim Zeichnen dazwischen interpoliert.
+     * <p>
+     * Beim Loslassen fällt die Drehzahl weich ab, statt abzuschneiden: die Läufe trudeln aus wie
+     * der Klang, der dasselbe tut. Solange gefeuert wird, gilt die gemeinsame Kurve aus
+     * {@link com.oneshotonekill.item.runtime.MinigunRuntime.Spin}, damit sich das Bündel genauso schnell dreht, wie der Server rechnet.
+     */
+    public static final class MinigunSpinState {
+        public static final MinigunSpinState INSTANCE = new MinigunSpinState();
+
+        /**
+         * Drehzahlverlust je Tick nach dem Loslassen.
+         */
+        private static final float SPIN_DECAY = 0.035F;
+        private static final float TWO_PI = (float) (Math.PI * 2.0);
+
+        private static final Map<Integer, Rotor> rotors = new HashMap<>();
+
+        private MinigunSpinState() {
+        }
+
+        private static void advance(Rotor rotor, Player player) {
+            boolean firing = player.isUsingItem() && player.getUseItem().is(ModItems.MINIGUN);
+            rotor.spin = firing
+                    ? MinigunRuntime.Spin.speed(player.getTicksUsingItem())
+                    : Math.max(0.0F, rotor.spin - SPIN_DECAY);
+
+            rotor.previousPhase = rotor.phase;
+            rotor.phase += rotor.spin * MinigunRuntime.Spin.MAX_RADIANS_PER_TICK;
+            if (rotor.phase > TWO_PI) {
+                // Beide Winkel zusammen zurücksetzen, damit die Interpolation den Sprung nicht mitmacht.
+                rotor.phase -= TWO_PI;
+                rotor.previousPhase -= TWO_PI;
+            }
+        }
+
+        /**
+         * Drehzahl von 0 bis 1; das HUD zeigt sie an.
+         */
+        public float getSpin(LivingEntity holder) {
+            Rotor rotor = rotors.get(holder.getId());
+            return rotor == null ? 0.0F : rotor.spin;
+        }
+
+        /**
+         * Drehwinkel im Bogenmaß, zwischen zwei Ticks interpoliert.
+         */
+        public float getPhase(LivingEntity holder, float partialTick) {
+            Rotor rotor = rotors.get(holder.getId());
+            return rotor == null ? 0.0F : rotor.previousPhase + (rotor.phase - rotor.previousPhase) * partialTick;
+        }
+
+        public void tick(Minecraft client) {
+            if (client.level == null) {
+                rotors.clear();
+                return;
+            }
+
+            for (Player player : client.level.players()) {
+                advance(rotors.computeIfAbsent(player.getId(), id -> new Rotor()), player);
+            }
+            // Wer nicht mehr in Sicht ist, braucht auch keinen Rotor mehr.
+            rotors.keySet().removeIf(id -> client.level.getEntity(id) == null);
+        }
+
+        public void clear() {
             rotors.clear();
-            return;
-         }
-   
-         for (Player player : client.level.players()) {
-            advance(rotors.computeIfAbsent(player.getId(), id -> new Rotor()), player);
-         }
-         // Wer nicht mehr in Sicht ist, braucht auch keinen Rotor mehr.
-         rotors.keySet().removeIf(id -> client.level.getEntity(id) == null);
-      }
-   
-      public void clear() {
-         rotors.clear();
-      }
-   
-      private static void advance(Rotor rotor, Player player) {
-         boolean firing = player.isUsingItem() && player.getUseItem().is(ModItems.MINIGUN);
-         rotor.spin = firing
-            ? MinigunRuntime.Spin.speed(player.getTicksUsingItem())
-            : Math.max(0.0F, rotor.spin - SPIN_DECAY);
-   
-         rotor.previousPhase = rotor.phase;
-         rotor.phase += rotor.spin * MinigunRuntime.Spin.MAX_RADIANS_PER_TICK;
-         if (rotor.phase > TWO_PI) {
-            // Beide Winkel zusammen zurücksetzen, damit die Interpolation den Sprung nicht mitmacht.
-            rotor.phase -= TWO_PI;
-            rotor.previousPhase -= TWO_PI;
-         }
-      }
-   
-      private static final class Rotor {
-         private float spin;
-         private float phase;
-         private float previousPhase;
-      }
-   }
+        }
 
-   // =========================================================================
-   // NukeState.java
-   // =========================================================================
-   /**
-    * Clientkopie der Nuke-Sequenz.
-    * <p>
-    * <p>Der Server schickt seinen Tickzähler nur einmal je Sekunde; dazwischen zählt diese Klasse
-    * selbst weiter. Das ist der einzige Weg zu einem Countdown, der flüssig läuft – zwanzig Pakete
-    * je Sekunde für eine Zahl zu verschicken, die man auch addieren kann, wäre Verschwendung, und
-    * ein Countdown, der nur im Sekundentakt aktualisiert, kann weder blinken noch weich ausblenden.
-    * Der nächste Abgleich vom Server holt einen abgedrifteten Zähler jedes Mal wieder ein.</p>
-    * <p>
-    * <p>Der Zwischenbildanteil wird mitgeführt, weil Blitz und Ausblenden schneller ablaufen als
-    * ein Tick: Ohne ihn zuckte das weiße Bild in zwanzig Stufen, statt zu verlaufen.</p>
-    */
-   public static final class NukeState {
-      public static final NukeState INSTANCE = new NukeState();
-   
-      private int tick = -1;
-      private double x;
-      private double y;
-      private double z;
-      private @Nullable NukeVictoryPayload victory;
-   
-      private NukeState() {
-      }
-   
-      public void handle(NukeStatePayload payload) {
-         if (payload.tick() < 0) {
-            clear();
-            return;
-         }
-         this.tick = payload.tick();
-         this.x = payload.x();
-         this.y = payload.y();
-         this.z = payload.z();
-      }
-   
-      public void handle(NukeVictoryPayload payload) {
-         this.victory = payload;
-      }
-   
-      /**
-       * Wird im Client-Takt aufgerufen und schiebt den Zähler zwischen zwei Abgleichen weiter.
-       * <p>
-       * Am Ende der Sequenz bleibt er auf {@link NukePhase#TOTAL_TICKS} stehen. Das ist kein
-       * Überlauf, sondern der Zustand „Sequenz vorbei, Fallout steht noch": Nebel, Bildschirmfilm
-       * und Abschlusstafel hängen daran und bleiben, bis der Server das Match wirklich stoppt und
-       * einen leeren Zustand schickt.
-       */
-      public void tick() {
-         if (tick >= 0 && tick < NukePhase.TOTAL_TICKS) {
-            tick++;
-         }
-      }
-   
-      public void clear() {
-         tick = -1;
-         victory = null;
-      }
-   
-      public boolean isRunning() {
-         return tick >= 0;
-      }
-   
-      public int currentTick() {
-         return tick;
-      }
-   
-      public @Nullable NukePhase phase() {
-         return NukePhase.at(tick);
-      }
-   
-      /** Der Fortschritt innerhalb des laufenden Abschnitts, samt Zwischenbild. */
-      public float phaseShare(float partialTick) {
-         NukePhase phase = phase();
-         if (phase == null) {
-            return 0.0F;
-         }
-         int span = phase.to() - phase.from();
-         if (span <= 1) {
-            return 0.0F;
-         }
-         return Math.clamp((tick - phase.from() + partialTick) / (float) span, 0.0F, 1.0F);
-      }
-   
-      public int secondsToImpact() {
-         return NukePhase.secondsToImpact(tick);
-      }
-   
-      /** Ob der Einschlag schon war – daran hängen Blitz, Nebel und Ton des Nachlaufs. */
-      public boolean hasDetonated() {
-         return tick >= NukePhase.DETONATION.from();
-      }
-   
-      /**
-       * Ob die Sequenz durch ist und nur noch der Fallout steht.
-       * <p>
-       * Ab hier läuft kein Abschnitt mehr, aber der Zustand bleibt: Der Server schickt erst beim
-       * Stoppen des Matches den leeren Zustand nach.
-       */
-      public boolean isFalloutOnly() {
-         return tick >= NukePhase.TOTAL_TICKS;
-      }
-   
-      /** Die Abschlusstafel steht ab ihrem Abschnitt und bleibt danach stehen. */
-      public boolean showsVictoryBoard() {
-         return tick >= NukePhase.VICTORY.from();
-      }
-   
-      /** Der Nachhall/Wind-Sound läuft nach dem Einschlag durchgehend weiter, bis das Match per GUI gestoppt wird. */
-      public boolean wantsAftermathDrone() {
-         return hasDetonated();
-      }
-   
-      public double centreX() {
-         return x;
-      }
-   
-      public double centreY() {
-         return y;
-      }
-   
-      public double centreZ() {
-         return z;
-      }
-   
-      public @Nullable NukeVictoryPayload victory() {
-         return victory;
-      }
-   }
+        private static final class Rotor {
+            private float spin;
+            private float phase;
+            private float previousPhase;
+        }
+    }
 
-   // =========================================================================
-   // BomberCameraState.java
-   // =========================================================================
-   /**
-    * Hält die Live-Kameradaten des Tarnkappenbombers für das PiP-Aufklärungs-HUD auf dem Client.
-    */
-   public static final class BomberCameraState {
-      public static final BomberCameraState INSTANCE = new BomberCameraState();
+    // =========================================================================
+    // NukeState.java
+    // =========================================================================
 
-      private boolean active;
-      private UUID targetId;
-      private String targetName = "";
-      private double bomberX, bomberY, bomberZ;
-      private double prevBomberX, prevBomberY, prevBomberZ;
-      private double targetX, targetY, targetZ;
-      private float heading;
-      private float prevHeading;
-      private int remainingTicks;
-      private int totalTicks;
-      private int bombDropFlashTicks;
-      private int impactGlitchTicks;
-      private int eliminatedTicks;
-      private float transitionProgress;
-      private float previousTransitionProgress;
+    /**
+     * Clientkopie der Nuke-Sequenz.
+     * <p>
+     * <p>Der Server schickt seinen Tickzähler nur einmal je Sekunde; dazwischen zählt diese Klasse
+     * selbst weiter. Das ist der einzige Weg zu einem Countdown, der flüssig läuft – zwanzig Pakete
+     * je Sekunde für eine Zahl zu verschicken, die man auch addieren kann, wäre Verschwendung, und
+     * ein Countdown, der nur im Sekundentakt aktualisiert, kann weder blinken noch weich ausblenden.
+     * Der nächste Abgleich vom Server holt einen abgedrifteten Zähler jedes Mal wieder ein.</p>
+     * <p>
+     * <p>Der Zwischenbildanteil wird mitgeführt, weil Blitz und Ausblenden schneller ablaufen als
+     * ein Tick: Ohne ihn zuckte das weiße Bild in zwanzig Stufen, statt zu verlaufen.</p>
+     */
+    public static final class NukeState {
+        public static final NukeState INSTANCE = new NukeState();
 
-      private BomberCameraState() {
-      }
+        private int tick = -1;
+        private double x;
+        private double y;
+        private double z;
+        private @Nullable NukeVictoryPayload victory;
 
-      public boolean isActive() {
-         return active || transitionProgress > 0.001F;
-      }
+        private NukeState() {
+        }
 
-      public boolean isFeedOnline() {
-         return active;
-      }
-
-      public boolean isTargetEliminated() {
-         return eliminatedTicks > 0;
-      }
-
-      public UUID getTargetId() {
-         return targetId;
-      }
-
-      public String getTargetName() {
-         return targetName != null ? targetName : "";
-      }
-
-      public double getBomberX() {
-         return bomberX;
-      }
-
-      public double getBomberY() {
-         return bomberY;
-      }
-
-      public double getBomberZ() {
-         return bomberZ;
-      }
-
-      public double getInterpolatedBomberX(float pt) {
-         return prevBomberX + (bomberX - prevBomberX) * pt;
-      }
-
-      public double getInterpolatedBomberY(float pt) {
-         return prevBomberY + (bomberY - prevBomberY) * pt;
-      }
-
-      public double getInterpolatedBomberZ(float pt) {
-         return prevBomberZ + (bomberZ - prevBomberZ) * pt;
-      }
-
-      public float getInterpolatedHeadingDegrees(float pt) {
-         return Mth.rotLerp(pt, (float) Math.toDegrees(prevHeading), (float) Math.toDegrees(heading));
-      }
-
-      public double getTargetX() {
-         return targetX;
-      }
-
-      public double getTargetY() {
-         return targetY;
-      }
-
-      public double getTargetZ() {
-         return targetZ;
-      }
-
-      public float getHeading() {
-         return heading;
-      }
-
-      public int getRemainingTicks() {
-         return remainingTicks;
-      }
-
-      public int getTotalTicks() {
-         return totalTicks;
-      }
-
-      public int getBombDropFlashTicks() {
-         return bombDropFlashTicks;
-      }
-
-      public int getImpactGlitchTicks() {
-         return impactGlitchTicks;
-      }
-
-      public float getTransition(float partialTick) {
-         return Mth.clamp(previousTransitionProgress + (transitionProgress - previousTransitionProgress) * partialTick, 0.0F, 1.0F);
-      }
-
-      public double distanceToTarget() {
-         return Math.sqrt(Math.pow(bomberX - targetX, 2) + Math.pow(bomberZ - targetZ, 2));
-      }
-
-      public double altitude() {
-         return Math.max(0.0, bomberY - targetY);
-      }
-
-      public static final class DetonationFX {
-         public final double x, y, z;
-         public int ageTicks;
-         public final int maxAgeTicks;
-
-         public DetonationFX(double x, double y, double z) {
-            this.x = x;
-            this.y = y;
-            this.z = z;
-            this.ageTicks = 0;
-            this.maxAgeTicks = 22;
-         }
-      }
-
-      private final List<DetonationFX> activeDetonations = new ArrayList<>();
-
-      public List<DetonationFX> getActiveDetonations() {
-         return activeDetonations;
-      }
-
-      public void addDetonation(double x, double y, double z) {
-         activeDetonations.add(new DetonationFX(x, y, z));
-      }
-
-      public void handle(BomberCameraPayload payload) {
-         if (!payload.active()) {
-            this.active = false;
-            return;
-         }
-         if (!this.active || (this.bomberX == 0.0 && this.bomberY == 0.0 && this.bomberZ == 0.0)) {
-            this.prevBomberX = payload.bomberX();
-            this.prevBomberY = payload.bomberY();
-            this.prevBomberZ = payload.bomberZ();
-            this.prevHeading = payload.heading();
-         }
-         this.active = true;
-         this.targetId = payload.targetId();
-         this.targetName = payload.targetName();
-         this.bomberX = payload.bomberX();
-         this.bomberY = payload.bomberY();
-         this.bomberZ = payload.bomberZ();
-         this.targetX = payload.targetX();
-         this.targetY = payload.targetY();
-         this.targetZ = payload.targetZ();
-         this.heading = payload.heading();
-         this.remainingTicks = payload.remainingTicks();
-         this.totalTicks = payload.totalTicks();
-         if (payload.bombDropped()) {
-            this.bombDropFlashTicks = 8;
-         }
-         if (payload.impactGlitch()) {
-            this.impactGlitchTicks = 14;
-            double bx = payload.blastX() != 0.0 ? payload.blastX() : payload.targetX();
-            double by = payload.blastY() != 0.0 ? payload.blastY() : payload.targetY();
-            double bz = payload.blastZ() != 0.0 ? payload.blastZ() : payload.targetZ();
-            addDetonation(bx, by, bz);
-         }
-         if (payload.targetEliminated() && this.eliminatedTicks <= 0) {
-            this.eliminatedTicks = 35;
-         }
-      }
-
-      public void tick() {
-         previousTransitionProgress = transitionProgress;
-         prevBomberX = bomberX;
-         prevBomberY = bomberY;
-         prevBomberZ = bomberZ;
-         prevHeading = heading;
-         if (active) {
-            if (transitionProgress < 1.0F) {
-               transitionProgress = Math.min(1.0F, transitionProgress + 0.15F);
+        public void handle(NukeStatePayload payload) {
+            if (payload.tick() < 0) {
+                clear();
+                return;
             }
-         } else {
-            if (transitionProgress > 0.0F) {
-               transitionProgress = Math.max(0.0F, transitionProgress - 0.18F);
-               if (transitionProgress == 0.0F) {
-                  clearData();
-               }
+            this.tick = payload.tick();
+            this.x = payload.x();
+            this.y = payload.y();
+            this.z = payload.z();
+        }
+
+        public void handle(NukeVictoryPayload payload) {
+            this.victory = payload;
+        }
+
+        /**
+         * Wird im Client-Takt aufgerufen und schiebt den Zähler zwischen zwei Abgleichen weiter.
+         * <p>
+         * Am Ende der Sequenz bleibt er auf {@link NukePhase#TOTAL_TICKS} stehen. Das ist kein
+         * Überlauf, sondern der Zustand „Sequenz vorbei, Fallout steht noch": Nebel, Bildschirmfilm
+         * und Abschlusstafel hängen daran und bleiben, bis der Server das Match wirklich stoppt und
+         * einen leeren Zustand schickt.
+         */
+        public void tick() {
+            if (tick >= 0 && tick < NukePhase.TOTAL_TICKS) {
+                tick++;
             }
-         }
+        }
 
-         if (bombDropFlashTicks > 0) {
-            bombDropFlashTicks--;
-         }
-         if (impactGlitchTicks > 0) {
-            impactGlitchTicks--;
-         }
-         if (eliminatedTicks > 0) {
-            eliminatedTicks--;
-         }
+        public void clear() {
+            tick = -1;
+            victory = null;
+        }
 
-         activeDetonations.removeIf(det -> {
-            det.ageTicks++;
-            return det.ageTicks >= det.maxAgeTicks;
-         });
-      }
+        public boolean isRunning() {
+            return tick >= 0;
+        }
 
-      private void clearData() {
-         targetId = null;
-         targetName = "";
-         bomberX = bomberY = bomberZ = 0.0;
-         prevBomberX = prevBomberY = prevBomberZ = 0.0;
-         heading = 0.0F;
-         prevHeading = 0.0F;
-         remainingTicks = 0;
-         totalTicks = 0;
-         bombDropFlashTicks = 0;
-         impactGlitchTicks = 0;
-         eliminatedTicks = 0;
-         activeDetonations.clear();
-      }
+        public int currentTick() {
+            return tick;
+        }
 
-      public void clear() {
-         active = false;
-         transitionProgress = 0.0F;
-         previousTransitionProgress = 0.0F;
-         clearData();
-      }
-   }
+        public @Nullable NukePhase phase() {
+            return NukePhase.at(tick);
+        }
 
-   // =========================================================================
-   // MatchBannerState.java
-   // =========================================================================
-   /**
-    * Verwaltet das aktive Cyber-Status-Banner für Match-Zustandswechsel (Pause, Resume, Stop, Map-Reset)
-    * sowie die persistente HUD-Pausenleiste.
-    */
-   public static final class MatchBannerState {
-      public static final MatchBannerState INSTANCE = new MatchBannerState();
+        /**
+         * Der Fortschritt innerhalb des laufenden Abschnitts, samt Zwischenbild.
+         */
+        public float phaseShare(float partialTick) {
+            NukePhase phase = phase();
+            if (phase == null) {
+                return 0.0F;
+            }
+            int span = phase.to() - phase.from();
+            if (span <= 1) {
+                return 0.0F;
+            }
+            return Math.clamp((tick - phase.from() + partialTick) / (float) span, 0.0F, 1.0F);
+        }
 
-      private String eventType = "";
-      private String title = "";
-      private String subtitle = "";
-      private int totalTicks = 0;
-      private int remainingTicks = 0;
-      private int accentColor = 0;
-      private boolean matchPaused = false;
+        public int secondsToImpact() {
+            return NukePhase.secondsToImpact(tick);
+        }
 
-      private MatchBannerState() {}
+        /**
+         * Ob der Einschlag schon war – daran hängen Blitz, Nebel und Ton des Nachlaufs.
+         */
+        public boolean hasDetonated() {
+            return tick >= NukePhase.DETONATION.from();
+        }
 
-      public boolean isBannerActive() {
-         return remainingTicks > 0;
-      }
+        /**
+         * Ob die Sequenz durch ist und nur noch der Fallout steht.
+         * <p>
+         * Ab hier läuft kein Abschnitt mehr, aber der Zustand bleibt: Der Server schickt erst beim
+         * Stoppen des Matches den leeren Zustand nach.
+         */
+        public boolean isFalloutOnly() {
+            return tick >= NukePhase.TOTAL_TICKS;
+        }
 
-      public boolean isMatchPaused() {
-         return matchPaused;
-      }
+        /**
+         * Die Abschlusstafel steht ab ihrem Abschnitt und bleibt danach stehen.
+         */
+        public boolean showsVictoryBoard() {
+            return tick >= NukePhase.VICTORY.from();
+        }
 
-      public String getEventType() { return eventType; }
-      public String getTitle() { return title; }
-      public String getSubtitle() { return subtitle; }
-      public int getAccentColor() { return accentColor; }
+        /**
+         * Der Nachhall/Wind-Sound läuft nach dem Einschlag durchgehend weiter, bis das Match per GUI gestoppt wird.
+         */
+        public boolean wantsAftermathDrone() {
+            return hasDetonated();
+        }
 
-      public float getProgress(float partialTick) {
-         if (remainingTicks <= 0 || totalTicks <= 0) return 0.0F;
-         return Math.max(0.0F, (remainingTicks - partialTick) / (float) totalTicks);
-      }
+        public double centreX() {
+            return x;
+        }
 
-      public void handle(MatchNotificationPayload payload) {
-         this.eventType = payload.getEvent();
-         this.title = payload.getTitle();
-         this.subtitle = payload.getSubtitle();
-         this.totalTicks = Math.max(1, payload.getDurationTicks());
-         this.remainingTicks = this.totalTicks;
-         this.accentColor = payload.getAccentColor();
+        public double centreY() {
+            return y;
+        }
 
-         if ("PAUSE".equalsIgnoreCase(payload.getEvent())) {
-            this.matchPaused = true;
-         } else if ("RESUME".equalsIgnoreCase(payload.getEvent()) || "STOP".equalsIgnoreCase(payload.getEvent())) {
-            this.matchPaused = false;
-         }
-      }
+        public double centreZ() {
+            return z;
+        }
 
-      public void tick() {
-         if (remainingTicks > 0) {
-            remainingTicks--;
-         }
-      }
+        public @Nullable NukeVictoryPayload victory() {
+            return victory;
+        }
+    }
 
-      public void clear() {
-         remainingTicks = 0;
-         totalTicks = 0;
-         matchPaused = false;
-         eventType = "";
-         title = "";
-         subtitle = "";
-      }
-   }
+    // =========================================================================
+    // BomberCameraState.java
+    // =========================================================================
 
-   // =========================================================================
-   // GunGameHudState.java
-   // =========================================================================
-   /**
-    * Hält den aktuellen Fortschritt im Waffenspiel (Stufe, Kills, Waffenname, Farbton, Level-Up Animation).
-    */
-   public static final class GunGameHudState {
-      public static final GunGameHudState INSTANCE = new GunGameHudState();
+    /**
+     * Hält die Live-Kameradaten des Tarnkappenbombers für das PiP-Aufklärungs-HUD auf dem Client.
+     */
+    public static final class BomberCameraState {
+        public static final BomberCameraState INSTANCE = new BomberCameraState();
+        private final List<DetonationFX> activeDetonations = new ArrayList<>();
+        private boolean active;
+        private UUID targetId;
+        private String targetName = "";
+        private double bomberX, bomberY, bomberZ;
+        private double prevBomberX, prevBomberY, prevBomberZ;
+        private double targetX, targetY, targetZ;
+        private float heading;
+        private float prevHeading;
+        private int remainingTicks;
+        private int totalTicks;
+        private int bombDropFlashTicks;
+        private int impactGlitchTicks;
+        private int eliminatedTicks;
+        private float transitionProgress;
+        private float previousTransitionProgress;
 
-      private int currentTier = 1;
-      private int totalTiers = 13;
-      private int tierKills = 0;
-      private int requiredKills = 3;
-      private String tierName = "OneShot Bogen";
-      private String colorName = "yellow";
-      private boolean active = false;
-      private int levelUpEffectTicks = 0;
-      private static final int LEVEL_UP_DURATION = 50;
+        private BomberCameraState() {
+        }
 
-      private GunGameHudState() {}
+        public boolean isActive() {
+            return active || transitionProgress > 0.001F;
+        }
 
-      public boolean isActive() { return active; }
-      public int getCurrentTier() { return currentTier; }
-      public int getTotalTiers() { return totalTiers; }
-      public int getTierKills() { return tierKills; }
-      public int getRequiredKills() { return requiredKills; }
-      public String getTierName() { return tierName; }
-      public String getColorName() { return colorName; }
-      public int getLevelUpEffectTicks() { return levelUpEffectTicks; }
+        public boolean isFeedOnline() {
+            return active;
+        }
 
-      public float getLevelUpProgress(float partialTick) {
-         if (levelUpEffectTicks <= 0) return 0.0F;
-         return Math.max(0.0F, (levelUpEffectTicks - partialTick) / (float) LEVEL_UP_DURATION);
-      }
+        public boolean isTargetEliminated() {
+            return eliminatedTicks > 0;
+        }
 
-      public void handle(GunGameStatusPayload payload) {
-         if (!payload.active()) {
-            clear();
-            return;
-         }
-         this.active = true;
-         this.currentTier = payload.currentTier();
-         this.totalTiers = payload.totalTiers();
-         this.tierKills = payload.tierKills();
-         this.requiredKills = payload.requiredKills();
-         this.tierName = payload.tierName();
-         this.colorName = payload.colorName();
-         if (payload.isLevelUp()) {
-            this.levelUpEffectTicks = LEVEL_UP_DURATION;
-         }
-      }
+        public UUID getTargetId() {
+            return targetId;
+        }
 
-      public void tick() {
-         if (levelUpEffectTicks > 0) {
-            levelUpEffectTicks--;
-         }
-      }
+        public String getTargetName() {
+            return targetName != null ? targetName : "";
+        }
 
-      public void clear() {
-         active = false;
-         currentTier = 1;
-         totalTiers = 13;
-         tierKills = 0;
-         requiredKills = 3;
-         tierName = "OneShot Bogen";
-         colorName = "yellow";
-         levelUpEffectTicks = 0;
-      }
-   }
+        public double getBomberX() {
+            return bomberX;
+        }
+
+        public double getBomberY() {
+            return bomberY;
+        }
+
+        public double getBomberZ() {
+            return bomberZ;
+        }
+
+        public double getInterpolatedBomberX(float pt) {
+            return prevBomberX + (bomberX - prevBomberX) * pt;
+        }
+
+        public double getInterpolatedBomberY(float pt) {
+            return prevBomberY + (bomberY - prevBomberY) * pt;
+        }
+
+        public double getInterpolatedBomberZ(float pt) {
+            return prevBomberZ + (bomberZ - prevBomberZ) * pt;
+        }
+
+        public float getInterpolatedHeadingDegrees(float pt) {
+            return Mth.rotLerp(pt, (float) Math.toDegrees(prevHeading), (float) Math.toDegrees(heading));
+        }
+
+        public double getTargetX() {
+            return targetX;
+        }
+
+        public double getTargetY() {
+            return targetY;
+        }
+
+        public double getTargetZ() {
+            return targetZ;
+        }
+
+        public float getHeading() {
+            return heading;
+        }
+
+        public int getRemainingTicks() {
+            return remainingTicks;
+        }
+
+        public int getTotalTicks() {
+            return totalTicks;
+        }
+
+        public int getBombDropFlashTicks() {
+            return bombDropFlashTicks;
+        }
+
+        public int getImpactGlitchTicks() {
+            return impactGlitchTicks;
+        }
+
+        public float getTransition(float partialTick) {
+            return Mth.clamp(previousTransitionProgress + (transitionProgress - previousTransitionProgress) * partialTick, 0.0F, 1.0F);
+        }
+
+        public double distanceToTarget() {
+            return Math.sqrt(Math.pow(bomberX - targetX, 2) + Math.pow(bomberZ - targetZ, 2));
+        }
+
+        public double altitude() {
+            return Math.max(0.0, bomberY - targetY);
+        }
+
+        public List<DetonationFX> getActiveDetonations() {
+            return activeDetonations;
+        }
+
+        public void addDetonation(double x, double y, double z) {
+            activeDetonations.add(new DetonationFX(x, y, z));
+        }
+
+        public void handle(BomberCameraPayload payload) {
+            if (!payload.active()) {
+                this.active = false;
+                return;
+            }
+            if (!this.active || (this.bomberX == 0.0 && this.bomberY == 0.0 && this.bomberZ == 0.0)) {
+                this.prevBomberX = payload.bomberX();
+                this.prevBomberY = payload.bomberY();
+                this.prevBomberZ = payload.bomberZ();
+                this.prevHeading = payload.heading();
+            }
+            this.active = true;
+            this.targetId = payload.targetId();
+            this.targetName = payload.targetName();
+            this.bomberX = payload.bomberX();
+            this.bomberY = payload.bomberY();
+            this.bomberZ = payload.bomberZ();
+            this.targetX = payload.targetX();
+            this.targetY = payload.targetY();
+            this.targetZ = payload.targetZ();
+            this.heading = payload.heading();
+            this.remainingTicks = payload.remainingTicks();
+            this.totalTicks = payload.totalTicks();
+            if (payload.bombDropped()) {
+                this.bombDropFlashTicks = 8;
+            }
+            if (payload.impactGlitch()) {
+                this.impactGlitchTicks = 14;
+                double bx = payload.blastX() != 0.0 ? payload.blastX() : payload.targetX();
+                double by = payload.blastY() != 0.0 ? payload.blastY() : payload.targetY();
+                double bz = payload.blastZ() != 0.0 ? payload.blastZ() : payload.targetZ();
+                addDetonation(bx, by, bz);
+            }
+            if (payload.targetEliminated() && this.eliminatedTicks <= 0) {
+                this.eliminatedTicks = 35;
+            }
+        }
+
+        public void tick() {
+            previousTransitionProgress = transitionProgress;
+            prevBomberX = bomberX;
+            prevBomberY = bomberY;
+            prevBomberZ = bomberZ;
+            prevHeading = heading;
+            if (active) {
+                if (transitionProgress < 1.0F) {
+                    transitionProgress = Math.min(1.0F, transitionProgress + 0.15F);
+                }
+            } else {
+                if (transitionProgress > 0.0F) {
+                    transitionProgress = Math.max(0.0F, transitionProgress - 0.18F);
+                    if (transitionProgress == 0.0F) {
+                        clearData();
+                    }
+                }
+            }
+
+            if (bombDropFlashTicks > 0) {
+                bombDropFlashTicks--;
+            }
+            if (impactGlitchTicks > 0) {
+                impactGlitchTicks--;
+            }
+            if (eliminatedTicks > 0) {
+                eliminatedTicks--;
+            }
+
+            activeDetonations.removeIf(det -> {
+                det.ageTicks++;
+                return det.ageTicks >= det.maxAgeTicks;
+            });
+        }
+
+        private void clearData() {
+            targetId = null;
+            targetName = "";
+            bomberX = bomberY = bomberZ = 0.0;
+            prevBomberX = prevBomberY = prevBomberZ = 0.0;
+            heading = 0.0F;
+            prevHeading = 0.0F;
+            remainingTicks = 0;
+            totalTicks = 0;
+            bombDropFlashTicks = 0;
+            impactGlitchTicks = 0;
+            eliminatedTicks = 0;
+            activeDetonations.clear();
+        }
+
+        public void clear() {
+            active = false;
+            transitionProgress = 0.0F;
+            previousTransitionProgress = 0.0F;
+            clearData();
+        }
+
+        public static final class DetonationFX {
+            public final double x, y, z;
+            public final int maxAgeTicks;
+            public int ageTicks;
+
+            public DetonationFX(double x, double y, double z) {
+                this.x = x;
+                this.y = y;
+                this.z = z;
+                this.ageTicks = 0;
+                this.maxAgeTicks = 22;
+            }
+        }
+    }
+
+    // =========================================================================
+    // MatchBannerState.java
+    // =========================================================================
+
+    /**
+     * Verwaltet das aktive Cyber-Status-Banner für Match-Zustandswechsel (Pause, Resume, Stop, Map-Reset)
+     * sowie die persistente HUD-Pausenleiste.
+     */
+    public static final class MatchBannerState {
+        public static final MatchBannerState INSTANCE = new MatchBannerState();
+
+        private String eventType = "";
+        private String title = "";
+        private String subtitle = "";
+        private int totalTicks = 0;
+        private int remainingTicks = 0;
+        private int accentColor = 0;
+        private boolean matchPaused = false;
+
+        private MatchBannerState() {
+        }
+
+        public boolean isBannerActive() {
+            return remainingTicks > 0;
+        }
+
+        public boolean isMatchPaused() {
+            return matchPaused;
+        }
+
+        public String getEventType() {
+            return eventType;
+        }
+
+        public String getTitle() {
+            return title;
+        }
+
+        public String getSubtitle() {
+            return subtitle;
+        }
+
+        public int getAccentColor() {
+            return accentColor;
+        }
+
+        public float getProgress(float partialTick) {
+            if (remainingTicks <= 0 || totalTicks <= 0) return 0.0F;
+            return Math.max(0.0F, (remainingTicks - partialTick) / (float) totalTicks);
+        }
+
+        public void handle(MatchNotificationPayload payload) {
+            this.eventType = payload.getEvent();
+            this.title = payload.getTitle();
+            this.subtitle = payload.getSubtitle();
+            this.totalTicks = Math.max(1, payload.getDurationTicks());
+            this.remainingTicks = this.totalTicks;
+            this.accentColor = payload.getAccentColor();
+
+            if ("PAUSE".equalsIgnoreCase(payload.getEvent())) {
+                this.matchPaused = true;
+            } else if ("RESUME".equalsIgnoreCase(payload.getEvent()) || "STOP".equalsIgnoreCase(payload.getEvent())) {
+                this.matchPaused = false;
+            }
+        }
+
+        public void tick() {
+            if (remainingTicks > 0) {
+                remainingTicks--;
+            }
+        }
+
+        public void clear() {
+            remainingTicks = 0;
+            totalTicks = 0;
+            matchPaused = false;
+            eventType = "";
+            title = "";
+            subtitle = "";
+        }
+    }
+
+    // =========================================================================
+    // GunGameHudState.java
+    // =========================================================================
+
+    /**
+     * Hält den aktuellen Fortschritt im Waffenspiel (Stufe, Kills, Waffenname, Farbton, Level-Up Animation).
+     */
+    public static final class GunGameHudState {
+        public static final GunGameHudState INSTANCE = new GunGameHudState();
+        private static final int LEVEL_UP_DURATION = 50;
+        private int currentTier = 1;
+        private int totalTiers = 13;
+        private int tierKills = 0;
+        private int requiredKills = 3;
+        private String tierName = "OneShot Bogen";
+        private String colorName = "yellow";
+        private boolean active = false;
+        private int levelUpEffectTicks = 0;
+
+        private GunGameHudState() {
+        }
+
+        public boolean isActive() {
+            return active;
+        }
+
+        public int getCurrentTier() {
+            return currentTier;
+        }
+
+        public int getTotalTiers() {
+            return totalTiers;
+        }
+
+        public int getTierKills() {
+            return tierKills;
+        }
+
+        public int getRequiredKills() {
+            return requiredKills;
+        }
+
+        public String getTierName() {
+            return tierName;
+        }
+
+        public String getColorName() {
+            return colorName;
+        }
+
+        public int getLevelUpEffectTicks() {
+            return levelUpEffectTicks;
+        }
+
+        public float getLevelUpProgress(float partialTick) {
+            if (levelUpEffectTicks <= 0) return 0.0F;
+            return Math.max(0.0F, (levelUpEffectTicks - partialTick) / (float) LEVEL_UP_DURATION);
+        }
+
+        public void handle(GunGameStatusPayload payload) {
+            if (!payload.active()) {
+                clear();
+                return;
+            }
+            this.active = true;
+            this.currentTier = payload.currentTier();
+            this.totalTiers = payload.totalTiers();
+            this.tierKills = payload.tierKills();
+            this.requiredKills = payload.requiredKills();
+            this.tierName = payload.tierName();
+            this.colorName = payload.colorName();
+            if (payload.isLevelUp()) {
+                this.levelUpEffectTicks = LEVEL_UP_DURATION;
+            }
+        }
+
+        public void tick() {
+            if (levelUpEffectTicks > 0) {
+                levelUpEffectTicks--;
+            }
+        }
+
+        public void clear() {
+            active = false;
+            currentTier = 1;
+            totalTiers = 13;
+            tierKills = 0;
+            requiredKills = 3;
+            tierName = "OneShot Bogen";
+            colorName = "yellow";
+            levelUpEffectTicks = 0;
+        }
+    }
 }
