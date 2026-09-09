@@ -26,7 +26,10 @@ public enum Arena {
     BO2("bo2", "BO2", "BO2.zip", new Vec3(-1045.5, 63.0, 352.5),
             List.of(ArenaShape.polygon(63.0, 81.0, ArenaShape.Outlines.BO2)), null, false, true),
     TILTED_TOWERS("tilted_towers", "Tilted Towers", "TiltedTowers.zip", new Vec3(-39.5, 37.0, 258.5),
-            List.of(ArenaShape.polygon(1.0, 35.0, ArenaShape.Outlines.TILTED_TOWERS)), 35.0, false, true);
+            List.of(
+                    ArenaShape.polygon(7.0, 35.0, ArenaShape.Outlines.TILTED_TOWERS),
+                    ArenaShape.polygon(1.0, 35.0, ArenaShape.Outlines.TILTED_TOWERS_LOWER)
+            ), 35.0, false, true);
 
     private static final Arena DEFAULT = STANDARD;
     private static final Map<String, Arena> BY_ID = java.util.Arrays.stream(values())
