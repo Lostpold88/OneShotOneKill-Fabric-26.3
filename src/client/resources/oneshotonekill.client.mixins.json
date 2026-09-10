@@ -12,6 +12,8 @@
 		"effect.PostPassTimeDistortionMixin",
 		"input.KeyboardInputMixin",
 		"input.LocalPlayerDropMixin",
+		"input.LocalPlayerMantleMixin",
+		"input.PlayerMantleTravelMixin",
 		"input.MinecraftInteractionMixin",
 		"input.MouseHandlerMixin",
 		"input.PlayerFreezeTravelMixin",

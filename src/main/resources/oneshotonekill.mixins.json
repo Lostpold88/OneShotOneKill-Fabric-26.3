@@ -13,7 +13,9 @@
 		"item.PlayerProjectileMixin",
 		"item.ServerPlayerDropMixin",
 		"match.PlayerAdvancementsMixin",
-		"match.ServerPlayerTabListMixin"
+		"match.ServerPlayerTabListMixin",
+		"movement.ServerPlayerMantleMixin",
+		"movement.LivingEntityClimbingMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

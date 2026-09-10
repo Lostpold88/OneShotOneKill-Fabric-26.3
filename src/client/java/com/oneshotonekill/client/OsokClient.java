@@ -14,6 +14,7 @@ import com.oneshotonekill.client.hud.NukeHudLayers.NukeCountdownLayer;
 import com.oneshotonekill.client.hud.NukeHudLayers.NukeFlashLayer;
 import com.oneshotonekill.client.hud.NukeHudLayers.NukeVictoryLayer;
 import com.oneshotonekill.client.model.OsokClientModels;
+import com.oneshotonekill.client.movement.ClientClimbing;
 import com.oneshotonekill.client.network.OsokClientHandlers;
 import com.oneshotonekill.client.config.MinimapConfig;
 import com.oneshotonekill.client.renderer.*;
@@ -107,6 +108,7 @@ public final class OsokClient implements ClientModInitializer {
         HudElementRegistry.addLast(id("nuke_victory"), new NukeVictoryLayer());
         HudElementRegistry.addLast(id("nuke_flash"), new NukeFlashLayer());
         HudElementRegistry.addLast(id("tilted_minimap"), new TiltedMinimapLayer());
+        HudElementRegistry.attachElementAfter(VanillaHudElements.CROSSHAIR, id("mantle"), new com.oneshotonekill.client.hud.MantleHudLayers.MantleHudLayer());
 
         // Das Vanilla-Fadenkreuz wird ausgeblendet, solange Minigun, Railgun oder Grappling Hook in der Hand liegen:
         HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, original -> (graphics, deltaTracker) -> {
@@ -247,6 +249,7 @@ public final class OsokClient implements ClientModInitializer {
      * Beim Verlassen des Servers müssen Kamera, Klang und Zustände zurückgesetzt werden.
      */
     private static void onDisconnect() {
+        ClientClimbing.INSTANCE.clear();
         MatchStartState.INSTANCE.clear();
         MinigunHudState.INSTANCE.clear();
         MinigunSpinState.INSTANCE.clear();

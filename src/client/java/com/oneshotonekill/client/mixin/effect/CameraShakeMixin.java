@@ -31,58 +31,61 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(Camera.class)
 public abstract class CameraShakeMixin {
-   @Shadow
-   @Final
-   private static Vector3fc FORWARDS;
+    @Shadow
+    @Final
+    private static Vector3fc FORWARDS;
 
-   @Shadow
-   @Final
-   private static Vector3fc UP;
+    @Shadow
+    @Final
+    private static Vector3fc UP;
 
-   @Shadow
-   @Final
-   private static Vector3fc LEFT;
+    @Shadow
+    @Final
+    private static Vector3fc LEFT;
 
-   @Shadow
-   @Final
-   private Quaternionf rotation;
+    @Shadow
+    @Final
+    private Quaternionf rotation;
 
-   @Shadow
-   @Final
-   private Vector3f forwards;
+    @Shadow
+    @Final
+    private Vector3f forwards;
 
-   @Shadow
-   @Final
-   private Vector3f up;
+    @Shadow
+    @Final
+    private Vector3f up;
 
-   @Shadow
-   @Final
-   private Vector3f left;
+    @Shadow
+    @Final
+    private Vector3f left;
 
-   @Shadow
-   private int matrixPropertiesDirty;
+    @Shadow
+    private int matrixPropertiesDirty;
 
-   @Inject(method = "setRotation", at = @At("RETURN"))
-   private void osok$applyCameraEffects(float yRot, float xRot, CallbackInfo ci) {
-      CameraShakeState shake = CameraShakeState.INSTANCE;
-      float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true);
-      float grapplePitch = GrapplePullState.INSTANCE.cameraPitch(partialTick);
-      float grappleRoll = GrapplePullState.INSTANCE.cameraRoll(partialTick);
-      if (!shake.isShaking() && Math.abs(grapplePitch) < 0.001F && Math.abs(grappleRoll) < 0.001F) {
-         return;
-      }
+    @Inject(method = "setRotation", at = @At("RETURN"))
+    private void osok$applyCameraEffects(float yRot, float xRot, CallbackInfo ci) {
+        CameraShakeState shake = CameraShakeState.INSTANCE;
+        float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(true);
+        float grapplePitch = GrapplePullState.INSTANCE.cameraPitch(partialTick);
+        float grappleRoll = GrapplePullState.INSTANCE.cameraRoll(partialTick);
+        float climbPitch = com.oneshotonekill.client.movement.ClientClimbing.INSTANCE.cameraPitch(partialTick);
+        float climbRoll = com.oneshotonekill.client.movement.ClientClimbing.INSTANCE.cameraRoll(partialTick);
+        if (!shake.isShaking() && Math.abs(grapplePitch) < 0.001F && Math.abs(grappleRoll) < 0.001F
+                && Math.abs(climbPitch) < 0.001F && Math.abs(climbRoll) < 0.001F) {
+            return;
+        }
 
-      float yaw = yRot + (shake.isShaking() ? shake.getYawOffset(partialTick) : 0.0F);
-      float pitch = xRot + grapplePitch + (shake.isShaking() ? shake.getPitchOffset(partialTick) : 0.0F);
-      float roll = (shake.isShaking() ? shake.getRollOffset(partialTick) : 0.0F) + grappleRoll;
+        float yaw = yRot + (shake.isShaking() ? shake.getYawOffset(partialTick) : 0.0F);
+        float pitch = xRot + grapplePitch + climbPitch + (shake.isShaking() ? shake.getPitchOffset(partialTick) : 0.0F);
+        float roll = (shake.isShaking() ? shake.getRollOffset(partialTick) : 0.0F) + grappleRoll + climbRoll;
 
-      this.rotation.rotationYXZ(
-         (float) Math.PI - yaw * (float) (Math.PI / 180.0),
-         -pitch * (float) (Math.PI / 180.0),
-         roll * (float) (Math.PI / 180.0));
-      FORWARDS.rotate(this.rotation, this.forwards);
-      UP.rotate(this.rotation, this.up);
-      LEFT.rotate(this.rotation, this.left);
-      this.matrixPropertiesDirty |= 3;
-   }
+        this.rotation.rotationYXZ(
+                (float) Math.PI - yaw * (float) (Math.PI / 180.0),
+                -pitch * (float) (Math.PI / 180.0),
+                roll * (float) (Math.PI / 180.0));
+        FORWARDS.rotate(this.rotation, this.forwards);
+        UP.rotate(this.rotation, this.up);
+        LEFT.rotate(this.rotation, this.left);
+        this.matrixPropertiesDirty |= 3;
+    }
 }

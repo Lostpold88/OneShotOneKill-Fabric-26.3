@@ -1,4 +1,7 @@
 {
+  "hud.oneshotonekill.mantle": "Hold %s + %s · Climb",
+  "hud.oneshotonekill.wall_climbing": "%s/%s up/down · %s/%s sideways · Hold %s",
+  "hud.oneshotonekill.mantling": "Mantling · %s to cancel",
   "death.attack.oneshotonekill.nuke_blast": "%1$s was erased by the tactical nuke",
   "death.attack.oneshotonekill.nuke_blast.player": "%1$s was erased by the tactical nuke",
   "item.oneshotonekill.airstrike": "Air Strike",

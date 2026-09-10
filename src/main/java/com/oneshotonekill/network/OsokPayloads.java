@@ -1,5 +1,6 @@
 package com.oneshotonekill.network;
 
+import com.oneshotonekill.movement.ClimbingNetworking;
 import io.netty.buffer.ByteBuf;
 import net.minecraft.core.UUIDUtil;
 
@@ -103,6 +104,7 @@ public final class OsokPayloads {
     * zurück, und Vanilla führt es danach im Takt aus.
     */
    public static void register() {
+      ClimbingNetworking.register();
       registerClientboundTypes();
       registerServerboundTypes();
 

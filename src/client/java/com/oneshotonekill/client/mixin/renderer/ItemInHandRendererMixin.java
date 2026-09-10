@@ -2,6 +2,7 @@ package com.oneshotonekill.client.mixin.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.oneshotonekill.client.ClientInputEvents;
+import com.oneshotonekill.client.movement.ClientClimbing;
 import com.oneshotonekill.registry.ModItems;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
@@ -29,33 +30,43 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(ItemInHandRenderer.class)
 public abstract class ItemInHandRendererMixin {
-   /**
-    * Vanilla setzt bei jedem erfolgreichen Rechtsklick die Höhe der benutzten Hand auf null.
-    * Für den Grappler sähe das wie eine Block-Platzieranimation aus und würde genau den Moment
-    * verdecken, in dem der Pömpel das Rohr verlässt.
-    */
-   @Inject(method = "itemUsed", at = @At("HEAD"), cancellable = true)
-   private void osok$keepGrapplingHookRaised(InteractionHand hand, CallbackInfo ci) {
-      LocalPlayer player = Minecraft.getInstance().player;
-      if (player != null && player.getItemInHand(hand).is(ModItems.GRAPPLING_HOOK)) {
-         ci.cancel();
-      }
-   }
+    /**
+     * Vanilla setzt bei jedem erfolgreichen Rechtsklick die Höhe der benutzten Hand auf null.
+     * Für den Grappler sähe das wie eine Block-Platzieranimation aus und würde genau den Moment
+     * verdecken, in dem der Pömpel das Rohr verlässt.
+     */
+    @Inject(method = "itemUsed", at = @At("HEAD"), cancellable = true)
+    private void osok$keepGrapplingHookRaised(InteractionHand hand, CallbackInfo ci) {
+        LocalPlayer player = Minecraft.getInstance().player;
+        if (player != null && player.getItemInHand(hand).is(ModItems.GRAPPLING_HOOK)) {
+            ci.cancel();
+        }
+    }
 
-   @Inject(method = "submitArmWithItem", at = @At("HEAD"))
-   private void osok$pushShake(AbstractClientPlayer player, float frameInterp, float xRot, InteractionHand hand,
+    @Inject(method = "submitArmWithItem", at = @At("HEAD"))
+    private void osok$pushShake(AbstractClientPlayer player, float frameInterp, float xRot, InteractionHand hand,
+                                float attack, ItemStack itemStack, float inverseArmHeight, PoseStack poseStack,
+                                SubmitNodeCollector submitNodeCollector, int lightCoords, CallbackInfo ci) {
+        poseStack.pushPose();
+        if (!player.isUsingItem() && attack <= 0) {
+            float mantle = ClientClimbing.INSTANCE.pose(player, frameInterp);
+            if (mantle > 0) {
+                float stroke = ClientClimbing.INSTANCE.stroke(player, frameInterp);
+                float sideShift = (hand == InteractionHand.MAIN_HAND ? 1.0F : -1.0F) * stroke * 0.035F;
+                float vertShift = Math.abs(stroke) * 0.025F;
+                poseStack.translate(sideShift, -0.28F * mantle + vertShift, -0.10F * mantle);
+                poseStack.mulPose(com.mojang.math.Axis.ZP.rotationDegrees(stroke * (hand == InteractionHand.MAIN_HAND ? 2.5F : -2.5F)));
+            }
+        }
+        ClientInputEvents.applyMinigunHandShake(itemStack, frameInterp, poseStack);
+        ClientInputEvents.applyTimeDistorterHandPose(itemStack, poseStack);
+        ClientInputEvents.applyGrapplerHandShake(itemStack, frameInterp, poseStack);
+    }
+
+    @Inject(method = "submitArmWithItem", at = @At("RETURN"))
+    private void osok$popShake(AbstractClientPlayer player, float frameInterp, float xRot, InteractionHand hand,
                                float attack, ItemStack itemStack, float inverseArmHeight, PoseStack poseStack,
                                SubmitNodeCollector submitNodeCollector, int lightCoords, CallbackInfo ci) {
-      poseStack.pushPose();
-      ClientInputEvents.applyMinigunHandShake(itemStack, frameInterp, poseStack);
-      ClientInputEvents.applyTimeDistorterHandPose(itemStack, poseStack);
-      ClientInputEvents.applyGrapplerHandShake(itemStack, frameInterp, poseStack);
-   }
-
-   @Inject(method = "submitArmWithItem", at = @At("RETURN"))
-   private void osok$popShake(AbstractClientPlayer player, float frameInterp, float xRot, InteractionHand hand,
-                              float attack, ItemStack itemStack, float inverseArmHeight, PoseStack poseStack,
-                              SubmitNodeCollector submitNodeCollector, int lightCoords, CallbackInfo ci) {
-      poseStack.popPose();
-   }
+        poseStack.popPose();
+    }
 }

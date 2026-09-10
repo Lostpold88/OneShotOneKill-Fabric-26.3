@@ -114,6 +114,22 @@ wieder einsetzt.
 
 ---
 
+## Klettern auf Tilted Towers
+
+Nur während eines laufenden Matches innerhalb von Tilted Towers: Zur Wand schauen und
+**Vorwärts + Springen halten**, um zu greifen. Solange Springen gehalten wird, klettert
+**Vorwärts** hoch, **Rückwärts** herunter und **Links/Rechts** seitlich. Ohne Richtung hält
+man sich fest. **Springen loslassen oder Schleichen** löst den Griff. Erreichbare Dachkanten
+werden automatisch überstiegen. Die Tasten im HUD folgen der eigenen Tastenbelegung.
+
+Es gibt keine Ausdauerbegrenzung. Echte Blockkollisionen, Kopffreiheit und Arenagrenzen
+begrenzen den Aufstieg. Countdown, Frost, aktiver Grappler, Gleitflug, Tod, Menüs und
+Mapwechsel beenden ihn. Andere Maps und Kreativ-/Zuschauermodus erhalten kein Wandklettern.
+Der Server prüft Kontakt und Matchzustand laufend; die Bewegung verwendet Vanillas
+Kollision und Positionspakete. Klettern gewährt keine Flugrechte.
+
+---
+
 ## Match-Start & Countdown
 
 Der Countdown ist eine eigene HUD-Ebene, kein Vanilla-Titel: ein Ring, der die drei Sekunden

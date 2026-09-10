@@ -1,5 +1,6 @@
 package com.oneshotonekill.client.network;
 
+import com.oneshotonekill.client.movement.ClientClimbing;
 import com.oneshotonekill.client.screen.AirstrikeTargetScreen;
 import com.oneshotonekill.client.screen.ArenaMenuScreen;
 import com.oneshotonekill.client.screen.BomberTargetScreen;
@@ -19,6 +20,7 @@ import com.oneshotonekill.client.state.ClientStates.MatchStartState;
 import com.oneshotonekill.client.state.ClientStates.MinigunHudState;
 import com.oneshotonekill.client.state.ClientStates.NukeState;
 import com.oneshotonekill.item.runtime.AirstrikeSystem;
+import com.oneshotonekill.movement.ClimbingNetworking;
 import com.oneshotonekill.network.OsokPayloads.AbilityStatusPayload;
 import com.oneshotonekill.network.OsokPayloads.AirstrikeAlarmPayload;
 import com.oneshotonekill.network.OsokPayloads.ArenaMenuStatePayload;
@@ -56,6 +58,8 @@ public final class OsokClientHandlers {
    }
 
    public static void register() {
+      ClientPlayNetworking.registerGlobalReceiver(ClimbingNetworking.Motion.TYPE,
+         (payload, context) -> ClientClimbing.INSTANCE.handle(payload));
       ClientPlayNetworking.registerGlobalReceiver(ArenaMenuStatePayload.TYPE,
          (payload, context) -> ArenaMenuScreen.show(payload, context.client()));
       ClientPlayNetworking.registerGlobalReceiver(MatchCountdownPayload.TYPE,
