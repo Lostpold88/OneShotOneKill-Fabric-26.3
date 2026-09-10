@@ -30,31 +30,40 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfo;
  */
 @Mixin(GameRenderer.class)
 public abstract class GameRendererTimeDistortionMixin {
-   @Shadow @Final private CrossFrameResourcePool resourcePool;
+    @Shadow
+    @Final
+    private CrossFrameResourcePool resourcePool;
+    @Shadow
+    @Final
+    private RenderTarget mainRenderTarget;
 
-   @Inject(method = "render", at = @At(value = "INVOKE",
-      target = "Lnet/minecraft/client/renderer/fog/FogRenderer;endFrame()V"))
-   private void osok$applyTimeDistortion(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo ci) {
-      Minecraft client = Minecraft.getInstance();
-      if (client.level == null) {
-         return;
-      }
+    @Inject(method = "render", at = @At(value = "INVOKE",
+            target = "Lnet/minecraft/client/renderer/fog/FogRenderer;endFrame()V"))
+    private void osok$applyTimeDistortion(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo ci) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.level == null) {
+            return;
+        }
 
-      TimeDistortionEffects effects = TimeDistortionEffects.INSTANCE;
-      Identifier effectId = effects.currentPostEffect();
-      TimeDistortionSoundController.INSTANCE.frame(client);
-      if (effectId == null) {
-         return;
-      }
+        TimeDistortionEffects effects = TimeDistortionEffects.INSTANCE;
+        Identifier effectId = effects.currentPostEffect();
+        TimeDistortionSoundController.INSTANCE.frame(client);
+        if (effectId == null) {
+            return;
+        }
 
-      effects.beginFrame();
-      PostChain chain = client.getShaderManager().getPostChain(effectId, LevelTargetBundle.MAIN_TARGETS);
-      if (chain != null) {
-         RenderTarget target = ((GameRenderer) (Object) this).mainRenderTarget();
-         FrameGraphBuilder frameGraph = new FrameGraphBuilder();
-         ResourceHandle<RenderTarget> handle = frameGraph.importExternal("main", target);
-         chain.addToFrame(frameGraph, target.width, target.height, PostChain.TargetBundle.of(LevelTargetBundle.MAIN_TARGETS.iterator().next(), handle));
-         frameGraph.execute(this.resourcePool);
-      }
-   }
+        try {
+            effects.beginFrame();
+            PostChain chain = client.getShaderManager().getPostChain(effectId, LevelTargetBundle.MAIN_TARGETS);
+            if (chain != null) {
+                RenderTarget target = this.mainRenderTarget;
+                FrameGraphBuilder frameGraph = new FrameGraphBuilder();
+                ResourceHandle<RenderTarget> handle = frameGraph.importExternal("main", target);
+                chain.addToFrame(frameGraph, target.width, target.height, PostChain.TargetBundle.of(PostChain.MAIN_TARGET_ID, handle));
+                frameGraph.execute(this.resourcePool);
+            }
+        } catch (Throwable t) {
+            // Defensiver Fallback: Verhindert Client-Abstürze bei Drittmod-Inkompatibilitäten (z.B. Lunar/Iris-Shader-Pipelines)
+        }
+    }
 }
