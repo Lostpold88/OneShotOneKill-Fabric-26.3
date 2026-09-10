@@ -8,10 +8,15 @@ import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.MoverType;
+import net.minecraft.world.entity.player.Player;
+import net.minecraft.world.level.Level;
+import net.minecraft.world.level.block.SoundType;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 
 import java.util.Map;
@@ -40,6 +45,22 @@ public final class ClientClimbing {
     private static double ease(double t) {
         t = Math.clamp(t, 0, 1);
         return t * t * (3 - 2 * t);
+    }
+
+    private static boolean isMetal(SoundType st) {
+        return st == SoundType.METAL || st == SoundType.COPPER || st == SoundType.IRON
+                || st == SoundType.CHAIN || st == SoundType.ANVIL || st == SoundType.NETHERITE_BLOCK
+                || st == SoundType.HEAVY_CORE || st == SoundType.VAULT || st == SoundType.COPPER_GRATE
+                || st == SoundType.COPPER_BULB;
+    }
+
+    private static boolean isWood(SoundType st) {
+        return st == SoundType.WOOD || st == SoundType.CHERRY_WOOD || st == SoundType.BAMBOO_WOOD
+                || st == SoundType.NETHER_WOOD || st == SoundType.SCAFFOLDING;
+    }
+
+    private static boolean isGlass(SoundType st) {
+        return st == SoundType.GLASS;
     }
 
     private boolean allowed(LocalPlayer player) {
@@ -102,11 +123,10 @@ public final class ClientClimbing {
         Entity entity = client.level.getEntity(motion.entityId());
         if (entity == null) return;
         if (entity != client.player) {
+            Visual old = visuals.get(entity);
             if (motion.mode() == ClimbingNetworking.STOP) {
-                Visual old = visuals.get(entity);
                 if (old != null && old.sequence == motion.requestId()) visuals.remove(entity);
             } else {
-                Visual old = visuals.get(entity);
                 int started = old != null && old.sequence == motion.requestId() && old.mode == motion.mode()
                         ? old.started : client.player.tickCount;
                 visuals.put(entity, new Visual(started, client.player.tickCount, motion.requestId(), motion.mode()));
@@ -140,9 +160,7 @@ public final class ClientClimbing {
                 expectedPosition = owner.position();
                 owner.setDeltaMovement(Vec3.ZERO);
                 wallGrabTicks = 5;
-                owner.playSound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.55F, 1.20F);
-                owner.playSound(SoundEvents.STONE_STEP, 0.45F, 1.10F);
-                owner.playSound(SoundEvents.LADDER_STEP, 0.30F, 1.05F);
+                playWallGrabSound(owner, normal);
             }
             wall = normal;
             target = null;
@@ -160,9 +178,7 @@ public final class ClientClimbing {
             liftTicks = Math.max(3, (int) Math.ceil((target.y - start.y) * 1.5 / 0.26));
             acrossTicks = Math.max(3, (int) Math.ceil(new Vec3(target.x - start.x, 0, target.z - start.z).length() * 1.5 / 0.24));
             owner.setDeltaMovement(Vec3.ZERO);
-            owner.playSound(SoundEvents.ARMOR_EQUIP_GENERIC.value(), 0.50F, 1.10F);
-            owner.playSound(SoundEvents.STONE_STEP, 0.45F, 0.95F);
-            owner.playSound(SoundEvents.LADDER_STEP, 0.35F, 1.15F);
+            playMantleStartSound(owner);
         } else {
             cancel();
             return;
@@ -188,14 +204,18 @@ public final class ClientClimbing {
 
     private boolean climbWall(LocalPlayer player) {
         Direction activeWall = wall;
-        Direction travelDir = WallClimbing.travelDirection(activeWall,
-                player.input.keyPresses.left(), player.input.keyPresses.right());
+        boolean rawLeft = player.input.keyPresses.left();
+        boolean rawRight = player.input.keyPresses.right();
+        boolean inverted = WallClimbing.isStrafeInverted(player.getYRot(), activeWall);
+        boolean left = inverted ? rawRight : rawLeft;
+        boolean right = inverted ? rawLeft : rawRight;
+
+        Direction travelDir = WallClimbing.travelDirection(activeWall, left, right);
         if (!WallClimbing.hasContact(player, activeWall)) {
             WallClimbing.CornerTransition corner = WallClimbing.findCornerTransition(player, activeWall, travelDir);
             if (corner != null) {
                 wall = corner.newWall();
                 if (corner.displacement().lengthSqr() > 0) {
-                    boolean right = player.input.keyPresses.right();
                     cornerRollAmount = right ? 3.2F : -3.2F;
                     cornerRollTicks = 10;
                     Vec3 out = new Vec3(corner.newWall().getStepX() * corner.dAdj(), 0, corner.newWall().getStepZ() * corner.dAdj());
@@ -203,9 +223,7 @@ public final class ClientClimbing {
                     player.move(MoverType.SELF, out);
                     player.move(MoverType.SELF, along);
                     expectedPosition = player.position();
-                    player.playSound(SoundEvents.ARMOR_EQUIP_ELYTRA.value(), 0.50F, 1.35F);
-                    player.playSound(SoundEvents.STONE_HIT, 0.40F, 1.30F);
-                    player.playSound(SoundEvents.LADDER_STEP, 0.35F, 1.20F);
+                    playCornerWrapSound(player, corner.newWall());
                     if (level != null) {
                         for (int i = 0; i < 5; i++) {
                             double px = player.getX() + (player.getRandom().nextDouble() - 0.5) * 0.4;
@@ -241,7 +259,7 @@ public final class ClientClimbing {
         }
         age++;
         Vec3 delta = WallClimbing.movement(activeWall, player.input.keyPresses.forward(),
-                player.input.keyPresses.backward(), player.input.keyPresses.left(), player.input.keyPresses.right());
+                player.input.keyPresses.backward(), left, right);
         Vec3 landing = delta.y > 0 ? MantleGeometry.findTarget(player, activeWall) : null;
         // Hold the grip at a reachable roof edge until the server confirms the transition.
         if (landing != null && landing.y - player.getY() <= 0.95) delta = new Vec3(delta.x, 0, delta.z);
@@ -258,8 +276,7 @@ public final class ClientClimbing {
         double distance = expectedPosition.distanceTo(before);
         cycle += (float) (distance * 3.8);
         if (distance > 0.025 && age % 8 == 0) {
-            player.playSound(SoundEvents.LADDER_STEP, 0.22F, 1.05F);
-            player.playSound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.18F, 1.35F);
+            playClimbStepSound(player, activeWall);
         }
         return true;
     }
@@ -303,8 +320,7 @@ public final class ClientClimbing {
             }
         }
         if (age >= liftTicks + acrossTicks) {
-            player.playSound(SoundEvents.STONE_STEP, 0.65F, 1.00F);
-            player.playSound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.40F, 1.05F);
+            playMantleLandingSound(player);
             mantleLandTicks = 6;
             cancel();
         }
@@ -431,6 +447,87 @@ public final class ClientClimbing {
         wallGrabTicks = 0;
         mantleLandTicks = 0;
         visuals.clear();
+    }
+
+    private SoundType getWallSoundType(Player player, Direction normal) {
+        if (normal == null || player == null) return SoundType.STONE;
+        Level lvl = player.level();
+        BlockPos handPos = BlockPos.containing(player.getX() - normal.getStepX() * 0.45, player.getY() + 1.2, player.getZ() - normal.getStepZ() * 0.45);
+        BlockState state = lvl.getBlockState(handPos);
+        if (!state.isAir()) return state.getSoundType();
+        BlockPos feetPos = BlockPos.containing(player.getX() - normal.getStepX() * 0.45, player.getY() + 0.3, player.getZ() - normal.getStepZ() * 0.45);
+        state = lvl.getBlockState(feetPos);
+        if (!state.isAir()) return state.getSoundType();
+        BlockPos centerPos = player.blockPosition().relative(normal.getOpposite());
+        state = lvl.getBlockState(centerPos);
+        if (!state.isAir()) return state.getSoundType();
+        return SoundType.STONE;
+    }
+
+    private void playWallGrabSound(Player player, Direction normal) {
+        SoundType st = getWallSoundType(player, normal);
+        if (isMetal(st)) {
+            player.playSound(SoundEvents.COPPER_HIT, 0.50F, 1.15F);
+            player.playSound(SoundEvents.CHAIN_STEP, 0.35F, 1.10F);
+            player.playSound(SoundEvents.ARMOR_EQUIP_GENERIC.value(), 0.50F, 1.25F);
+        } else if (isWood(st)) {
+            player.playSound(SoundEvents.CHERRY_WOOD_STEP, 0.50F, 1.10F);
+            player.playSound(SoundEvents.WOOD_HIT, 0.40F, 1.20F);
+            player.playSound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.50F, 1.25F);
+        } else if (isGlass(st)) {
+            player.playSound(SoundEvents.GLASS_HIT, 0.25F, 0.85F);
+            player.playSound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.55F, 1.30F);
+        } else {
+            player.playSound(SoundEvents.DEEPSLATE_HIT, 0.50F, 1.20F);
+            player.playSound(SoundEvents.TUFF_STEP, 0.45F, 1.10F);
+            player.playSound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.55F, 1.25F);
+        }
+    }
+
+    private void playClimbStepSound(Player player, Direction normal) {
+        SoundType st = getWallSoundType(player, normal);
+        float pitchMod = 0.92F + player.getRandom().nextFloat() * 0.16F;
+        if (isMetal(st)) {
+            player.playSound(SoundEvents.COPPER_STEP, 0.38F, pitchMod);
+            player.playSound(SoundEvents.CHAIN_STEP, 0.22F, pitchMod * 1.05F);
+            player.playSound(SoundEvents.ARMOR_EQUIP_GENERIC.value(), 0.18F, 1.30F);
+        } else if (isWood(st)) {
+            player.playSound(SoundEvents.CHERRY_WOOD_STEP, 0.38F, pitchMod);
+            player.playSound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.18F, 1.30F);
+        } else if (isGlass(st)) {
+            player.playSound(SoundEvents.AMETHYST_BLOCK_HIT, 0.18F, pitchMod * 0.75F);
+            player.playSound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.22F, 1.35F);
+        } else {
+            player.playSound(SoundEvents.TUFF_STEP, 0.42F, pitchMod);
+            player.playSound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.20F, 1.35F);
+        }
+    }
+
+    private void playCornerWrapSound(Player player, Direction newWall) {
+        SoundType st = getWallSoundType(player, newWall);
+        player.playSound(SoundEvents.ARMOR_EQUIP_ELYTRA.value(), 0.50F, 1.35F);
+        if (isMetal(st)) {
+            player.playSound(SoundEvents.COPPER_HIT, 0.35F, 1.25F);
+            player.playSound(SoundEvents.CHAIN_STEP, 0.30F, 1.15F);
+        } else if (isWood(st)) {
+            player.playSound(SoundEvents.WOOD_HIT, 0.35F, 1.20F);
+            player.playSound(SoundEvents.CHERRY_WOOD_STEP, 0.30F, 1.10F);
+        } else {
+            player.playSound(SoundEvents.CALCITE_STEP, 0.42F, 1.20F);
+            player.playSound(SoundEvents.DEEPSLATE_HIT, 0.35F, 1.25F);
+        }
+    }
+
+    private void playMantleStartSound(Player player) {
+        player.playSound(SoundEvents.PLAYER_ATTACK_WEAK, 0.35F, 0.85F);
+        player.playSound(SoundEvents.STONE_PLACE, 0.45F, 1.10F);
+        player.playSound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.45F, 1.20F);
+    }
+
+    private void playMantleLandingSound(Player player) {
+        player.playSound(SoundEvents.STONE_STEP, 0.70F, 0.95F);
+        player.playSound(SoundEvents.TUFF_STEP, 0.50F, 1.15F);
+        player.playSound(SoundEvents.ARMOR_EQUIP_LEATHER.value(), 0.45F, 1.10F);
     }
 
     private record Visual(int started, int refreshed, int sequence, int mode) {

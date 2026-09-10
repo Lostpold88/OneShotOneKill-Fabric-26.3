@@ -70,6 +70,15 @@ public final class WallClimbing {
         };
     }
 
+    public static boolean isStrafeInverted(float yRot, Direction normal) {
+        double yaw = Math.toRadians(yRot);
+        double lookX = -Math.sin(yaw);
+        double lookZ = Math.cos(yaw);
+        Direction rightDir = normal.getCounterClockWise();
+        double dot = -lookZ * rightDir.getStepX() + lookX * rightDir.getStepZ();
+        return dot < 0;
+    }
+
     public static @Nullable Direction travelDirection(Direction normal, boolean left, boolean right) {
         if (left == right) return null;
         return right ? normal.getCounterClockWise() : normal.getClockWise();
