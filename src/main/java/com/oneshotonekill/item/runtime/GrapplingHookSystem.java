@@ -51,11 +51,11 @@ public final class GrapplingHookSystem {
     public static final GrapplingHookSystem INSTANCE = new GrapplingHookSystem();
 
     private static final double FIRE_SPEED = 3.20;
-    private static final double MAX_RANGE = 38.0;
-    private static final int MAX_FLIGHT_TICKS = 16;
-    private static final int MAX_PULL_TICKS = 65;
+    private static final double MAX_RANGE = 512.0;
+    private static final int MAX_FLIGHT_TICKS = 200;
+    private static final int MAX_PULL_TICKS = 600;
     private static final double RELEASE_DISTANCE = 2.35;
-    private static final double RETRACT_SPEED = 4.20;
+    private static final double RETRACT_SPEED = 5.50;
     private static final double MAX_PULL_SPEED = 1.15;
     private static final double PULL_ACCELERATION = 0.45;
     private static final int ANCHOR_DELAY_TICKS = 5;
@@ -222,6 +222,7 @@ public final class GrapplingHookSystem {
         return grapple != null && grapple.phase == Phase.PULLING;
     }
 
+    @SuppressWarnings("unused")
     public boolean isGrappleActive(Player player) {
         if (player == null) {
             return false;
@@ -333,7 +334,7 @@ public final class GrapplingHookSystem {
         // Der getroffene Wandblock darf knapp außerhalb des vermessenen Polygons liegen. Entscheidend
         // ist die Stelle unmittelbar vor dem Einschlag – also die Seite, von der der Spieler kommt.
         Vec3 approach = surface.subtract(grapple.aimDirection.scale(0.10));
-        if (arena == null || !arena.isInArena(approach.x, approach.y, approach.z)) {
+        if (arena != null && !arena.isInArena(approach.x, approach.y, approach.z)) {
             grapple.position = surface;
             beginRetracting(grapple, owner, true);
             return;
@@ -473,7 +474,7 @@ public final class GrapplingHookSystem {
         Vec3 hand = muzzlePosition(owner, 1.0F);
         Vec3 back = hand.subtract(grapple.position);
         double distance = back.length();
-        if (distance <= RETRACT_SPEED || grapple.retractTicks > 60) {
+        if (distance <= RETRACT_SPEED || grapple.retractTicks > 200) {
             return true;
         }
         grapple.velocity = back.scale(RETRACT_SPEED / distance);

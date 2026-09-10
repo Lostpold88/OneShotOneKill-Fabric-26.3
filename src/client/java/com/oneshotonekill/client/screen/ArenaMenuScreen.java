@@ -5,6 +5,7 @@ import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.client.OsokClient;
 import com.oneshotonekill.client.state.ClientStates.MatchStartState;
+import com.oneshotonekill.client.state.ClientStates.MinimapState;
 import com.oneshotonekill.client.state.ClientStates.NukeState;
 import com.oneshotonekill.item.SpecialItem;
 import com.oneshotonekill.item.box.SpecialItemManager;
@@ -93,6 +94,8 @@ public final class ArenaMenuScreen extends Screen {
         if (state.getActiveArenaId() != null) {
             lastActiveArenaId = state.getActiveArenaId();
         }
+        MinimapState.INSTANCE.setMatchRunning("RUNNING".equalsIgnoreCase(state.getMatchState())
+                && !MatchStartState.INSTANCE.isCountdownActive());
         if (client.gui.screen() instanceof ArenaMenuScreen screen) {
             screen.state = state;
             if (screen.activeSlider == null) {

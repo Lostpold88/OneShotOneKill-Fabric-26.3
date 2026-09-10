@@ -2,6 +2,7 @@ package com.oneshotonekill.client.hud;
 
 import com.mojang.blaze3d.platform.Lighting;
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.oneshotonekill.client.config.MinimapConfig;
 import com.oneshotonekill.client.screen.OsokWidgets;
 import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.network.OsokPayloads.DeployableMarkersPayload;
@@ -16,6 +17,7 @@ import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.RenderPipelines;
 import net.minecraft.client.renderer.SubmitNodeCollector;
 import net.minecraft.client.renderer.block.BlockModelRenderState;
 import net.minecraft.client.renderer.block.BlockModelResolver;
@@ -28,8 +30,8 @@ import net.minecraft.client.renderer.state.gui.pip.PictureInPictureRenderState;
 import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.SectionPos;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Display;
@@ -513,7 +515,7 @@ public final class CombatHudLayers {
      * hochwertiges Interface statt eines klassischen Fadenkreuzes.
      */
     public static final class GrapplingHookHudLayer implements HudElement {
-        private static final double MAX_GRAPPLE_RANGE = 38.0;
+        private static final double MAX_GRAPPLE_RANGE = 512.0;
         private static final double RELEASE_DISTANCE = 2.35;
         private static final float MAX_PULL_SPEED = 1.15F;
         private static final long APPEAR_NANOS = 160_000_000L;
@@ -637,7 +639,7 @@ public final class CombatHudLayers {
             graphics.horizontalLine(x - 2, x + 6, markerY, railColor);
             graphics.fill(x - 2, markerY - 1, x, markerY + 2, railColor);
 
-            String value = live ? String.format(Locale.ROOT, "%04.1f M", distance) : "--.- M";
+            String value = live ? String.format(Locale.ROOT, "%.1f M", distance) : "--.- M";
             int textX = x - font.width("DISTANZ") - 8;
             graphics.text(font, "DISTANZ", textX, top, live ? COLOR_RED_BRIGHT : COLOR_RED_DIM);
             graphics.text(font, value, x - font.width(value) - 8, bottom - 8,
@@ -664,7 +666,7 @@ public final class CombatHudLayers {
             }
 
             String value = active
-                    ? String.format(Locale.ROOT, "%03d%%", Math.round(tension * 100.0F)) : "---%";
+                    ? String.format(Locale.ROOT, "%d%%", Math.round(tension * 100.0F)) : "---%";
             graphics.text(font, "ZUGKRAFT", x + 8, top,
                     active ? COLOR_RED_BRIGHT : COLOR_RED_DIM);
             graphics.text(font, value, x + 8, bottom - 8,
@@ -2682,6 +2684,238 @@ public final class CombatHudLayers {
         @Override
         protected String getTextureLabel() {
             return "bomber_camera";
+        }
+    }
+
+    // =========================================================================
+    // TiltedMinimapLayer.java (Taktisches 2D-Radar oben links auf Tilted Towers)
+    // =========================================================================
+
+    public static final class TiltedMinimapLayer implements HudElement {
+        private static final double SCALE = 1.0;
+
+        private static final int BORDER_CYAN = 0xFF00F0FF;
+        private static final int BORDER_DIM = 0x5500F0FF;
+        private static final int GRID_COLOR = 0x2200F0FF;
+        private static final int RING_COLOR = 0x3300F0FF;
+        private static final int PLAYER_COLOR = 0xFF00FF9D;
+        private static final int ENEMY_COLOR = 0xFFFF2244;
+        private static final int ENEMY_BELOW = 0xFFFF6633;
+        private static final int BOX_COLOR = 0xFFFFC64B;
+
+        private static void drawCircle(GuiGraphicsExtractor graphics, int cx, int cy, int radius, int color) {
+            int points = 36;
+            for (int i = 0; i < points; i++) {
+                double a = i * (Math.PI * 2.0 / points);
+                int px = cx + (int) Math.round(Math.cos(a) * radius);
+                int py = cy + (int) Math.round(Math.sin(a) * radius);
+                graphics.fill(px, py, px + 1, py + 1, color);
+            }
+        }
+
+        private static void drawCompass(GuiGraphicsExtractor graphics, Font font, int cx, int cy, int radius, float yaw) {
+            double yawRad = Math.toRadians(yaw);
+            int textDist = radius - 8;
+            drawCardinal(graphics, font, cx, cy, textDist, Math.PI - yawRad, "N", 0xFFFF3344);
+            drawCardinal(graphics, font, cx, cy, textDist, 1.5 * Math.PI - yawRad, "O", 0xFF88CCEE);
+            drawCardinal(graphics, font, cx, cy, textDist, -yawRad, "S", 0xFF88CCEE);
+            drawCardinal(graphics, font, cx, cy, textDist, 0.5 * Math.PI - yawRad, "W", 0xFF88CCEE);
+        }
+
+        private static void drawCardinal(GuiGraphicsExtractor graphics, Font font, int cx, int cy, int dist, double angle, String label, int color) {
+            int x = cx + (int) Math.round(dist * Math.sin(angle));
+            int y = cy - (int) Math.round(dist * Math.cos(angle));
+            graphics.centeredText(font, label, x, y - 4, color);
+        }
+
+        private static void drawBezel(GuiGraphicsExtractor graphics, int cx, int cy, int radius) {
+            drawCircle(graphics, cx, cy, radius, BORDER_CYAN);
+            drawCircle(graphics, cx, cy, radius + 1, BORDER_DIM);
+
+            for (int i = 0; i < 12; i++) {
+                double angle = i * (Math.PI / 6.0);
+                int x1 = cx + (int) Math.round(radius * Math.sin(angle));
+                int y1 = cy - (int) Math.round(radius * Math.cos(angle));
+                int x2 = cx + (int) Math.round((radius + 2) * Math.sin(angle));
+                int y2 = cy - (int) Math.round((radius + 2) * Math.cos(angle));
+                graphics.fill(x1, y1, x2 + 1, y2 + 1, BORDER_CYAN);
+            }
+        }
+
+        private static void drawPlayerMarker(GuiGraphicsExtractor graphics, int cx, int cy) {
+            graphics.fill(cx, cy - 4, cx + 1, cy - 3, 0xFFFFFFFF);
+            graphics.fill(cx - 1, cy - 3, cx + 2, cy - 1, PLAYER_COLOR);
+            graphics.fill(cx - 2, cy - 1, cx + 3, cy + 1, PLAYER_COLOR);
+            graphics.fill(cx - 3, cy + 1, cx + 4, cy + 3, PLAYER_COLOR);
+            graphics.fill(cx - 1, cy + 1, cx + 2, cy + 3, 0xFF060910);
+        }
+
+        private static void drawContacts(GuiGraphicsExtractor graphics, Minecraft client, LocalPlayer player,
+                                         MinimapState state, int cx, int cy, int radius, float partialTick) {
+            double px = Mth.lerp(partialTick, player.xo, player.getX());
+            double pz = Mth.lerp(partialTick, player.zo, player.getZ());
+            double yawRad = Math.toRadians(player.getViewYRot(partialTick));
+            double cos = Math.cos(yawRad);
+            double sin = Math.sin(yawRad);
+
+            for (MinimapState.EnemyContact contact : state.getContacts().values()) {
+                Vec3 targetPos = contact.pos();
+                double dx = targetPos.x - px;
+                double dz = targetPos.z - pz;
+                double dy = contact.dy();
+
+                double sx = cx + (-dx * cos - dz * sin) * SCALE;
+                double sy = cy + (dx * sin - dz * cos) * SCALE;
+
+                double distSq = (sx - cx) * (sx - cx) + (sy - cy) * (sy - cy);
+                int maxR = radius - 5;
+                if (distSq > maxR * maxR) {
+                    double len = Math.sqrt(distSq);
+                    sx = cx + (sx - cx) / len * maxR;
+                    sy = cy + (sy - cy) / len * maxR;
+                }
+
+                int ix = (int) Math.round(sx);
+                int iy = (int) Math.round(sy);
+
+                if (contact.shooting()) {
+                    int ripple = (int) ((player.tickCount % 10) * 0.7);
+                    drawCircle(graphics, ix, iy, 3 + ripple, 0x88FF2244);
+                }
+
+                if (dy > 4.5) {
+                    drawUpChevron(graphics, ix, iy, ENEMY_COLOR);
+                } else if (dy < -4.5) {
+                    drawDownChevron(graphics, ix, iy, ENEMY_BELOW);
+                } else {
+                    drawContactDot(graphics, ix, iy, ENEMY_COLOR);
+                }
+            }
+        }
+
+        private static void drawUpChevron(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x, y - 3, x + 1, y - 2, 0xFFFFFFFF);
+            graphics.fill(x - 1, y - 2, x + 2, y - 1, color);
+            graphics.fill(x - 2, y - 1, x + 3, y, color);
+            graphics.fill(x - 3, y, x + 4, y + 2, color);
+        }
+
+        private static void drawDownChevron(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x - 3, y - 1, x + 4, y + 1, color);
+            graphics.fill(x - 2, y + 1, x + 3, y + 2, color);
+            graphics.fill(x - 1, y + 2, x + 2, y + 3, color);
+            graphics.fill(x, y + 3, x + 1, y + 4, 0xFFFFFFFF);
+        }
+
+        private static void drawContactDot(GuiGraphicsExtractor graphics, int x, int y, int color) {
+            graphics.fill(x - 2, y - 1, x + 3, y + 2, color);
+            graphics.fill(x - 1, y - 2, x + 2, y - 1, color);
+            graphics.fill(x, y, x + 1, y + 1, 0xFFFFFFFF);
+        }
+
+        private static void drawWorldObjects(GuiGraphicsExtractor graphics, Minecraft client, LocalPlayer player,
+                                             int cx, int cy, int radius, float partialTick) {
+            double px = Mth.lerp(partialTick, player.xo, player.getX());
+            double pz = Mth.lerp(partialTick, player.zo, player.getZ());
+            double yawRad = Math.toRadians(player.getViewYRot(partialTick));
+            double cos = Math.cos(yawRad);
+            double sin = Math.sin(yawRad);
+
+            if (client.level != null) {
+                for (Entity entity : client.level.entitiesForRendering()) {
+                    if (entity instanceof Display.ItemDisplay box && Hologram.item(box).is(ModItems.ITEM_BOX)) {
+                        Vec3 pos = box.position();
+                        double dx = pos.x - px;
+                        double dz = pos.z - pz;
+                        double sx = cx + (-dx * cos - dz * sin) * SCALE;
+                        double sy = cy + (dx * sin - dz * cos) * SCALE;
+                        double distSq = (sx - cx) * (sx - cx) + (sy - cy) * (sy - cy);
+                        if (distSq <= (radius - 4) * (radius - 4)) {
+                            int bx = (int) Math.round(sx);
+                            int by = (int) Math.round(sy);
+                            graphics.fill(bx, by - 2, bx + 1, by + 3, BOX_COLOR);
+                            graphics.fill(bx - 2, by, bx + 3, by + 1, BOX_COLOR);
+                            graphics.fill(bx, by, bx + 1, by + 1, 0xFFFFFFFF);
+                        }
+                    }
+                }
+            }
+
+            Vec3 hookPos = GrapplePullState.INSTANCE.hookPosition(player.getUUID(), partialTick);
+            if (hookPos != null) {
+                double dx = hookPos.x - px;
+                double dz = hookPos.z - pz;
+                double sx = cx + (-dx * cos - dz * sin) * SCALE;
+                double sy = cy + (dx * sin - dz * cos) * SCALE;
+                double distSq = (sx - cx) * (sx - cx) + (sy - cy) * (sy - cy);
+                int hx = (int) Math.round(sx);
+                int hy = (int) Math.round(sy);
+                if (distSq <= (radius - 2) * (radius - 2)) {
+                    graphics.fill(hx - 2, hy, hx + 3, hy + 1, 0xFF00F0FF);
+                    graphics.fill(hx, hy - 2, hx + 1, hy + 3, 0xFF00F0FF);
+                }
+            }
+        }
+
+        @Override
+        public void extractRenderState(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
+            Minecraft client = Minecraft.getInstance();
+            LocalPlayer player = client.player;
+            if (player == null || client.level == null) {
+                return;
+            }
+            if (!com.oneshotonekill.arena.Arena.TILTED_TOWERS.getDimension().equals(client.level.dimension())) {
+                return;
+            }
+
+            MinimapState state = MinimapState.INSTANCE;
+            if (!state.isMatchRunning()
+                    || MatchStartState.INSTANCE.isCountdownActive()
+                    || !com.oneshotonekill.arena.Arena.TILTED_TOWERS.isInArenaColumn(player.getX(), player.getZ())) {
+                return;
+            }
+
+            float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
+
+            MinimapConfig config = MinimapConfig.INSTANCE;
+            int radius = config.getRadius();
+            int cx = config.getCenterX(graphics.guiWidth(), radius);
+            int cy = config.getCenterY(graphics.guiHeight(), radius);
+
+            double playerWorldX = Mth.lerp(partialTick, player.xo, player.getX());
+            double playerWorldZ = Mth.lerp(partialTick, player.zo, player.getZ());
+            float yaw = player.getViewYRot(partialTick);
+
+            // 1. Rotierende, kreisförmige Geländekarte aktualisieren & zeichnen
+            state.updateRadarView(playerWorldX, playerWorldZ, yaw);
+            if (state.isRadarViewReady()) {
+                int diameter = radius * 2;
+                graphics.blit(RenderPipelines.GUI_TEXTURED, MinimapState.RADAR_VIEW_ID,
+                        cx - radius, cy - radius, 0, 0, diameter, diameter,
+                        MinimapState.RADAR_TEX_SIZE, MinimapState.RADAR_TEX_SIZE,
+                        MinimapState.RADAR_TEX_SIZE, MinimapState.RADAR_TEX_SIZE);
+            }
+
+            // 2. Polar-Gitter & Distanzringe
+            drawCircle(graphics, cx, cy, (int) (radius * 0.5), RING_COLOR);
+            drawCircle(graphics, cx, cy, radius, BORDER_DIM);
+            graphics.horizontalLine(cx - radius + 4, cx + radius - 4, cy, GRID_COLOR);
+            graphics.verticalLine(cx, cy - radius + 4, cy + radius - 4, GRID_COLOR);
+
+            // 3. Rotierende Kompass-Markierungen (N, O, S, W)
+            drawCompass(graphics, client.font, cx, cy, radius, yaw);
+
+            // 4. Radar-Rahmen & Ticks
+            drawBezel(graphics, cx, cy, radius);
+
+            // 5. Kisten, Grappler-Anker
+            drawWorldObjects(graphics, client, player, cx, cy, radius, partialTick);
+
+            // 6. Gegner-Kontakte (mit Vertikalitäts-Höhenpfeilen ▲ / ▼ / ●)
+            drawContacts(graphics, client, player, state, cx, cy, radius, partialTick);
+
+            // 7. Eigener Spielerpfeil (Mitte)
+            drawPlayerMarker(graphics, cx, cy);
         }
     }
 }

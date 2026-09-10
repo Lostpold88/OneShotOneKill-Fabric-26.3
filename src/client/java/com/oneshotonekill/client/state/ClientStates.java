@@ -1,5 +1,7 @@
 package com.oneshotonekill.client.state;
 
+import com.mojang.blaze3d.platform.NativeImage;
+import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.item.runtime.AirstrikeSystem;
 import com.oneshotonekill.item.runtime.MinigunRuntime;
 import com.oneshotonekill.network.OsokPayloads.*;
@@ -7,13 +9,21 @@ import com.oneshotonekill.nuke.NukeSequenceManager.NukePhase;
 import com.oneshotonekill.registry.ModItems;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
+import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.client.renderer.texture.DynamicTexture;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.Items;
+import net.minecraft.world.level.block.Blocks;
+import net.minecraft.world.level.block.state.BlockState;
+import net.minecraft.world.level.material.MapColor;
+import net.minecraft.world.level.material.MapColor.Brightness;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
 
@@ -821,12 +831,15 @@ public final class ClientStates {
                 remainingTicks = -1;
                 goTicks = GO_TICKS;
                 CameraShakeState.INSTANCE.triggerDirect(0.55F, 18);
+                MinimapState.INSTANCE.setMatchRunning(true);
+                MinimapState.INSTANCE.markDirty();
             } else {
                 // Countdown: Kamera von vorn, damit man sich selbst im Startfeld stehen sieht.
                 client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
                 fovBoost = 0.12F;
                 remainingTicks = payload.getRemainingTicks();
                 goTicks = 0;
+                MinimapState.INSTANCE.setMatchRunning(false);
             }
         }
 
@@ -857,6 +870,7 @@ public final class ClientStates {
             mapName = "Standard";
             gameModeName = "Klassisch";
             Minecraft.getInstance().options.setCameraType(CameraType.FIRST_PERSON);
+            MinimapState.INSTANCE.setMatchRunning(false);
         }
     }
 
@@ -1522,8 +1536,13 @@ public final class ClientStates {
 
             if ("PAUSE".equalsIgnoreCase(payload.getEvent())) {
                 this.matchPaused = true;
-            } else if ("RESUME".equalsIgnoreCase(payload.getEvent()) || "STOP".equalsIgnoreCase(payload.getEvent())) {
+                MinimapState.INSTANCE.setMatchRunning(false);
+            } else if ("STOP".equalsIgnoreCase(payload.getEvent())) {
                 this.matchPaused = false;
+                MinimapState.INSTANCE.setMatchRunning(false);
+            } else if ("RESUME".equalsIgnoreCase(payload.getEvent())) {
+                this.matchPaused = false;
+                MinimapState.INSTANCE.setMatchRunning(true);
             }
         }
 
@@ -1634,6 +1653,336 @@ public final class ClientStates {
             tierName = "OneShot Bogen";
             colorName = "yellow";
             levelUpEffectTicks = 0;
+        }
+    }
+
+    // =========================================================================
+    // MinimapState.java (Tilted Towers 2D Radar)
+    // =========================================================================
+
+    public static final class MinimapState {
+        public static final MinimapState INSTANCE = new MinimapState();
+        public static final Identifier RADAR_VIEW_ID = Identifier.fromNamespaceAndPath("oneshotonekill", "dynamic/tilted_radar_view");
+
+        public static final int MAP_WIDTH = 170;
+        public static final int MAP_HEIGHT = 160;
+        public static final double MIN_X = -135.0;
+        public static final double MAX_X = 35.0;
+        public static final double MIN_Z = 165.0;
+        public static final double MAX_Z = 325.0;
+
+        public static final int RADAR_RADIUS = 56;
+        public static final int RADAR_TEX_RADIUS = 112;
+        public static final int RADAR_TEX_SIZE = RADAR_TEX_RADIUS * 2;
+
+        private final int[] arenaColors = new int[MAP_WIDTH * MAP_HEIGHT];
+        private final short[] arenaHeights = new short[MAP_WIDTH * MAP_HEIGHT];
+        private final Map<UUID, EnemyContact> contacts = new HashMap<>();
+        private DynamicTexture radarViewTexture;
+        private NativeImage radarImage;
+        private boolean textureUploaded = false;
+        private boolean radarViewReady = false;
+        private boolean radarViewDirty = true;
+        private boolean matchRunning = false;
+        private double lastPx = Double.NaN;
+        private double lastPz = Double.NaN;
+        private float lastYaw = Float.NaN;
+        private int scanColumn = 0;
+        private int scanPasses = 0;
+        private boolean scanComplete = false;
+        private String currentDimension = "";
+
+        private MinimapState() {
+        }
+
+        public boolean isMatchRunning() {
+            return matchRunning;
+        }
+
+        public void setMatchRunning(boolean matchRunning) {
+            this.matchRunning = matchRunning;
+        }
+
+        /**
+         * Echtes Vollfarben-Rendering mit dynamischem 3D-Relief-Schattierungseffekt (Hillshading).
+         * Sonne steht im Nordwesten; Wolkenkratzer und Kanten werfen plastische Schatten.
+         */
+        private static int shadeRelief(int rawRgb, int y, int hNorth, int hWest) {
+            if (rawRgb == 0) {
+                return 0xFF141920; // Solider, deckender Asphalt-/Schattengrund
+            }
+            int r = (rawRgb >> 16) & 0xFF;
+            int g = (rawRgb >> 8) & 0xFF;
+            int b = rawRgb & 0xFF;
+
+            // 1. Höhenschattierung: Tiefere Straßen und Unterführungen dunkler, hohe Türme heller
+            double altFactor = 0.80 + 0.28 * Math.clamp((y - 4) / 42.0, 0.0, 1.0);
+
+            // 2. Relief-Schattenwurf (Licht von Nord-Westen)
+            int diffN = y - hNorth;
+            int diffW = y - hWest;
+            double slope = (diffN + diffW) * 0.08;
+            double sunFactor = 1.0 + Math.clamp(slope, -0.32, 0.32);
+
+            double total = altFactor * sunFactor;
+
+            int tr = (int) Math.clamp(r * total, 0, 255);
+            int tg = (int) Math.clamp(g * total, 0, 255);
+            int tb = (int) Math.clamp(b * total, 0, 255);
+
+            // 0xFF = 255 Alpha (100% solide Deckkraft - kein Durchscheinen der Spielwelt)
+            return 0xFF000000 | (tr << 16) | (tg << 8) | tb;
+        }
+
+        public boolean isRadarViewReady() {
+            return radarViewReady && radarViewTexture != null;
+        }
+
+        public Map<UUID, EnemyContact> getContacts() {
+            return contacts;
+        }
+
+        public void onPlayerShot(UUID player) {
+            EnemyContact current = contacts.get(player);
+            if (current != null) {
+                contacts.put(player, new EnemyContact(current.pos(), current.dy(), true, current.expiryTick() + 40));
+            }
+        }
+
+        public void updateRadarView(double px, double pz, float yaw) {
+            Minecraft client = Minecraft.getInstance();
+            if (radarViewTexture == null) {
+                radarViewTexture = new DynamicTexture("Tilted Radar View", RADAR_TEX_SIZE, RADAR_TEX_SIZE, true);
+                radarImage = radarViewTexture.getPixels();
+                client.getTextureManager().register(RADAR_VIEW_ID, radarViewTexture);
+                radarViewDirty = true;
+            }
+
+            double dPx = px - lastPx;
+            double dPz = pz - lastPz;
+            float dYaw = Math.abs(yaw - lastYaw);
+            if (!radarViewDirty && Math.abs(dPx) < 0.03 && Math.abs(dPz) < 0.03 && dYaw < 0.12f) {
+                return;
+            }
+
+            lastPx = px;
+            lastPz = pz;
+            lastYaw = yaw;
+            radarViewDirty = false;
+
+            double yawRad = Math.toRadians(yaw);
+            double cos = Math.cos(yawRad);
+            double sin = Math.sin(yawRad);
+            int rSq = RADAR_TEX_RADIUS * RADAR_TEX_RADIUS;
+            int innerSq = (RADAR_TEX_RADIUS - 3) * (RADAR_TEX_RADIUS - 3);
+
+            for (int dy = -RADAR_TEX_RADIUS; dy < RADAR_TEX_RADIUS; dy++) {
+                int py = dy + RADAR_TEX_RADIUS;
+                for (int dx = -RADAR_TEX_RADIUS; dx < RADAR_TEX_RADIUS; dx++) {
+                    int pxOffset = dx + RADAR_TEX_RADIUS;
+                    int d2 = dx * dx + dy * dy;
+                    if (d2 > rSq) {
+                        radarImage.setPixel(pxOffset, py, 0x00000000);
+                        continue;
+                    }
+
+                    // 2x Supersampling: 1 GUI-Pixel = 2 Textur-Pixel
+                    double screenDx = dx * 0.5;
+                    double screenDy = dy * 0.5;
+
+                    // World-Koordinaten aus lokalem Bildschirm-Offset
+                    double deltaX = -screenDx * cos + screenDy * sin;
+                    double deltaZ = -screenDx * sin - screenDy * cos;
+                    int worldX = (int) Math.floor(px + deltaX);
+                    int worldZ = (int) Math.floor(pz + deltaZ);
+
+                    int mapX = (int) Math.floor(worldX - MIN_X);
+                    int mapZ = (int) Math.floor(worldZ - MIN_Z);
+
+                    int color = 0xFF141920;
+                    if (mapX >= 0 && mapX < MAP_WIDTH && mapZ >= 0 && mapZ < MAP_HEIGHT) {
+                        int idx = mapZ * MAP_WIDTH + mapX;
+                        int rawRgb = arenaColors[idx];
+                        int h = arenaHeights[idx];
+                        int hNorth = (mapZ > 0) ? arenaHeights[(mapZ - 1) * MAP_WIDTH + mapX] : h;
+                        int hWest = (mapX > 0) ? arenaHeights[mapZ * MAP_WIDTH + (mapX - 1)] : h;
+                        color = shadeRelief(rawRgb, h, hNorth, hWest);
+                    }
+
+                    // Weiches 3-Pixel Antialiasing am kreisförmigen Rand
+                    if (d2 > innerSq) {
+                        float edgeFade = 1.0f - (float) (Math.sqrt(d2) - (RADAR_TEX_RADIUS - 3)) / 3.0f;
+                        edgeFade = Math.clamp(edgeFade, 0.0f, 1.0f);
+                        int alpha = (int) (255 * edgeFade);
+                        color = (alpha << 24) | (color & 0x00FFFFFF);
+                    }
+
+                    radarImage.setPixel(pxOffset, py, color);
+                }
+            }
+
+            radarViewTexture.upload();
+            radarViewReady = true;
+        }
+
+        public void tick(Minecraft client) {
+            if (client.level == null || client.player == null) {
+                clear();
+                return;
+            }
+
+            boolean isTilted = Arena.TILTED_TOWERS.getDimension().equals(client.level.dimension());
+            if (!isTilted) {
+                if (!currentDimension.isEmpty()) {
+                    clear();
+                }
+                return;
+            }
+
+            String dim = Arena.TILTED_TOWERS.getId();
+            if (!dim.equals(currentDimension)) {
+                clear();
+                currentDimension = dim;
+            }
+
+            // Inkrementeller Geländescan (schonend über mehrere Ticks verteilt)
+            if (!scanComplete) {
+                int columnsPerTick = 18;
+                int end = Math.min(MAP_WIDTH, scanColumn + columnsPerTick);
+                BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
+                ClientLevel level = client.level;
+                boolean anyChunkMissing = false;
+
+                for (int cx = scanColumn; cx < end; cx++) {
+                    int worldX = (int) Math.floor(MIN_X + cx);
+                    for (int cz = 0; cz < MAP_HEIGHT; cz++) {
+                        int worldZ = (int) Math.floor(MIN_Z + cz);
+                        int rawRgb = 0;
+                        short height = 0;
+                        if (level.hasChunk(worldX >> 4, worldZ >> 4)) {
+                            int upper = 85;
+                            int lower = 0;
+                            for (int y = upper; y >= lower; y--) {
+                                pos.set(worldX, y, worldZ);
+                                BlockState state = level.getBlockState(pos);
+
+                                // 1. Unsichtbare Hilfs- und Gameplay-Blöcke ignorieren (durchschauen auf echte Dächer)
+                                if (state.isAir() || state.is(Blocks.BARRIER) || state.is(Blocks.LIGHT)
+                                        || state.is(Blocks.STRUCTURE_VOID) || state.is(Blocks.TRIPWIRE)
+                                        || state.is(Blocks.TRIPWIRE_HOOK)) {
+                                    continue;
+                                }
+
+                                // 2. Glas & Dachfenster: Echte architektonische Glasfarbe statt unsichtbarem Durchscheinen
+                                if (state.is(Blocks.GLASS) || state.is(Blocks.GLASS_PANE) || state.is(Blocks.TINTED_GLASS)) {
+                                    height = (short) y;
+                                    rawRgb = 0x688599; // Modernes, dezentes Stahlblau-Glas
+                                    break;
+                                }
+
+                                // 3. Gitter / Geländer auf Dächern
+                                if (state.is(Blocks.IRON_BARS)) {
+                                    height = (short) y;
+                                    rawRgb = 0x484E54; // Dunkles Konstruktions-Metall
+                                    break;
+                                }
+
+                                // 4. Reguläre Farbblöcke
+                                MapColor mapColor = state.getMapColor(level, pos);
+                                if (mapColor != MapColor.NONE) {
+                                    height = (short) y;
+                                    rawRgb = mapColor.calculateARGBColor(Brightness.NORMAL) & 0xFFFFFF;
+                                    break;
+                                }
+                            }
+                        } else {
+                            anyChunkMissing = true;
+                        }
+                        int idx = cz * MAP_WIDTH + cx;
+                        arenaColors[idx] = rawRgb;
+                        arenaHeights[idx] = height;
+                    }
+                }
+                radarViewDirty = true;
+                scanColumn = end;
+                if (scanColumn >= MAP_WIDTH) {
+                    if (anyChunkMissing && scanPasses < 5) {
+                        scanPasses++;
+                        scanColumn = 0;
+                    } else {
+                        scanComplete = true;
+                        textureUploaded = true;
+                    }
+                }
+            }
+
+            // Abgelaufene Kontakte entfernen
+            int currentTick = client.player.tickCount;
+            contacts.entrySet().removeIf(e -> e.getValue().expiryTick() < currentTick);
+
+            LocalPlayer player = client.player;
+            Vec3 eye = player.getEyePosition();
+            Vec3 look = player.getViewVector(1.0F);
+
+            // Taktische Ortung: Rennen, Springen, Schießen, Grappler, Sichtlinie
+            for (Player other : client.level.players()) {
+                if (other == player || !other.isAlive() || other.isSpectator() || other.isInvisible()) {
+                    continue;
+                }
+
+                boolean sprinting = other.isSprinting();
+                boolean jumping = !other.onGround() && !other.isInWater() && Math.abs(other.getDeltaMovement().y) > 0.06;
+                boolean usingWeapon = other.isUsingItem() && (other.getUseItem().is(Items.BOW) || other.getUseItem().is(ModItems.MINIGUN));
+                boolean grappling = GrapplePullState.INSTANCE.isGrappleActive(other.getUUID());
+
+                Vec3 toOther = other.getEyePosition().subtract(eye);
+                double dist = toOther.length();
+                boolean onScreen = false;
+                if (dist > 0.1 && dist < 128.0) {
+                    double dot = look.dot(toOther.scale(1.0 / dist));
+                    if (dot > 0.40 && player.hasLineOfSight(other)) {
+                        onScreen = true;
+                    }
+                }
+
+                if (sprinting || jumping || usingWeapon || grappling || onScreen) {
+                    double dy = other.getY() - player.getY();
+                    contacts.put(other.getUUID(), new EnemyContact(other.position(), dy, usingWeapon || grappling, currentTick + 40));
+                }
+            }
+        }
+
+        public void markDirty() {
+            scanColumn = 0;
+            scanPasses = 0;
+            scanComplete = false;
+            radarViewDirty = true;
+        }
+
+        public void clear() {
+            Minecraft client = Minecraft.getInstance();
+            if (radarViewTexture != null) {
+                client.getTextureManager().release(RADAR_VIEW_ID);
+                radarViewTexture = null;
+                radarImage = null;
+            }
+            Arrays.fill(arenaColors, 0);
+            Arrays.fill(arenaHeights, (short) 0);
+            textureUploaded = false;
+            radarViewReady = false;
+            radarViewDirty = true;
+            matchRunning = false;
+            lastPx = Double.NaN;
+            lastPz = Double.NaN;
+            lastYaw = Float.NaN;
+            scanColumn = 0;
+            scanPasses = 0;
+            scanComplete = false;
+            currentDimension = "";
+            contacts.clear();
+        }
+
+        public record EnemyContact(Vec3 pos, double dy, boolean shooting, int expiryTick) {
         }
     }
 }

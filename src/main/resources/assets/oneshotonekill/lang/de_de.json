@@ -39,6 +39,7 @@
   "key.category.oneshotonekill.main": "One Shot One Kill",
   "key.oneshotonekill.detonate_c4": "C4 zünden",
   "key.oneshotonekill.glide_boost": "Gleitflug-Boost (Doppelsprung)",
+  "key.oneshotonekill.minimap_config": "Minimap-Editor öffnen",
   "key.oneshotonekill.open_admin_menu": "Admin-Item-Menü öffnen",
   "key.oneshotonekill.open_menu": "Arena-Menü öffnen",
   "tooltip.oneshotonekill.c4_detonate": "Zünden per Fernzünder (Rechtsklick) oder Taste [%s].",

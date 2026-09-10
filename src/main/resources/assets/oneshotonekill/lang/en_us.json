@@ -39,6 +39,7 @@
   "key.category.oneshotonekill.main": "One Shot One Kill",
   "key.oneshotonekill.detonate_c4": "Detonate C4",
   "key.oneshotonekill.glide_boost": "Glide Boost (Double Jump)",
+  "key.oneshotonekill.minimap_config": "Open Minimap Editor",
   "key.oneshotonekill.open_admin_menu": "Open Admin Item Menu",
   "key.oneshotonekill.open_menu": "Open Arena Menu",
   "tooltip.oneshotonekill.c4_detonate": "Detonate via detonator (Right-Click) or key [%s].",

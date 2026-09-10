@@ -15,8 +15,10 @@ import com.oneshotonekill.client.hud.NukeHudLayers.NukeFlashLayer;
 import com.oneshotonekill.client.hud.NukeHudLayers.NukeVictoryLayer;
 import com.oneshotonekill.client.model.OsokClientModels;
 import com.oneshotonekill.client.network.OsokClientHandlers;
+import com.oneshotonekill.client.config.MinimapConfig;
 import com.oneshotonekill.client.renderer.*;
 import com.oneshotonekill.client.screen.AdminItemScreen;
+import com.oneshotonekill.client.screen.MinimapConfigScreen;
 import com.oneshotonekill.client.sound.MinigunSoundController;
 import com.oneshotonekill.client.sound.NukeSoundController;
 import com.oneshotonekill.client.sound.TimeDistortionSoundController;
@@ -69,6 +71,7 @@ public final class OsokClient implements ClientModInitializer {
     private static KeyMapping detonateC4Key;
     private static KeyMapping menuKey;
     private static KeyMapping adminMenuKey;
+    private static KeyMapping minimapConfigKey;
     private static boolean jumpWasDown;
     private static int ticksSinceJump = Integer.MAX_VALUE;
 
@@ -79,6 +82,8 @@ public final class OsokClient implements ClientModInitializer {
                 InputConstants.Type.KEYSYM, InputConstants.KEY_G, OSOK_CATEGORY));
         adminMenuKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.oneshotonekill.open_admin_menu",
                 InputConstants.Type.KEYSYM, InputConstants.KEY_X, OSOK_CATEGORY));
+        minimapConfigKey = KeyMappingHelper.registerKeyMapping(new KeyMapping("key.oneshotonekill.minimap_config",
+                InputConstants.Type.KEYSYM, InputConstants.KEY_Y, OSOK_CATEGORY));
     }
 
     /**
@@ -101,6 +106,7 @@ public final class OsokClient implements ClientModInitializer {
         HudElementRegistry.addLast(id("nuke_countdown"), new NukeCountdownLayer());
         HudElementRegistry.addLast(id("nuke_victory"), new NukeVictoryLayer());
         HudElementRegistry.addLast(id("nuke_flash"), new NukeFlashLayer());
+        HudElementRegistry.addLast(id("tilted_minimap"), new TiltedMinimapLayer());
 
         // Das Vanilla-Fadenkreuz wird ausgeblendet, solange Minigun, Railgun oder Grappling Hook in der Hand liegen:
         HudElementRegistry.replaceElement(VanillaHudElements.CROSSHAIR, original -> (graphics, deltaTracker) -> {
@@ -173,6 +179,7 @@ public final class OsokClient implements ClientModInitializer {
         MinigunSoundController.INSTANCE.tickClient(client);
         NukeState.INSTANCE.tick();
         NukeSoundController.INSTANCE.tick(client);
+        MinimapState.INSTANCE.tick(client);
         // Der Zeitverzerrer läuft je Bild: Während der Zeitlupe tickt auch der Client nur achtmal
         // je Sekunde, hier bleibt nur das Ablaufen der Frist übrig.
         TimeDistortionEffects.INSTANCE.clientTick();
@@ -192,6 +199,15 @@ public final class OsokClient implements ClientModInitializer {
             if (current == null) {
                 client.gui.setScreen(new AdminItemScreen());
             } else if (current instanceof AdminItemScreen) {
+                client.gui.setScreen(null);
+            }
+        }
+
+        if (minimapConfigKey != null && minimapConfigKey.consumeClick() && client.player != null) {
+            Screen current = client.gui.screen();
+            if (current == null) {
+                client.gui.setScreen(new MinimapConfigScreen());
+            } else if (current instanceof MinimapConfigScreen) {
                 client.gui.setScreen(null);
             }
         }
@@ -250,6 +266,7 @@ public final class OsokClient implements ClientModInitializer {
         NukeSoundController.INSTANCE.stopAll();
         TimeDistortionSoundController.INSTANCE.stopAll();
         TimeDistortionEffects.INSTANCE.clear();
+        MinimapState.INSTANCE.clear();
     }
 
     public static boolean isDetonateC4Key(KeyEvent event) {
@@ -276,12 +293,21 @@ public final class OsokClient implements ClientModInitializer {
         return adminMenuKey == null ? Component.literal("?") : adminMenuKey.getTranslatedKeyMessage().copy();
     }
 
+    public static boolean isMinimapConfigKey(KeyEvent event) {
+        return minimapConfigKey != null && minimapConfigKey.matches(event);
+    }
+
+    public static Component minimapConfigKeyName() {
+        return minimapConfigKey == null ? Component.literal("?") : minimapConfigKey.getTranslatedKeyMessage().copy();
+    }
+
     private static Identifier id(String path) {
         return Identifier.fromNamespaceAndPath(OneShotOneKill.MOD_ID, path);
     }
 
     @Override
     public void onInitializeClient() {
+        MinimapConfig.INSTANCE.load();
         registerKeys();
         registerHudElements();
         registerModels();

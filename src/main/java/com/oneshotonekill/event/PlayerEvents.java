@@ -89,6 +89,7 @@ public final class PlayerEvents {
             EquipmentManager.INSTANCE.clearBaseEquipment(player);
          }
          SlowMotionSystem.INSTANCE.syncJoiningPlayer(player);
+         MatchManager.INSTANCE.sendState(player, false);
       }
    
       public void onRespawn(ServerPlayer player) {

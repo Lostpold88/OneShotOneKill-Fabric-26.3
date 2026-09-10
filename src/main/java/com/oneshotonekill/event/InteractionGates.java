@@ -36,6 +36,7 @@ public final class InteractionGates {
         clientPullGate = gate;
     }
 
+    @SuppressWarnings("resource")
     public static boolean isGrapplePulling(Player player) {
         if (player == null) {
             return false;
