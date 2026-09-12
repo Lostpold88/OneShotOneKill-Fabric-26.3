@@ -15,6 +15,7 @@
 		"match.PlayerAdvancementsMixin",
 		"match.ServerPlayerTabListMixin",
 		"movement.ServerPlayerMantleMixin",
+		"movement.BoogieSprintMixin",
 		"movement.LivingEntityClimbingMixin"
 	],
 	"injectors": {

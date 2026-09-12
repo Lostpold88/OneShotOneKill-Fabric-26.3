@@ -1,4 +1,11 @@
 {
+  "item.oneshotonekill.boogie_bomb": "Boogie-Bomb",
+  "item.oneshotonekill.boogie_disco_ball": "Disco Ball",
+  "item.oneshotonekill.boogie_beam": "Disco Light",
+  "hud.oneshotonekill.boogie": "♫ BOOGIE! %s s · Bewegen und Springen möglich",
+  "tooltip.oneshotonekill.boogie_bomb": "Rechtsklick: Wirf eine Disco-Granate. 15 Sekunden Tanz im Umkreis.",
+  "tooltip.oneshotonekill.boogie_bomb_warning": "Auch du kannst getroffen werden. Schaden beendet den Tanz.",
+  "subtitles.oneshotonekill.boogie_bomb": "Boogie-Bomb: Discomusik",
   "hud.oneshotonekill.mantle": "%s + %s halten · Klettern",
   "hud.oneshotonekill.wall_climbing": "%s/%s hoch/runter · %s/%s seitlich · %s halten",
   "hud.oneshotonekill.mantling": "Hochziehen · %s zum Abbrechen",

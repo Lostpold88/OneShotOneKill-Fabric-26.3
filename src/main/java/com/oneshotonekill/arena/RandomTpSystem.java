@@ -264,6 +264,7 @@ public final class RandomTpSystem {
            if (server == null) return;
            ServerLevel level = server.getLevel(arena.getDimension());
            if (level == null) level = player.level();
+           com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.clearFor(player);
            if (afterDeath) OsokEffects.INSTANCE.playEliminationEffect(level, deathPos);
             Vec3 target = getSafestArenaLocation(arena, server, player, deathPos);
             restorePlayer(player);

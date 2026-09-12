@@ -21,28 +21,28 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class MinecraftInteractionMixin {
    @Inject(method = "startAttack", at = @At("HEAD"), cancellable = true)
    private void osok$blockAttack(CallbackInfoReturnable<Boolean> cir) {
-      if (AbilityStatusState.INSTANCE.isFrozen()) {
+      if (AbilityStatusState.INSTANCE.isFrozen() || com.oneshotonekill.client.effect.BoogieBombClient.isLocalDancing()) {
          cir.setReturnValue(false);
       }
    }
 
    @Inject(method = "continueAttack", at = @At("HEAD"), cancellable = true)
    private void osok$blockContinueAttack(boolean down, CallbackInfo ci) {
-      if (AbilityStatusState.INSTANCE.isFrozen()) {
+      if (AbilityStatusState.INSTANCE.isFrozen() || com.oneshotonekill.client.effect.BoogieBombClient.isLocalDancing()) {
          ci.cancel();
       }
    }
 
    @Inject(method = "startUseItem", at = @At("HEAD"), cancellable = true)
    private void osok$blockUseItem(CallbackInfo ci) {
-      if (AbilityStatusState.INSTANCE.isFrozen()) {
+      if (AbilityStatusState.INSTANCE.isFrozen() || com.oneshotonekill.client.effect.BoogieBombClient.isLocalDancing()) {
          ci.cancel();
       }
    }
 
    @Inject(method = "pickBlockOrEntity", at = @At("HEAD"), cancellable = true)
    private void osok$blockPick(CallbackInfo ci) {
-      if (AbilityStatusState.INSTANCE.isFrozen()) {
+      if (AbilityStatusState.INSTANCE.isFrozen() || com.oneshotonekill.client.effect.BoogieBombClient.isLocalDancing()) {
          ci.cancel();
       }
    }

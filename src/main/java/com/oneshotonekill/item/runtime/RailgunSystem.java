@@ -255,12 +255,7 @@ public final class RailgunSystem {
    }
 
    private static void setCoils(ItemStack weapon, int colour) {
-      int stepped = colour & 0xF8F8F8;
-      DyedItemColor current = weapon.get(DataComponents.DYED_COLOR);
-      if (current != null && current.rgb() == stepped) {
-         return;
-      }
-      weapon.set(DataComponents.DYED_COLOR, new DyedItemColor(stepped));
+      com.oneshotonekill.shared.DeviceLights.set(weapon, colour);
    }
 
    // -- Schießen ------------------------------------------------------------

@@ -82,22 +82,25 @@ public final class EquipmentManager {
       }
    }
 
-   private ItemStack createSword() {
-      ItemStack sword = new ItemStack(Items.IRON_SWORD);
-      sword.set(DataComponents.CUSTOM_NAME, Component.literal("⚔ OneShot Dolch").withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
-      sword.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
+   public static ItemAttributeModifiers createWeaponModifiers() {
       // Reines Vanilla 1.8 Verhalten:
       // 1. Instant Attack-Speed (+100.0): Jeder Klick hat 100% Wucht, kein Angriffs-Cooldown/Ladebalken
       // 2. Kein Sweeping Edge / Flächenschaden (-1.0): Präziser Einzeltreffer wie in Minecraft 1.8
-      ItemAttributeModifiers modifiers = ItemAttributeModifiers.builder()
+      return ItemAttributeModifiers.builder()
          .add(Attributes.ATTACK_SPEED, new AttributeModifier(OneShotOneKill.INSTANCE.id("weapon_attack_speed"), 100.0, AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
          .add(Attributes.SWEEPING_DAMAGE_RATIO, new AttributeModifier(OneShotOneKill.INSTANCE.id("weapon_no_sweep"), -1.0, AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
          .build();
-      sword.set(DataComponents.ATTRIBUTE_MODIFIERS, modifiers);
+   }
+
+   public ItemStack createSword() {
+      ItemStack sword = new ItemStack(Items.IRON_SWORD);
+      sword.set(DataComponents.CUSTOM_NAME, Component.literal("⚔ OneShot Dolch").withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
+      sword.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
+      sword.set(DataComponents.ATTRIBUTE_MODIFIERS, createWeaponModifiers());
       return ProtectedItems.lockToSlot(sword);
    }
 
-   private ItemStack createBow(ServerPlayer player) {
+   public ItemStack createBow(ServerPlayer player) {
       ItemStack bow = new ItemStack(Items.BOW);
       bow.set(DataComponents.CUSTOM_NAME, Component.literal("⚡ OneShot Bogen").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
       bow.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);

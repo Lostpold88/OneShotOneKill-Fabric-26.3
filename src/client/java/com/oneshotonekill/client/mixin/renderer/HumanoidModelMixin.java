@@ -63,7 +63,7 @@ public abstract class HumanoidModelMixin {
             return;
         }
         Entity entity = Minecraft.getInstance().level.getEntity(avatar.id);
-        if (!(entity instanceof LivingEntity living)) {
+        if (!(entity instanceof LivingEntity living) || com.oneshotonekill.client.effect.BoogieBombClient.isDancing(entity.getUUID())) {
             return;
         }
 
@@ -138,7 +138,7 @@ public abstract class HumanoidModelMixin {
     private void osok$poseMantlingPlayer(HumanoidRenderState state, CallbackInfo ci) {
         if (!(state instanceof AvatarRenderState avatar) || Minecraft.getInstance().level == null) return;
         Entity entity = Minecraft.getInstance().level.getEntity(avatar.id);
-        if (entity == null) return;
+        if (entity == null || com.oneshotonekill.client.effect.BoogieBombClient.isDancing(entity.getUUID())) return;
         float partialTick = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
         float blend = com.oneshotonekill.client.movement.ClientClimbing.INSTANCE.pose(entity, partialTick);
         if (blend <= 0) return;

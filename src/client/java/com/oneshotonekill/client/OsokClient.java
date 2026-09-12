@@ -159,6 +159,7 @@ public final class OsokClient implements ClientModInitializer {
         MagnetShieldRenderer.register();
         GliderWingRenderer.register();
         GrapplingHookRenderer.register();
+        BoogieDiscoRenderer.register();
     }
 
     private static void onClientTick(Minecraft client) {
@@ -177,6 +178,7 @@ public final class OsokClient implements ClientModInitializer {
         ReflectorShieldRenderer.tick();
         MagnetShieldRenderer.tick();
         GliderWingRenderer.tick();
+        BoogieDiscoRenderer.tick();
         CameraShakeState.INSTANCE.tick();
         MinigunSoundController.INSTANCE.tickClient(client);
         NukeState.INSTANCE.tick();
@@ -262,6 +264,7 @@ public final class OsokClient implements ClientModInitializer {
         MagnetShieldRenderer.clear();
         GliderWingRenderer.clear();
         GrapplingHookRenderer.clear();
+        BoogieDiscoRenderer.clear();
         GrapplePullState.INSTANCE.clear();
         CameraShakeState.INSTANCE.clear();
         MinigunSoundController.INSTANCE.stopAll();
@@ -317,6 +320,7 @@ public final class OsokClient implements ClientModInitializer {
         registerRenderers();
 
         OsokClientHandlers.register();
+        com.oneshotonekill.client.effect.BoogieBombClient.register();
         ClientInputEvents.register();
         InteractionGates.registerClientPullGate(player ->
                 GrapplePullState.INSTANCE.isPulling(player.getUUID())

@@ -21,6 +21,8 @@
 		"network.ClientPacketListenerTickRateMixin",
 		"renderer.AvatarRendererMixin",
 		"renderer.HumanoidModelMixin",
+		"renderer.BoogieHumanoidModelMixin",
+		"renderer.BoogieAvatarRendererMixin",
 		"renderer.ItemInHandRendererMixin",
 		"renderer.LivingEntityRendererMixin",
 		"sound.SoundEngineAccessor",

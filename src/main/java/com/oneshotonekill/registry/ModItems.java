@@ -1,16 +1,18 @@
 package com.oneshotonekill.registry;
 
 import com.oneshotonekill.OneShotOneKill;
-import static com.oneshotonekill.item.types.WeaponItems.*;
-import static com.oneshotonekill.item.types.AbilityItems.*;
-import static com.oneshotonekill.item.types.DeployableItems.*;
-import java.util.function.Function;
 import net.minecraft.core.Registry;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.core.registries.Registries;
 import net.minecraft.resources.ResourceKey;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.Rarity;
+
+import java.util.function.Function;
+
+import static com.oneshotonekill.item.types.AbilityItems.*;
+import static com.oneshotonekill.item.types.DeployableItems.*;
+import static com.oneshotonekill.item.types.WeaponItems.*;
 
 /**
  * Registriert die Items der Mod unmittelbar in {@link BuiltInRegistries#ITEM}.
@@ -129,4 +131,8 @@ public final class ModItems {
       Item item = factory.apply(new Item.Properties().setId(key).stacksTo(1).rarity(Rarity.EPIC));
       return Registry.register(BuiltInRegistries.ITEM, key, item);
    }
+
+    public static final Item BOOGIE_BOMB = special("boogie_bomb", BoogieBombItem::new);
+    public static final Item BOOGIE_DISCO_BALL = special("boogie_disco_ball", Item::new);
+    public static final Item BOOGIE_BEAM = special("boogie_beam", Item::new);
 }

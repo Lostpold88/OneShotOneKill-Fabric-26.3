@@ -14,7 +14,7 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class PlayerAdvancementsMixin {
 
 	@Inject(method = "award", at = @At("HEAD"), cancellable = true)
-	private void onAward(AdvancementHolder advancement, String criterionName, CallbackInfoReturnable<Boolean> cir) {
+	private void onAward(AdvancementHolder holder, String criterion, CallbackInfoReturnable<Boolean> cir) {
 		cir.setReturnValue(false);
 	}
 }

@@ -1,10 +1,10 @@
 package com.oneshotonekill.item.types;
-import com.oneshotonekill.shared.SpecialItemRules;
 
 import com.oneshotonekill.item.runtime.Deployables;
-import com.oneshotonekill.shared.DeviceLights;
 import com.oneshotonekill.item.runtime.StealthBomberSystem;
 import com.oneshotonekill.item.runtime.ThrownDevices;
+import com.oneshotonekill.shared.DeviceLights;
+import com.oneshotonekill.shared.SpecialItemRules;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.server.level.ServerLevel;
@@ -219,4 +219,18 @@ public final class DeployableItems {
          return false;
       }
    }
+
+    /**
+     * Impact grenade: everyone in range dances, including its thrower.
+     */
+    public static final class BoogieBombItem extends AbilityItems.SpecialAbilityItem {
+        public BoogieBombItem(Properties properties) {
+            super(properties);
+        }
+
+        @Override
+        protected boolean activate(ServerLevel level, ServerPlayer player, ItemStack stack) {
+            return com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.throwBomb(level, player);
+        }
+    }
 }

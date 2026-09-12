@@ -1,6 +1,5 @@
 package com.oneshotonekill.match;
 
-import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.event.KillFeed;
 import com.oneshotonekill.network.OsokPayloads.GunGameStatusPayload;
 import com.oneshotonekill.registry.ModItems;
@@ -13,7 +12,6 @@ import java.util.UUID;
 import java.util.function.Consumer;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.component.DataComponents;
-import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
 import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
@@ -23,14 +21,9 @@ import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.util.Unit;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.entity.EquipmentSlotGroup;
-import net.minecraft.world.entity.ai.attributes.AttributeModifier;
-import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.Items;
-import net.minecraft.world.item.component.ItemAttributeModifiers;
-import net.minecraft.world.item.enchantment.Enchantments;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 
 /**
@@ -355,31 +348,18 @@ public final class GunGameManager {
    }
 
    private static ItemStack createSword(boolean isMaster) {
-      ItemStack sword = new ItemStack(isMaster ? Items.GOLDEN_SWORD : Items.IRON_SWORD);
-      String name = isMaster ? "👑 Meisterdolch" : "⚔ OneShot Dolch";
-      ChatFormatting color = isMaster ? ChatFormatting.GOLD : ChatFormatting.RED;
-      sword.set(DataComponents.CUSTOM_NAME, Component.literal(name).withStyle(color, ChatFormatting.BOLD));
-      sword.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
-
-      ItemAttributeModifiers modifiers = ItemAttributeModifiers.builder()
-         .add(Attributes.ATTACK_SPEED, new AttributeModifier(OneShotOneKill.INSTANCE.id("weapon_attack_speed"), 100.0, AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
-         .add(Attributes.SWEEPING_DAMAGE_RATIO, new AttributeModifier(OneShotOneKill.INSTANCE.id("weapon_no_sweep"), -1.0, AttributeModifier.Operation.ADD_VALUE), EquipmentSlotGroup.MAINHAND)
-         .build();
-      sword.set(DataComponents.ATTRIBUTE_MODIFIERS, modifiers);
-      if (isMaster) {
-         sword.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
+      if (!isMaster) {
+         return com.oneshotonekill.equipment.EquipmentManager.INSTANCE.createSword();
       }
+      ItemStack sword = new ItemStack(Items.GOLDEN_SWORD);
+      sword.set(DataComponents.CUSTOM_NAME, Component.literal("👑 Meisterdolch").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+      sword.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
+      sword.set(DataComponents.ATTRIBUTE_MODIFIERS, com.oneshotonekill.equipment.EquipmentManager.createWeaponModifiers());
+      sword.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
       return ProtectedItems.lockToSlot(sword);
    }
 
    private static ItemStack createBow(ServerPlayer player) {
-      ItemStack bow = new ItemStack(Items.BOW);
-      bow.set(DataComponents.CUSTOM_NAME, Component.literal("⚡ OneShot Bogen").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
-      bow.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
-      player.registryAccess()
-         .lookupOrThrow(Registries.ENCHANTMENT)
-         .get(Enchantments.INFINITY)
-         .ifPresent(infinity -> bow.enchant(infinity, 1));
-      return ProtectedItems.lockToSlot(bow);
+      return com.oneshotonekill.equipment.EquipmentManager.INSTANCE.createBow(player);
    }
 }

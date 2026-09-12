@@ -2,6 +2,8 @@ package com.oneshotonekill.client.mixin.renderer;
 
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
+import com.oneshotonekill.client.effect.BoogieBombClient;
+import com.oneshotonekill.client.effect.BoogieDanceAnimation;
 import com.oneshotonekill.client.state.ClientStates.GrapplePullState;
 import com.oneshotonekill.client.state.ClientStates.GrapplePullState.RenderPose;
 import net.minecraft.client.Minecraft;
@@ -85,6 +87,38 @@ public abstract class LivingEntityRendererMixin {
             poseStack.mulPose(Axis.ZP.rotationDegrees(roll));
          }
       }
+   }
+
+   /** Rotiert und hebt den tanzenden Spieler bei einem Salto während der Boogie-Bomb-Animation an. */
+   @Inject(
+      method = "setupRotations(Lnet/minecraft/client/renderer/entity/state/LivingEntityRenderState;Lcom/mojang/blaze3d/vertex/PoseStack;FF)V",
+      at = @At("RETURN"))
+   private void osok$boogieSalto(LivingEntityRenderState state, PoseStack poseStack,
+                                 float bodyRot, float entityScale, CallbackInfo ci) {
+      if (!(state instanceof AvatarRenderState avatar) || Minecraft.getInstance().level == null) {
+         return;
+      }
+      Entity entity = Minecraft.getInstance().level.getEntity(avatar.id);
+      if (entity == null) {
+         return;
+      }
+      float weight = BoogieBombClient.getWeight(entity.getUUID());
+      if (weight <= 0.001F) {
+         return;
+      }
+      float seconds = BoogieBombClient.seconds(entity.getUUID());
+      float progress = BoogieDanceAnimation.saltoProgress(seconds);
+      if (progress < 0.0F || progress > 1.0F) {
+         return;
+      }
+
+      float jumpY = BoogieDanceAnimation.saltoJumpY(progress) * weight;
+      float pitch = BoogieDanceAnimation.saltoPitch(progress) * weight;
+
+      // Drehpunkt auf Körperschwerpunkt (Hüfte Y ~ 0.95F)
+      poseStack.translate(0.0F, jumpY + 0.95F, 0.0F);
+      poseStack.mulPose(Axis.XP.rotationDegrees(pitch));
+      poseStack.translate(0.0F, -0.95F, 0.0F);
    }
 
    @Inject(

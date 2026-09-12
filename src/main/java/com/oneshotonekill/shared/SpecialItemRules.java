@@ -14,7 +14,8 @@ public final class SpecialItemRules {
    }
 
    public static boolean canUse(ServerPlayer player) {
-      return activeArena(player) != null && !Deployables.INSTANCE.isFrozen(player);
+      return activeArena(player) != null && !Deployables.INSTANCE.isFrozen(player)
+         && !com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.isDancing(player);
    }
 
    /**
@@ -32,6 +33,10 @@ public final class SpecialItemRules {
       }
       if (MatchManager.Countdown.INSTANCE.isCountdownRunning()) {
          Feedback.actionBar(player, "§e✖ Während des Countdowns gesperrt");
+         return false;
+      }
+      if (com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.isDancing(player)) {
+         Feedback.actionBar(player, "§d♫ BOOGIE! §7· keine Waffen oder Items");
          return false;
       }
       if (Deployables.INSTANCE.isFrozen(player)) {

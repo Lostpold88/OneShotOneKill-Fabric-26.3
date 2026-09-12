@@ -8,7 +8,9 @@ import net.minecraft.sounds.SoundEvent;
 
 /** Eigene Klänge der Mod. */
 public final class ModSounds {
-   public static final SoundEvent MINIGUN = register("items.minigun");
+    public static final SoundEvent BOOGIE_BOMB = register("items.boogie_bomb");
+
+    public static final SoundEvent MINIGUN = register("items.minigun");
    /**
     * Die Ansage zum Matchende – das Original aus Call of Duty.
     * <p>

@@ -102,6 +102,7 @@ public final class CombatEvents {
       ScoreboardManager.INSTANCE.resetStreak(player.getUUID());
       ScoreboardManager.INSTANCE.updateAllScoreboards();
       KillFeed.death(player);
+      com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.clearFor(player);
       RespawnSystem.INSTANCE.respawnInstant(player, arena, player.position(), true);
       return false;
    }
@@ -118,6 +119,7 @@ public final class CombatEvents {
          if (StatusAbilities.INSTANCE.consumeShield(victim, attacker, cause)) {
             return;
          }
+         com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.clearFor(victim);
    
          // Beim Tod wird nur beendet, was ohne lebenden Spieler keinen Sinn ergibt. Ein scharf
          // gemachter Schuss, ein Magnetfeld oder ein aufgestellter Turm bleiben bestehen – wer ein

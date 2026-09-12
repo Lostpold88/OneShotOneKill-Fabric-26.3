@@ -51,7 +51,8 @@ public abstract class ServerGamePacketListenerMixin {
             target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/server/level/ServerLevel;)V"),
             cancellable = true)
     private void osok$blockPlayerAction(ServerboundPlayerActionPacket packet, CallbackInfo ci) {
-        if (CombatEvents.FrozenPlayerEvents.blocksAction(this.player)) {
+        if (com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.isDancing(this.player)
+                || CombatEvents.FrozenPlayerEvents.blocksAction(this.player)) {
             ci.cancel();
             return;
         }
@@ -65,7 +66,8 @@ public abstract class ServerGamePacketListenerMixin {
             target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/server/level/ServerLevel;)V"),
             cancellable = true)
     private void osok$blockUseItem(ServerboundUseItemPacket packet, CallbackInfo ci) {
-        if (CombatEvents.FrozenPlayerEvents.blocksAction(this.player)) {
+        if (com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.isDancing(this.player)
+                || CombatEvents.FrozenPlayerEvents.blocksAction(this.player)) {
             ci.cancel();
         }
     }
@@ -74,7 +76,8 @@ public abstract class ServerGamePacketListenerMixin {
             target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/server/level/ServerLevel;)V"),
             cancellable = true)
     private void osok$blockUseItemOn(ServerboundUseItemOnPacket packet, CallbackInfo ci) {
-        if (CombatEvents.FrozenPlayerEvents.blocksAction(this.player)) {
+        if (com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.isDancing(this.player)
+                || CombatEvents.FrozenPlayerEvents.blocksAction(this.player)) {
             ci.cancel();
         }
     }
@@ -83,7 +86,8 @@ public abstract class ServerGamePacketListenerMixin {
             target = "Lnet/minecraft/network/protocol/PacketUtils;ensureRunningOnSameThread(Lnet/minecraft/network/protocol/Packet;Lnet/minecraft/network/PacketListener;Lnet/minecraft/server/level/ServerLevel;)V"),
             cancellable = true)
     private void osok$blockInteract(ServerboundInteractPacket packet, CallbackInfo ci) {
-        if (CombatEvents.FrozenPlayerEvents.blocksAction(this.player)) {
+        if (com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.isDancing(this.player)
+                || CombatEvents.FrozenPlayerEvents.blocksAction(this.player)) {
             ci.cancel();
         }
     }

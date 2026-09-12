@@ -50,6 +50,7 @@ public final class PlayerEvents {
       }
       StatusAbilities.INSTANCE.clearFor(player);
       Deployables.INSTANCE.clearFor(player);
+      com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.clearFor(player);
       ArmedShots.INSTANCE.clearFor(player);
       StealthBomberSystem.INSTANCE.clearFor(player);
       ScoreboardManager.INSTANCE.updateAllScoreboards();
@@ -89,6 +90,7 @@ public final class PlayerEvents {
             EquipmentManager.INSTANCE.clearBaseEquipment(player);
          }
          SlowMotionSystem.INSTANCE.syncJoiningPlayer(player);
+         com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.syncJoiningPlayer(player);
          MatchManager.INSTANCE.sendState(player, false);
       }
    

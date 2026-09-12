@@ -98,6 +98,7 @@ public final class OneShotOneKill implements ModInitializer {
    public static void clearAbilities(MinecraftServer targetServer) {
       StatusAbilities.INSTANCE.reset(targetServer);
       ThrownDevices.INSTANCE.reset();
+      com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.reset(targetServer);
       Deployables.INSTANCE.reset();
       GrapplingHookSystem.INSTANCE.reset();
       BlastEffect.INSTANCE.reset();

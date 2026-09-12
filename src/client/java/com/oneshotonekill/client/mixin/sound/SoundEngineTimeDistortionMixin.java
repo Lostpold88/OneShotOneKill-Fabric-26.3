@@ -18,6 +18,8 @@ public abstract class SoundEngineTimeDistortionMixin {
 
    @ModifyReturnValue(method = "calculatePitch(Lnet/minecraft/client/resources/sounds/SoundInstance;)F", at = @At("RETURN"))
    private float osok$pitchDropDuringTimeDistortion(float original, SoundInstance instance) {
+      // The 15-second disco choreography stays on its original beat during time distortion.
+      if (instance.getIdentifier().equals(com.oneshotonekill.registry.ModSounds.BOOGIE_BOMB.location())) return original;
       return original * TimeDistortionEffects.INSTANCE.soundPitchFactor(instance.getSource());
    }
 }

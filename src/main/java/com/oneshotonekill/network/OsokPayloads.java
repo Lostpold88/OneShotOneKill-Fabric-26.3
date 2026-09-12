@@ -60,6 +60,7 @@ public final class OsokPayloads {
       registry.register(DeployableMarkersPayload.TYPE, DeployableMarkersPayload.STREAM_CODEC);
       registry.register(GlidingPlayersPayload.TYPE, GlidingPlayersPayload.STREAM_CODEC);
       registry.register(GrapplePullPayload.TYPE, GrapplePullPayload.STREAM_CODEC);
+      registry.register(com.oneshotonekill.item.runtime.BoogieBombSystem.State.TYPE, com.oneshotonekill.item.runtime.BoogieBombSystem.State.STREAM_CODEC);
       registry.register(MagnetFieldsPayload.TYPE, MagnetFieldsPayload.STREAM_CODEC);
       registry.register(BomberTargetsPayload.TYPE, BomberTargetsPayload.STREAM_CODEC);
       registry.register(BomberCameraPayload.TYPE, BomberCameraPayload.STREAM_CODEC);

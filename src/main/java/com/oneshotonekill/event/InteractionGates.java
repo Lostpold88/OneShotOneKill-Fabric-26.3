@@ -51,7 +51,7 @@ public final class InteractionGates {
      * @return {@code true}, wenn {@code LivingEntity#startUsingItem} nicht ausgeführt werden darf
      */
     public static boolean blocksItemUseStart(LivingEntity entity, ItemStack stack) {
-        if (entity instanceof Player player && stack.is(Items.BOW) && isGrapplePulling(player)) {
+        if (entity instanceof Player player && (isDancing(player) || (stack.is(Items.BOW) && isGrapplePulling(player)))) {
             player.stopUsingItem();
             return true;
         }
@@ -62,7 +62,7 @@ public final class InteractionGates {
      * @return {@code true}, wenn der Bogen nicht gespannt werden darf
      */
     public static boolean blocksBowDraw(Player player) {
-        if (isGrapplePulling(player)) {
+        if (isDancing(player) || isGrapplePulling(player)) {
             player.stopUsingItem();
             return true;
         }
@@ -74,11 +74,23 @@ public final class InteractionGates {
      * @return {@code true}, wenn kein Pfeil abgehen darf
      */
     public static boolean blocksBowRelease(Player player) {
-        if (isGrapplePulling(player)) {
+        if (isDancing(player) || isGrapplePulling(player)) {
             player.stopUsingItem();
             return true;
         }
         return NukeSequenceManager.LockEvents.blocksBow()
                 || ItemProtectionEvents.ChargeInteractionEvents.blocksBowRelease(player);
+    }
+
+    private static volatile Predicate<Player> clientDanceGate;
+
+    public static void registerClientDanceGate(Predicate<Player> gate) {
+        clientDanceGate = gate;
+    }
+
+    public static boolean isDancing(Player player) {
+        if (player instanceof net.minecraft.server.level.ServerPlayer serverPlayer)
+            return com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.isDancing(serverPlayer);
+        return player != null && clientDanceGate != null && clientDanceGate.test(player);
     }
 }

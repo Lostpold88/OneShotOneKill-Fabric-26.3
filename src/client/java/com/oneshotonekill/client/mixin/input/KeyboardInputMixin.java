@@ -34,6 +34,9 @@ public abstract class KeyboardInputMixin extends ClientInput {
       if (MatchStartState.INSTANCE.isCountdownActive() || AbilityStatusState.INSTANCE.isFrozen()) {
          this.keyPresses = Input.EMPTY;
          this.moveVector = Vec2.ZERO;
+      } else if (com.oneshotonekill.client.effect.BoogieBombClient.isLocalDancing()) {
+         Input keys = this.keyPresses;
+         this.keyPresses = new Input(keys.forward(), keys.backward(), keys.left(), keys.right(), keys.jump(), false, false);
       }
    }
 }

@@ -70,6 +70,7 @@ public final class ClientClimbing {
                 && !MatchStartState.INSTANCE.isCountdownActive()
                 && !MatchBannerState.INSTANCE.isMatchPaused()
                 && !AbilityStatusState.INSTANCE.isFrozen()
+                && !com.oneshotonekill.client.effect.BoogieBombClient.isLocalDancing()
                 && AbilityStatusState.INSTANCE.getGlideTicks() <= 0
                 && !GrapplePullState.INSTANCE.isGrappleActive(player.getUUID());
     }

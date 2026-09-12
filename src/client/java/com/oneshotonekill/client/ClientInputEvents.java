@@ -80,6 +80,11 @@ public final class ClientInputEvents {
      * Zeigt dynamische Tooltips für Spezialitems mit den aktuell konfigurierten Tasten an.
      */
     private static void onItemTooltip(ItemStack stack, java.util.List<Component> lines) {
+        if (stack.is(ModItems.BOOGIE_BOMB)) {
+            lines.add(Component.translatable("tooltip.oneshotonekill.boogie_bomb").withStyle(ChatFormatting.LIGHT_PURPLE));
+            lines.add(Component.translatable("tooltip.oneshotonekill.boogie_bomb_warning").withStyle(ChatFormatting.GRAY));
+            return;
+        }
         if (stack.is(ModItems.GRAPPLING_HOOK)) {
             int charges = Math.max(0, stack.getMaxDamage() - stack.getDamageValue());
             lines.add(Component.translatable("tooltip.oneshotonekill.grappling_hook_charges",

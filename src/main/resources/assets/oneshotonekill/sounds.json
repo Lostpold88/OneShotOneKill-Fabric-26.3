@@ -4,6 +4,10 @@
       { "name": "oneshotonekill:endgame/tactical_nuke_incoming", "stream": true }
     ]
   },
+  "items.boogie_bomb": {
+    "subtitle": "subtitles.oneshotonekill.boogie_bomb",
+    "sounds": [{ "name": "oneshotonekill:items/boogie_bomb", "stream": true, "attenuation_distance": 48 }]
+  },
   "items.minigun": {
     "sounds": [
       { "name": "oneshotonekill:items/minigun", "stream": true }

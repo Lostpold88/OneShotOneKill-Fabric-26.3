@@ -11,6 +11,7 @@ import java.util.EnumSet;
 import java.util.List;
 import java.util.Locale;
 import java.util.Set;
+import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.screens.Screen;
 import net.minecraft.client.input.CharacterEvent;
@@ -26,7 +27,7 @@ import org.lwjgl.glfw.GLFW;
  * Modernes Admin-Arsenal: Kategorisierte Schnellausgabe aller Spezialitems und Fähigkeiten
  * mit Favoriten-System (⭐), Batch-Aktionen und Live-Suche.
  */
-@SuppressWarnings("NullableProblems")
+@SuppressWarnings({"NullableProblems", "DuplicatedCode"})
 public final class AdminItemScreen extends Screen {
    private static final int CARD_WIDTH = 580;
    private static final int CONTENT_HEIGHT = 270;
@@ -100,10 +101,11 @@ public final class AdminItemScreen extends Screen {
    }
 
    public static ItemCategory getCategoryFor(SpecialItem item) {
+      if (item == null) return ItemCategory.DEPLOYABLES;
       return switch (item) {
          case MINIGUN, RAILGUN, EXPLOSIVE_SHOT, CHAIN_LIGHTNING -> ItemCategory.WEAPONS;
          case RADAR_PULSE, REFLECTOR_SHIELD, INVISIBILITY_CLOAK, ARROW_MAGNET, SINGULARITY, GLIDER, SLOW_MOTION, GRAPPLING_HOOK -> ItemCategory.ABILITIES;
-         case C4, FROST_TRAP, SENTRY_TURRET, SMOKE_BOMB, TELEPORT_GRENADE -> ItemCategory.DEPLOYABLES;
+         case C4, FROST_TRAP, SENTRY_TURRET, SMOKE_BOMB, TELEPORT_GRENADE, BOOGIE_BOMB -> ItemCategory.DEPLOYABLES;
          case STEALTH_BOMBER, AIRSTRIKE -> ItemCategory.STREAKS;
       };
    }
@@ -129,6 +131,7 @@ public final class AdminItemScreen extends Screen {
          case SENTRY_TURRET -> "Automatischer Geschützturm mit Zielerfassung.";
          case SLOW_MOTION -> "Verlangsamt den gesamten Zeitfluss für sieben Sekunden.";
          case GRAPPLING_HOOK -> "Zehn Schüsse: Hakt sich an Flächen ein und zieht dich dorthin.";
+         case BOOGIE_BOMB -> "Disco-Granate: 15 Sekunden Zwangstanz. Keine Waffen oder Items.";
       };
    }
 
@@ -334,6 +337,17 @@ public final class AdminItemScreen extends Screen {
       );
    }
 
+   private static String trimText(Font font, String text, int available) {
+      if (font.width(text) <= available) {
+         return text;
+      }
+      String shortened = text;
+      while (shortened.length() > 1 && font.width(shortened + "…") > available) {
+         shortened = shortened.substring(0, shortened.length() - 1);
+      }
+      return shortened + "…";
+   }
+
    private float entranceScale() {
       float progress = Math.clamp((Util.getMillis() - openedAt) / (float) ENTRANCE_MILLIS, 0.0F, 1.0F);
       if (progress >= 1.0F) {
@@ -410,20 +424,24 @@ public final class AdminItemScreen extends Screen {
                hoveredItemForTooltip = item;
             }
 
-            graphics.text(font, item.getDisplayName(), left + 48, y + 8, OsokWidgets.COLOR_TEXT_WHITE);
-            int nameWidth = font.width(item.getDisplayName());
-            boolean isTilted = isTiltedActive();
-            if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
-               graphics.text(font, "• Tilted Towers: Start-Ausrüstung", left + 52 + nameWidth, y + 8, OsokWidgets.COLOR_AMBER);
-               graphics.text(font, "Dauerhaft in Slot 2 vergeben · Unendlich oft einsetzbar.", left + 48, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
-            } else {
-               graphics.text(font, "• " + cat.label, left + 52 + nameWidth, y + 8, cat.accent);
-               graphics.text(font, getItemDescription(item), left + 48, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
-            }
-
             int btnY = y + 8;
             int btn16X = right - BTN_WIDTH - 8;
             int btn1X = btn16X - BTN_WIDTH - 6;
+            boolean isTilted = isTiltedActive();
+            int actionLeft = (isTilted && item == SpecialItem.GRAPPLING_HOOK)
+               ? (right - (font.width("🔒 START-AUSRÜSTUNG") + 18) - 8)
+               : btn1X;
+            int maxDescWidth = Math.max(20, actionLeft - (left + 48) - 8);
+
+            graphics.text(font, item.getDisplayName(), left + 48, y + 8, OsokWidgets.COLOR_TEXT_WHITE);
+            int nameWidth = font.width(item.getDisplayName());
+            if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
+               graphics.text(font, "• Tilted Towers: Start-Ausrüstung", left + 52 + nameWidth, y + 8, OsokWidgets.COLOR_AMBER);
+               graphics.text(font, trimText(font, "Dauerhaft in Slot 2 vergeben · Unendlich oft einsetzbar.", maxDescWidth), left + 48, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
+            } else {
+               graphics.text(font, "• " + cat.label, left + 52 + nameWidth, y + 8, cat.accent);
+               graphics.text(font, trimText(font, getItemDescription(item), maxDescWidth), left + 48, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
+            }
 
             if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
                String badge = "🔒 START-AUSRÜSTUNG";
