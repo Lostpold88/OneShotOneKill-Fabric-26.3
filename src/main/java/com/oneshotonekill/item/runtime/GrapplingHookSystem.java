@@ -51,8 +51,9 @@ public final class GrapplingHookSystem {
     public static final GrapplingHookSystem INSTANCE = new GrapplingHookSystem();
 
     private static final double FIRE_SPEED = 3.20;
-    private static final double MAX_RANGE = 45.0;
-    private static final int MAX_FLIGHT_TICKS = 15;
+    private static final double MAX_RANGE = 512.0;
+    private static final double EMPTY_MAX_DISTANCE = 25.0;
+    private static final int EMPTY_MAX_TICKS = 8;
     private static final int MAX_PULL_TICKS = 600;
     private static final double RELEASE_DISTANCE = 2.35;
     private static final double RETRACT_SPEED = 6.00;
@@ -243,6 +244,24 @@ public final class GrapplingHookSystem {
 
         Vec3 look = player.getLookAngle().normalize();
         Vec3 origin = muzzlePosition(player, 1.0F);
+
+        // Hypothetical check: does the trajectory hit a solid block within MAX_RANGE inside the arena?
+        BlockHitResult prospectiveHit = level.clip(new ClipContext(
+                origin, origin.add(look.scale(MAX_RANGE)), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+                CollisionContext.empty()));
+
+        ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
+        Arena arena = worlds == null ? null : worlds.getActive();
+
+        double targetDistance = -1.0;
+        if (prospectiveHit.getType() != HitResult.Type.MISS) {
+            Vec3 surface = prospectiveHit.getLocation();
+            Vec3 approach = surface.subtract(look.scale(0.10));
+            if (arena == null || arena.isInArena(approach.x, approach.y, approach.z)) {
+                targetDistance = origin.distanceTo(surface);
+            }
+        }
+
         Display.ItemDisplay hook = Hologram.spawnEffect(level, origin,
                 new ItemStack(ModItems.GRAPPLING_HOOK_HEAD), VIEW_RANGE);
         if (hook != null) {
@@ -250,7 +269,7 @@ public final class GrapplingHookSystem {
         }
 
         Grapple grapple = new Grapple(player.getUUID(), level, origin, look.scale(FIRE_SPEED),
-                origin, look, hook, hand);
+                origin, look, hook, hand, targetDistance);
         active.put(player.getUUID(), grapple);
         updateVisuals(grapple);
         syncGrappleState(grapple, true);
@@ -312,10 +331,19 @@ public final class GrapplingHookSystem {
         grapple.position = next;
         grapple.ticks++;
         double travelled = grapple.position.distanceTo(grapple.launchOrigin);
-        ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
-        Arena arena = worlds == null ? null : worlds.getActive();
-        boolean outsideArena = arena != null && !arena.isInArena(grapple.position.x, grapple.position.y, grapple.position.z);
-        if (travelled >= MAX_RANGE || grapple.ticks >= MAX_FLIGHT_TICKS || outsideArena) {
+
+        boolean shouldRetract;
+        if (grapple.targetDistance >= 0.0) {
+            int maxTicks = (int) Math.ceil(grapple.targetDistance / FIRE_SPEED) + 15;
+            shouldRetract = travelled >= grapple.targetDistance + 3.0 || grapple.ticks >= maxTicks || travelled >= MAX_RANGE;
+        } else {
+            ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
+            Arena arena = worlds == null ? null : worlds.getActive();
+            boolean outsideArena = arena != null && !arena.isInArena(grapple.position.x, grapple.position.y, grapple.position.z);
+            shouldRetract = travelled >= EMPTY_MAX_DISTANCE || grapple.ticks >= EMPTY_MAX_TICKS || outsideArena;
+        }
+
+        if (shouldRetract) {
             beginRetracting(grapple, owner, true);
         } else {
             grapple.level.sendParticles(ParticleTypes.CRIT,
@@ -504,6 +532,7 @@ public final class GrapplingHookSystem {
         private final Vec3 launchOrigin;
         private final Display.ItemDisplay hook;
         private final net.minecraft.world.InteractionHand hand;
+        private final double targetDistance;
         private Vec3 position;
         private Vec3 velocity;
         private Vec3 aimDirection;
@@ -518,7 +547,7 @@ public final class GrapplingHookSystem {
 
         private Grapple(UUID owner, ServerLevel level, Vec3 position, Vec3 velocity,
                         Vec3 launchOrigin, Vec3 aimDirection, Display.ItemDisplay hook,
-                        net.minecraft.world.InteractionHand hand) {
+                        net.minecraft.world.InteractionHand hand, double targetDistance) {
             this.owner = owner;
             this.level = level;
             this.position = position;
@@ -527,6 +556,7 @@ public final class GrapplingHookSystem {
             this.aimDirection = aimDirection;
             this.hook = hook;
             this.hand = hand;
+            this.targetDistance = targetDistance;
         }
 
         private void dismantle() {
