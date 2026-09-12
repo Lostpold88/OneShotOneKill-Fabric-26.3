@@ -30,6 +30,7 @@ public final class ClientClimbing {
     private ClientLevel level;
     private boolean canGrab;
     private Vec3 target, start, expectedPosition;
+    private double apexY;
     private Direction wall;
     private ClimbingNetworking.Request outgoing;
     private int sequence, nextRequestTick, lastHeartbeat, lastServerTick;
@@ -174,10 +175,11 @@ public final class ClientClimbing {
             wall = null;
             start = owner.position();
             target = data;
+            apexY = MantleGeometry.findApex(owner, start, target);
             expectedPosition = start;
             age = 0;
-            liftTicks = Math.max(3, (int) Math.ceil((target.y - start.y) * 1.5 / 0.26));
-            acrossTicks = Math.max(3, (int) Math.ceil(new Vec3(target.x - start.x, 0, target.z - start.z).length() * 1.5 / 0.24));
+            liftTicks = Math.max(3, (int) Math.ceil(Math.max(0.1, apexY - start.y) * 1.5 / 0.26));
+            acrossTicks = Math.max(4, (int) Math.ceil(new Vec3(target.x - start.x, 0, target.z - start.z).length() * 1.5 / 0.22));
             owner.setDeltaMovement(Vec3.ZERO);
             playMantleStartSound(owner);
         } else {
@@ -263,7 +265,7 @@ public final class ClientClimbing {
                 player.input.keyPresses.backward(), left, right);
         Vec3 landing = delta.y > 0 ? MantleGeometry.findTarget(player, activeWall) : null;
         // Hold the grip at a reachable roof edge until the server confirms the transition.
-        if (landing != null && landing.y - player.getY() <= 0.95) delta = new Vec3(delta.x, 0, delta.z);
+        if (landing != null && landing.y - player.getY() <= 1.85) delta = new Vec3(delta.x, 0, delta.z);
         if (!MantleGeometry.insideArena(player.position().add(delta))) delta = Vec3.ZERO;
         Vec3 before = player.position();
         player.setSprinting(false);
@@ -284,21 +286,35 @@ public final class ClientClimbing {
 
     private boolean mantle(LocalPlayer player) {
         if (!MantleGeometry.hasSupport(player, target)
-                || !MantleGeometry.clearRoute(player, player.position(), target)) {
+                || !MantleGeometry.clearRoute(player, start, target, apexY)) {
             cancel();
             return false;
         }
         age++;
         Vec3 next;
         if (age <= liftTicks) {
-            next = new Vec3(start.x, start.y + (target.y - start.y) * ease((double) age / liftTicks), start.z);
+            double liftProgress = ease((double) age / liftTicks);
+            double currentY = start.y + (apexY - start.y) * liftProgress;
+            next = new Vec3(start.x, currentY, start.z);
         } else {
-            double progress = ease((double) (age - liftTicks) / acrossTicks);
-            next = new Vec3(start.x + (target.x - start.x) * progress, target.y,
-                    start.z + (target.z - start.z) * progress);
+            double horizProgress = ease((double) (age - liftTicks) / acrossTicks);
+            double currentX = start.x + (target.x - start.x) * horizProgress;
+            double currentZ = start.z + (target.z - start.z) * horizProgress;
+            double currentY;
+            if (apexY > target.y) {
+                if (horizProgress <= 0.40) {
+                    currentY = apexY;
+                } else {
+                    double dropProgress = ease((horizProgress - 0.40) / 0.60);
+                    currentY = apexY + (target.y - apexY) * dropProgress;
+                }
+            } else {
+                currentY = target.y;
+            }
+            next = new Vec3(currentX, currentY, currentZ);
         }
         Vec3 delta = next.subtract(player.position());
-        if (delta.lengthSqr() > 0.10 || !player.level().noCollision(player,
+        if (delta.lengthSqr() > 0.20 || !player.level().noCollision(player,
                 MantleGeometry.standingBox(player, player.position()).deflate(1.0E-5).expandTowards(delta))) {
             cancel();
             return false;
@@ -306,7 +322,7 @@ public final class ClientClimbing {
         player.setDeltaMovement(delta);
         player.move(MoverType.SELF, delta);
         expectedPosition = player.position();
-        if (expectedPosition.distanceToSqr(next) > 0.04) {
+        if (expectedPosition.distanceToSqr(next) > 0.08) {
             cancel();
             return true;
         }
@@ -321,6 +337,7 @@ public final class ClientClimbing {
             }
         }
         if (age >= liftTicks + acrossTicks) {
+            player.setPos(target.x, target.y, target.z);
             playMantleLandingSound(player);
             mantleLandTicks = 6;
             cancel();
@@ -427,6 +444,7 @@ public final class ClientClimbing {
         if (owner != null) owner.resetFallDistance();
         wall = null;
         target = null;
+        apexY = 0;
         pendingSince = -1;
         canGrab = false;
         cornerRollTicks = 0;
@@ -439,6 +457,7 @@ public final class ClientClimbing {
         level = null;
         wall = null;
         target = null;
+        apexY = 0;
         canGrab = false;
         outgoing = null;
         pendingSince = -1;

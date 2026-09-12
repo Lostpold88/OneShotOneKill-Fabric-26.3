@@ -89,6 +89,9 @@ public final class ClimbingNetworking {
         session.requestId = request.requestId();
         session.expiresAt = player.tickCount + 30;
         session.cornerGraceTicks = 8;
+        if (session.mode == MANTLE) {
+            session.apexY = MantleGeometry.findApex(player, session.start, session.target);
+        }
         sendMotion(player, session);
     }
 
@@ -130,18 +133,19 @@ public final class ClimbingNetworking {
             // A small lift onto the roof replaces wall climbing only once the edge is near the feet.
             Vec3 landing = player.getLastClientInput().forward()
                     ? MantleGeometry.findTarget(player, session.wall) : null;
-            if (landing != null && landing.y - player.getY() <= 0.95) {
+            if (landing != null && landing.y - player.getY() <= 1.85) {
                 session.mode = MANTLE;
                 session.target = landing;
                 session.start = position;
+                session.apexY = MantleGeometry.findApex(player, session.start, session.target);
                 session.expiresAt = player.tickCount + 30;
                 sendMotion(player, session);
             } else if (player.tickCount - session.lastBroadcastTick >= 10) {
                 sendMotion(player, session);
             }
         } else if (!MantleGeometry.hasSupport(player, session.target)
-                || position.distanceToSqr(session.start) > 9
-                || position.y > session.target.y + 0.25 || position.y < session.start.y - 0.75) {
+                || position.distanceToSqr(session.start) > 16
+                || position.y > session.apexY + 0.50 || position.y < session.start.y - 0.75) {
             stop(player, session);
         }
     }
@@ -170,6 +174,7 @@ public final class ClimbingNetworking {
         session.mode = STOP;
         session.target = null;
         session.wall = null;
+        session.apexY = 0;
         session.graceUntilTick = player.tickCount + 30;
         player.resetFallDistance();
         session.nextRequestTick = player.tickCount + 6;
@@ -193,6 +198,7 @@ public final class ClimbingNetworking {
     private static final class Session {
         private int nextRequestTick, requestId, expiresAt, mode, lastBroadcastTick, graceUntilTick, cornerGraceTicks;
         private Vec3 start, target, lastPosition;
+        private double apexY;
         private net.minecraft.core.Direction wall;
     }
 

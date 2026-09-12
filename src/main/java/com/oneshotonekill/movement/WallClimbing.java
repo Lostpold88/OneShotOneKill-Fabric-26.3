@@ -20,19 +20,33 @@ public final class WallClimbing {
     }
 
     public static @Nullable Direction findWall(Player player, @Nullable Direction preferred) {
-        if (preferred != null && hasContact(player, preferred)) return preferred;
+        if (preferred != null && hasContact(player, preferred) && isClimbableWall(player, preferred)) return preferred;
         double yaw = Math.toRadians(player.getYRot());
         double fx = -Math.sin(yaw), fz = Math.cos(yaw);
         Direction result = null;
         double best = 0.35;
         for (Direction normal : Direction.Plane.HORIZONTAL) {
             double facing = -fx * normal.getStepX() - fz * normal.getStepZ();
-            if (facing > best && hasContact(player, normal)) {
+            if (facing > best && hasContact(player, normal) && isClimbableWall(player, normal)) {
                 best = facing;
                 result = normal;
             }
         }
         return result;
+    }
+
+    public static boolean isClimbableWall(Player player, Direction normal) {
+        if (!hasContact(player, normal)) return false;
+        AABB box = player.getBoundingBox();
+        double low = box.minY + 1.40, high = box.minY + 1.85;
+        AABB upperGrip = switch (normal) {
+            case EAST -> new AABB(box.minX - GRIP_REACH, low, box.minZ + 0.08, box.minX + 0.01, high, box.maxZ - 0.08);
+            case WEST -> new AABB(box.maxX - 0.01, low, box.minZ + 0.08, box.maxX + GRIP_REACH, high, box.maxZ - 0.08);
+            case SOUTH -> new AABB(box.minX + 0.08, low, box.minZ - GRIP_REACH, box.maxX - 0.08, high, box.minZ + 0.01);
+            case NORTH -> new AABB(box.minX + 0.08, low, box.maxZ - 0.01, box.maxX - 0.08, high, box.maxZ + GRIP_REACH);
+            default -> throw new IllegalArgumentException("Horizontal wall required");
+        };
+        return player.level().getBlockCollisions(player, upperGrip).iterator().hasNext();
     }
 
     public static boolean hasContact(Player player, Direction normal) {
