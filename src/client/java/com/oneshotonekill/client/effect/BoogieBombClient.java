@@ -122,29 +122,35 @@ public final class BoogieBombClient {
         );
     }
 
-    public static float cameraRoll() {
+    private record LocalDanceState(float weight, float seconds) {}
+
+    @Nullable
+    private static LocalDanceState getActiveLocalState() {
         Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !isDancing(client.player.getUUID())) return 0.0F;
+        if (client.player == null || !isDancing(client.player.getUUID())) return null;
         UUID id = client.player.getUUID();
         float weight = getWeight(id);
-        if (weight <= 0.001F) return 0.0F;
-        float sec = seconds(id);
+        if (weight <= 0.001F) return null;
+        return new LocalDanceState(weight, seconds(id));
+    }
+
+    public static float cameraRoll() {
+        LocalDanceState state = getActiveLocalState();
+        if (state == null) return 0.0F;
+        float sec = state.seconds();
         float saltoProg = BoogieDanceAnimation.saltoProgress(sec);
         float saltoFade = saltoProg >= 0.0F ? (1.0F - Math.clamp((float) Math.sin(saltoProg * Math.PI) * 1.35F, 0.0F, 1.0F)) : 1.0F;
         float spinProg = BoogieDanceAnimation.spinProgress(sec);
         float spinFade = spinProg >= 0.0F ? (1.0F - Math.clamp((float) Math.sin(spinProg * Math.PI) * 1.30F, 0.0F, 1.0F)) : 1.0F;
         float beat = sec * 2.0F;
         float swing = (float) Math.sin(beat * Math.PI);
-        return swing * 1.8F * weight * saltoFade * spinFade;
+        return swing * 1.8F * state.weight() * saltoFade * spinFade;
     }
 
     public static float modifyCameraDistance(float cameraDistance) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !isDancing(client.player.getUUID())) return cameraDistance;
-        UUID id = client.player.getUUID();
-        float weight = getWeight(id);
-        if (weight <= 0.001F) return cameraDistance;
-        float sec = seconds(id);
+        LocalDanceState state = getActiveLocalState();
+        if (state == null) return cameraDistance;
+        float sec = state.seconds();
 
         // 1. Initialer Bass-Drop Punch (die ersten 0.45s beim Treffer der Granate)
         float dropZoom = (sec < 0.45F) ? (float) Math.sin(Math.clamp(sec / 0.45F, 0.0F, 1.0F) * Math.PI) * 1.35F : 0.0F;
@@ -156,18 +162,15 @@ public final class BoogieBombClient {
         // 3. Rhythmischer Woofer-Puls auf jedem Beat (Subwoofer-Pumpen)
         float beat = sec * 2.0F;
         float kick = (float) Math.pow(Math.max(0.0F, Math.sin(beat * Math.PI)), 4.0);
-        float wooferZoom = kick * 0.25F * weight;
+        float wooferZoom = kick * 0.25F * state.weight();
 
         return Math.max(1.4F, cameraDistance - (dropZoom + saltoZoom + wooferZoom));
     }
 
     public static float fovModifier() {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !isDancing(client.player.getUUID())) return 0.0F;
-        UUID id = client.player.getUUID();
-        float weight = getWeight(id);
-        if (weight <= 0.001F) return 0.0F;
-        float sec = seconds(id);
+        LocalDanceState state = getActiveLocalState();
+        if (state == null) return 0.0F;
+        float sec = state.seconds();
         float beat = sec * 2.0F;
 
         // 1. Initialer Bass-Drop FOV-Kick beim Treffer
@@ -182,22 +185,19 @@ public final class BoogieBombClient {
         float p = BoogieDanceAnimation.saltoProgress(sec);
         float saltoPunch = (p >= 0.0F && p <= 1.0F) ? (float) Math.sin(p * Math.PI) * 0.035F : 0.0F;
 
-        return (dropPunch + kickFov + pulse + saltoPunch) * weight;
+        return (dropPunch + kickFov + pulse + saltoPunch) * state.weight();
     }
 
     public static void applyDiscoLighting(LightmapRenderState renderState) {
-        Minecraft client = Minecraft.getInstance();
-        if (client.player == null || !isDancing(client.player.getUUID())) return;
-        UUID id = client.player.getUUID();
-        float weight = getWeight(id);
-        if (weight <= 0.001F) return;
+        LocalDanceState state = getActiveLocalState();
+        if (state == null) return;
 
-        float sec = seconds(id);
+        float sec = state.seconds();
         float beat = sec * 2.0F;
         Vector3f discoColor = getDiscoColor(sec);
 
         float pulse = 0.35F + 0.15F * (float) Math.sin(beat * Math.PI * 2.0);
-        float blendFactor = Math.clamp(pulse * weight, 0.0F, 0.70F);
+        float blendFactor = Math.clamp(pulse * state.weight(), 0.0F, 0.70F);
 
         Vector3fc origBlock = renderState.blockLightTint;
         renderState.blockLightTint = new Vector3f(
@@ -221,8 +221,8 @@ public final class BoogieBombClient {
             level = client.level;
         }
         long now = System.nanoTime();
+        Dance dance = DANCERS.get(packet.playerId());
         if (packet.remainingMillis() <= 0) {
-            Dance dance = DANCERS.get(packet.playerId());
             if (dance != null && dance.stopTime == 0L) {
                 if (dance.deadline - now > 400_000_000L) {
                     dance.stopTime = now;
@@ -232,7 +232,6 @@ public final class BoogieBombClient {
                 if (dance.sound != null) dance.sound.finish();
             }
         } else {
-            Dance dance = DANCERS.get(packet.playerId());
             if (dance == null) {
                 float initialSeconds = Math.clamp(packet.elapsedMillis(), 0, BoogieBombSystem.DURATION_MILLIS) / 1000.0F;
                 dance = new Dance(now - (long) (initialSeconds * 1_000_000_000L), initialSeconds);
