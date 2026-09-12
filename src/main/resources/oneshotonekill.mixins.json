@@ -13,7 +13,6 @@
 		"item.PlayerProjectileMixin",
 		"item.ServerPlayerDropMixin",
 		"match.PlayerAdvancementsMixin",
-		"match.ServerPlayerTabListMixin",
 		"movement.ServerPlayerMantleMixin",
 		"movement.BoogieSprintMixin",
 		"movement.LivingEntityClimbingMixin"

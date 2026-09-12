@@ -19,6 +19,7 @@ import com.oneshotonekill.client.state.ClientStates.MatchBannerState;
 import com.oneshotonekill.client.state.ClientStates.MatchStartState;
 import com.oneshotonekill.client.state.ClientStates.MinigunHudState;
 import com.oneshotonekill.client.state.ClientStates.NukeState;
+import com.oneshotonekill.client.state.ClientStates.TabScoreboardState;
 import com.oneshotonekill.item.runtime.AirstrikeSystem;
 import com.oneshotonekill.movement.ClimbingNetworking;
 import com.oneshotonekill.network.OsokPayloads.AbilityStatusPayload;
@@ -34,6 +35,7 @@ import com.oneshotonekill.network.OsokPayloads.GunGameStatusPayload;
 import com.oneshotonekill.network.OsokPayloads.MagnetFieldsPayload;
 import com.oneshotonekill.network.OsokPayloads.MatchCountdownPayload;
 import com.oneshotonekill.network.OsokPayloads.MatchNotificationPayload;
+import com.oneshotonekill.network.OsokPayloads.MatchScoreboardPayload;
 import com.oneshotonekill.network.OsokPayloads.MinigunHudPayload;
 import com.oneshotonekill.network.OsokPayloads.NukeStatePayload;
 import com.oneshotonekill.network.OsokPayloads.NukeVictoryPayload;
@@ -97,6 +99,8 @@ public final class OsokClientHandlers {
          (payload, context) -> MatchBannerState.INSTANCE.handle(payload));
       ClientPlayNetworking.registerGlobalReceiver(GunGameStatusPayload.TYPE,
          (payload, context) -> GunGameHudState.INSTANCE.handle(payload));
+      ClientPlayNetworking.registerGlobalReceiver(MatchScoreboardPayload.TYPE,
+         (payload, context) -> TabScoreboardState.INSTANCE.onPayload(payload));
    }
 
    private static void minigunHud(MinigunHudPayload payload) {

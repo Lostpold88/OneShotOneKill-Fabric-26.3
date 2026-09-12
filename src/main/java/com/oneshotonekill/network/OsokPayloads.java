@@ -69,6 +69,7 @@ public final class OsokPayloads {
       registry.register(ExplosionShakePayload.TYPE, ExplosionShakePayload.STREAM_CODEC);
       registry.register(MatchNotificationPayload.TYPE, MatchNotificationPayload.STREAM_CODEC);
       registry.register(GunGameStatusPayload.TYPE, GunGameStatusPayload.STREAM_CODEC);
+      registry.register(MatchScoreboardPayload.TYPE, MatchScoreboardPayload.STREAM_CODEC);
    }
 
    /** Client → Server: Anweisungen aus den Menüs und von den Items. */
@@ -1158,6 +1159,101 @@ public final class OsokPayloads {
       @Override
       public Type<GunGameStatusPayload> type() {
          return TYPE;
+      }
+   }
+
+   // --- MatchScoreboardPayload.java ---
+   public record MatchScoreboardPayload(
+      int matchState,
+      String gameMode,
+      String targetMode,
+      int targetValue,
+      int remainingTicks,
+      int elapsedTicks,
+      String arenaName,
+      List<PlayerEntry> players
+   ) implements CustomPacketPayload {
+      public static final Type<MatchScoreboardPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("match_scoreboard"));
+
+      public static final StreamCodec<RegistryFriendlyByteBuf, MatchScoreboardPayload> STREAM_CODEC = StreamCodec.composite(
+         ByteBufCodecs.VAR_INT, MatchScoreboardPayload::matchState,
+         ByteBufCodecs.STRING_UTF8, MatchScoreboardPayload::gameMode,
+         ByteBufCodecs.STRING_UTF8, MatchScoreboardPayload::targetMode,
+         ByteBufCodecs.VAR_INT, MatchScoreboardPayload::targetValue,
+         ByteBufCodecs.VAR_INT, MatchScoreboardPayload::remainingTicks,
+         ByteBufCodecs.VAR_INT, MatchScoreboardPayload::elapsedTicks,
+         ByteBufCodecs.STRING_UTF8, MatchScoreboardPayload::arenaName,
+         PlayerEntry.STREAM_CODEC.apply(ByteBufCodecs.list()), MatchScoreboardPayload::players,
+         MatchScoreboardPayload::new
+      );
+
+      public static MatchScoreboardPayload empty() {
+         return new MatchScoreboardPayload(0, "CLASSIC", "UNLIMITED", 0, 0, 0, "", List.of());
+      }
+
+      @Override
+      public Type<MatchScoreboardPayload> type() {
+         return TYPE;
+      }
+
+      public record PlayerEntry(
+         UUID playerId,
+         String name,
+         int kills,
+         int deaths,
+         int streak,
+         int highestStreak,
+         boolean isBounty,
+         boolean isAlive,
+         int ping,
+         int tier,
+         int tierKills,
+         int requiredKills,
+         String tierName,
+         String tierColor
+      ) {
+         public static final StreamCodec<RegistryFriendlyByteBuf, PlayerEntry> STREAM_CODEC = StreamCodec.of(
+            (buf, entry) -> {
+               UUIDUtil.STREAM_CODEC.encode(buf, entry.playerId);
+               ByteBufCodecs.STRING_UTF8.encode(buf, entry.name);
+               ByteBufCodecs.VAR_INT.encode(buf, entry.kills);
+               ByteBufCodecs.VAR_INT.encode(buf, entry.deaths);
+               ByteBufCodecs.VAR_INT.encode(buf, entry.streak);
+               ByteBufCodecs.VAR_INT.encode(buf, entry.highestStreak);
+               ByteBufCodecs.BOOL.encode(buf, entry.isBounty);
+               ByteBufCodecs.BOOL.encode(buf, entry.isAlive);
+               ByteBufCodecs.VAR_INT.encode(buf, entry.ping);
+               ByteBufCodecs.VAR_INT.encode(buf, entry.tier);
+               ByteBufCodecs.VAR_INT.encode(buf, entry.tierKills);
+               ByteBufCodecs.VAR_INT.encode(buf, entry.requiredKills);
+               ByteBufCodecs.STRING_UTF8.encode(buf, entry.tierName);
+               ByteBufCodecs.STRING_UTF8.encode(buf, entry.tierColor);
+            },
+            buf -> new PlayerEntry(
+               UUIDUtil.STREAM_CODEC.decode(buf),
+               ByteBufCodecs.STRING_UTF8.decode(buf),
+               ByteBufCodecs.VAR_INT.decode(buf),
+               ByteBufCodecs.VAR_INT.decode(buf),
+               ByteBufCodecs.VAR_INT.decode(buf),
+               ByteBufCodecs.VAR_INT.decode(buf),
+               ByteBufCodecs.BOOL.decode(buf),
+               ByteBufCodecs.BOOL.decode(buf),
+               ByteBufCodecs.VAR_INT.decode(buf),
+               ByteBufCodecs.VAR_INT.decode(buf),
+               ByteBufCodecs.VAR_INT.decode(buf),
+               ByteBufCodecs.VAR_INT.decode(buf),
+               ByteBufCodecs.STRING_UTF8.decode(buf),
+               ByteBufCodecs.STRING_UTF8.decode(buf)
+            )
+         );
+
+         public double kdRatio() {
+            return deaths <= 0 ? (double) kills : (double) kills / deaths;
+         }
+
+         public String kdRatioFormatted() {
+            return String.format(java.util.Locale.US, "%.1f", kdRatio());
+         }
       }
    }
 }

@@ -1,10 +1,11 @@
 package com.oneshotonekill.match;
 
 import com.oneshotonekill.OneShotOneKill;
+import com.oneshotonekill.arena.ArenaWorlds;
 import com.oneshotonekill.match.MatchManager.MatchState;
-import com.oneshotonekill.match.MatchManager.MatchTargetMode;
+import com.oneshotonekill.network.OsokPayloads.MatchScoreboardPayload;
+import com.oneshotonekill.network.OsokPayloads.MatchScoreboardPayload.PlayerEntry;
 import java.util.ArrayList;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -12,11 +13,9 @@ import java.util.Locale;
 import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.chat.numbers.BlankFormat;
-import net.minecraft.network.protocol.game.ClientboundPlayerInfoUpdatePacket;
-import net.minecraft.network.protocol.game.ClientboundTabListPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.ServerScoreboard;
 import net.minecraft.server.level.ServerPlayer;
@@ -25,16 +24,12 @@ import net.minecraft.sounds.SoundSource;
 import net.minecraft.world.scores.DisplaySlot;
 import net.minecraft.world.scores.Objective;
 import net.minecraft.world.scores.PlayerTeam;
-import net.minecraft.world.scores.ScoreHolder;
 import net.minecraft.world.scores.Scoreboard;
 import net.minecraft.world.scores.Team.Visibility;
-import net.minecraft.world.scores.criteria.ObjectiveCriteria;
-import net.minecraft.world.scores.criteria.ObjectiveCriteria.RenderType;
 
-@SuppressWarnings({"ConstantValue", "resource", "UnusedReturnValue"})
+@SuppressWarnings({"resource", "UnusedReturnValue", "unused"})
 public final class ScoreboardManager {
    public static final ScoreboardManager INSTANCE = new ScoreboardManager();
-   private static final String OBJECTIVE_NAME = "oneshot";
    private static final String NAMETAG_TEAM = "no_nametag";
    private static final int BOUNTY_STREAK = 5;
    private static final Map<UUID, Integer> kills = new LinkedHashMap<>();
@@ -51,9 +46,9 @@ public final class ScoreboardManager {
       ServerScoreboard scoreboard = server.getScoreboard();
       scoreboard.setDisplayObjective(DisplaySlot.SIDEBAR, null);
       clearNameTagTeam(scoreboard);
-      Objective objective = scoreboard.getObjective(OBJECTIVE_NAME);
-      if (objective != null) {
-         scoreboard.removeObjective(objective);
+      Objective legacy = scoreboard.getObjective("oneshot");
+      if (legacy != null) {
+         scoreboard.removeObjective(legacy);
       }
    }
 
@@ -64,212 +59,81 @@ public final class ScoreboardManager {
       }
 
       ServerScoreboard scoreboard = server.getScoreboard();
+      scoreboard.setDisplayObjective(DisplaySlot.SIDEBAR, null);
+      Objective legacy = scoreboard.getObjective("oneshot");
+      if (legacy != null) {
+         scoreboard.removeObjective(legacy);
+      }
+
       MatchState state = MatchManager.INSTANCE.getCurrentMatchState();
       List<ServerPlayer> players = server.getPlayerList().getPlayers();
-      if (state.isActive() && !MatchManager.Countdown.INSTANCE.isCountdownRunning() && !players.isEmpty()) {
-         updateMatchScoreboard(scoreboard, state, players);
-      } else {
-         scoreboard.setDisplayObjective(DisplaySlot.SIDEBAR, null);
+      if (!state.isActive() || players.isEmpty()) {
          clearNameTagTeam(scoreboard);
-         if (state == MatchState.STOPPED) {
-            Objective objective = scoreboard.getObjective(OBJECTIVE_NAME);
-            if (objective != null) {
-               scoreboard.removeObjective(objective);
-            }
+         MatchScoreboardPayload empty = MatchScoreboardPayload.empty();
+         for (ServerPlayer player : players) {
+            ServerPlayNetworking.send(player, empty);
          }
-      }
-      // Tab-Liste asynchron am Server-Tick-Ende verschicken, um den Treffer-Frame nicht zu blockieren:
-      server.execute(() -> {
-         List<ServerPlayer> currentPlayers = server.getPlayerList().getPlayers();
-         currentPlayers.forEach(this::updateTabList);
-      });
-   }
-
-   private void updateMatchScoreboard(ServerScoreboard scoreboard, MatchState state, List<ServerPlayer> players) {
-      boolean isGunGame = MatchManager.INSTANCE.getCurrentGameMode() == MatchManager.GameMode.GUN_GAME;
-      List<ServerPlayer> ranking = new ArrayList<>(players);
-      if (isGunGame) {
-         ranking.sort(Comparator.comparingInt((ServerPlayer p) -> GunGameManager.INSTANCE.getPlayerTier(p.getUUID()))
-            .thenComparingInt(p -> GunGameManager.INSTANCE.getPlayerTierKills(p.getUUID()))
-            .thenComparingInt(p -> getKills(p.getUUID()))
-            .reversed());
-      } else {
-         ranking.sort(Comparator.comparingInt((ServerPlayer player) -> getKills(player.getUUID())).reversed());
+         return;
       }
 
-      Component title;
-      if (state == MatchState.PAUSED) {
-         title = Component.literal("⏸ OSOK | PAUSIERT").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD);
-      } else if (isGunGame) {
-         title = Component.literal("🎯 OSOK | WAFFENSPIEL").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
-      } else {
-         title = Component.literal("🎯 OSOK | MATCH").withStyle(ChatFormatting.RED, ChatFormatting.BOLD);
-      }
-
-      Objective objective = scoreboard.getObjective(OBJECTIVE_NAME);
-      if (objective == null) {
-         objective = scoreboard.addObjective(OBJECTIVE_NAME, ObjectiveCriteria.DUMMY, title, RenderType.INTEGER, true, BlankFormat.INSTANCE);
-      }
-      objective.setDisplayName(title);
-      scoreboard.setDisplayObjective(DisplaySlot.SIDEBAR, objective);
-
-      List<Component> lines = buildLines(ranking);
-      for (int index = 0; index < lines.size(); index++) {
-         ScoreHolder holder = ScoreHolder.forNameOnly("osok_line_" + index);
-         var score = scoreboard.getOrCreatePlayerScore(holder, objective);
-         score.set(lines.size() - index);
-         score.display(lines.get(index));
-         score.numberFormatOverride(BlankFormat.INSTANCE);
-      }
-      for (int index = lines.size(); index < 16; index++) {
-         scoreboard.resetSinglePlayerScore(ScoreHolder.forNameOnly("osok_line_" + index), objective);
-      }
       syncNameTagTeam(scoreboard, players);
-   }
 
-   public Component getTabDisplayName(ServerPlayer player) {
-      if (!MatchManager.INSTANCE.getCurrentMatchState().isActive()) {
-         return Component.literal(player.getScoreboardName()).withStyle(ChatFormatting.WHITE);
+      int stateCode = 0;
+      if (MatchManager.Countdown.INSTANCE.isCountdownRunning()) {
+         stateCode = 1;
+      } else if (state == MatchState.RUNNING) {
+         stateCode = 2;
+      } else if (state == MatchState.PAUSED) {
+         stateCode = 3;
       }
-      UUID playerId = player.getUUID();
-      boolean isGunGame = MatchManager.INSTANCE.getCurrentGameMode() == MatchManager.GameMode.GUN_GAME;
-
-      if (isGunGame) {
-         GunGameManager.Tier tier = GunGameManager.INSTANCE.getTierFor(playerId);
-         int tierKills = GunGameManager.INSTANCE.getPlayerTierKills(playerId);
-         return Component.literal(player.getScoreboardName()).withStyle(ChatFormatting.WHITE)
-            .append(Component.literal(" | ").withStyle(ChatFormatting.GRAY))
-            .append(Component.literal("Stufe " + tier.getTierIndex() + ": " + tier.getDisplayName()).withStyle(tier.getColor(), ChatFormatting.BOLD))
-            .append(Component.literal(" (" + tierKills + "/" + tier.getRequiredKills() + ")").withStyle(ChatFormatting.GRAY))
-            .append(Component.literal(" | ").withStyle(ChatFormatting.GRAY))
-            .append(Component.literal("K/D: " + getKDRatio(playerId)).withStyle(ChatFormatting.AQUA));
-      }
-
-      String bounty = isBountyTarget(playerId) ? "👑 " : "";
-      return Component.literal(bounty).withStyle(ChatFormatting.YELLOW)
-         .append(Component.literal(player.getScoreboardName()).withStyle(ChatFormatting.WHITE))
-         .append(Component.literal(" | ").withStyle(ChatFormatting.GRAY))
-         .append(Component.literal("K: " + getKills(playerId)).withStyle(ChatFormatting.GREEN))
-         .append(Component.literal(" | ").withStyle(ChatFormatting.GRAY))
-         .append(Component.literal("D: " + getDeaths(playerId)).withStyle(ChatFormatting.RED))
-         .append(Component.literal(" | ").withStyle(ChatFormatting.GRAY))
-         .append(Component.literal("K/D: " + getKDRatio(playerId)).withStyle(ChatFormatting.AQUA))
-         .append(Component.literal(" | ").withStyle(ChatFormatting.GRAY))
-         .append(Component.literal("⚡" + getStreak(playerId)).withStyle(ChatFormatting.YELLOW))
-         .append(Component.literal(" (★" + getHighestStreak(playerId) + ")").withStyle(ChatFormatting.GOLD));
-   }
-
-   public void updateTabList(ServerPlayer player) {
-      if (!MatchManager.INSTANCE.getCurrentMatchState().isActive()) {
-         player.connection.send(new ClientboundTabListPacket(Component.empty(), Component.empty()));
-      } else {
-         boolean isGunGame = MatchManager.INSTANCE.getCurrentGameMode() == MatchManager.GameMode.GUN_GAME;
-         Component header = isGunGame
-            ? Component.literal("\n🎯 OSOK | WAFFENSPIEL\n").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
-            : Component.literal("\n🎯 OSOK | MATCH STATS\n").withStyle(ChatFormatting.RED, ChatFormatting.BOLD);
-         Component footer = isGunGame
-            ? Component.literal("\nErreiche Stufe 13 & meistere den Meisterdolch!\n").withStyle(ChatFormatting.YELLOW)
-            : Component.literal("\nScoreboard & Leaderboard\n").withStyle(ChatFormatting.GRAY);
-         player.connection.send(new ClientboundTabListPacket(header, footer));
-      }
-
-      // NeoForges refreshTabListName() gibt es nicht; die Zeile wird direkt neu verschickt.
-      // Den Namen selbst liefert ServerPlayerTabListMixin aus getTabDisplayName().
-      if (player.level().getServer() != null) {
-         player.level().getServer().getPlayerList().broadcastAll(new ClientboundPlayerInfoUpdatePacket(
-            ClientboundPlayerInfoUpdatePacket.Action.UPDATE_DISPLAY_NAME, player));
-      }
-   }
-
-   private List<Component> buildLines(List<ServerPlayer> ranking) {
-      List<Component> lines = new ArrayList<>();
-      Component separator = Component.literal("-------------------").withStyle(ChatFormatting.GRAY);
-      lines.add(separator);
 
       boolean isGunGame = MatchManager.INSTANCE.getCurrentGameMode() == MatchManager.GameMode.GUN_GAME;
-      MatchTargetMode targetMode = MatchManager.INSTANCE.getTargetMode();
+      String gameModeStr = isGunGame ? "GUN_GAME" : "CLASSIC";
+      String targetModeStr = MatchManager.INSTANCE.getTargetMode().name();
+      int targetVal = MatchManager.INSTANCE.getTargetValue();
+      int remaining = MatchManager.INSTANCE.getRemainingTicks();
+      int elapsed = MatchManager.INSTANCE.getElapsedTicks();
+      ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
+      String arenaName = worlds != null && worlds.getActive() != null ? worlds.getActive().getDisplayName() : "";
 
-      if (!isGunGame) {
-         if (targetMode == MatchTargetMode.TIME_LIMIT) {
-            int remainingSecs = Math.max(0, MatchManager.INSTANCE.getRemainingTicks() / 20);
-            int minutes = remainingSecs / 60;
-            int seconds = remainingSecs % 60;
-            String timeStr = String.format("%02d:%02d", minutes, seconds);
-            ChatFormatting timeColor = remainingSecs <= 30 ? ChatFormatting.RED : (remainingSecs <= 60 ? ChatFormatting.YELLOW : ChatFormatting.GREEN);
-            lines.add(Component.literal("⏱ Zeit: ").withStyle(ChatFormatting.GRAY)
-               .append(Component.literal(timeStr).withStyle(timeColor, ChatFormatting.BOLD)));
-            lines.add(separator);
-         } else if (targetMode == MatchTargetMode.KILL_LIMIT) {
-            int targetKills = MatchManager.INSTANCE.getTargetValue();
-            lines.add(Component.literal("🎯 Ziel: ").withStyle(ChatFormatting.GRAY)
-               .append(Component.literal(targetKills + " Kills").withStyle(ChatFormatting.AQUA, ChatFormatting.BOLD)));
-            lines.add(separator);
-         } else if (targetMode == MatchTargetMode.UNLIMITED) {
-            int elapsedSecs = MatchManager.INSTANCE.getElapsedTicks() / 20;
-            int minutes = elapsedSecs / 60;
-            int seconds = elapsedSecs % 60;
-            String timeStr = String.format("%02d:%02d", minutes, seconds);
-            lines.add(Component.literal("⏱ Dauer: ").withStyle(ChatFormatting.GRAY)
-               .append(Component.literal(timeStr).withStyle(ChatFormatting.WHITE)));
-            lines.add(separator);
+      List<PlayerEntry> entries = new ArrayList<>();
+      for (ServerPlayer player : players) {
+         UUID pid = player.getUUID();
+         int k = getKills(pid);
+         int d = getDeaths(pid);
+         int s = getStreak(pid);
+         int hs = getHighestStreak(pid);
+         boolean bounty = isBountyTarget(pid);
+         boolean alive = player.isAlive();
+         int ping = player.connection.latency();
+
+         int tier = 1;
+         int tierKills = 0;
+         int reqKills = 1;
+         String tierName = "";
+         String tierColor = "white";
+         if (isGunGame) {
+            GunGameManager.Tier t = GunGameManager.INSTANCE.getTierFor(pid);
+            tier = t.getTierIndex();
+            tierKills = GunGameManager.INSTANCE.getPlayerTierKills(pid);
+            reqKills = t.getRequiredKills();
+            tierName = t.getDisplayName();
+            tierColor = t.getColor().name();
          }
+
+         entries.add(new PlayerEntry(
+            pid, player.getScoreboardName(), k, d, s, hs, bounty, alive, ping,
+            tier, tierKills, reqKills, tierName, tierColor
+         ));
       }
 
-      if (isGunGame) {
-         lines.add(Component.literal("🎯 STUFEN-RANG:").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-         for (int index = 0; index < Math.min(ranking.size(), 8); index++) {
-            ServerPlayer player = ranking.get(index);
-            UUID playerId = player.getUUID();
-            GunGameManager.Tier tier = GunGameManager.INSTANCE.getTierFor(playerId);
-            int tierKills = GunGameManager.INSTANCE.getPlayerTierKills(playerId);
-            ChatFormatting rankColor = switch (index) {
-               case 0 -> ChatFormatting.GOLD;
-               case 1 -> ChatFormatting.GRAY;
-               case 2 -> ChatFormatting.RED;
-               default -> ChatFormatting.WHITE;
-            };
-            StringBuilder pips = new StringBuilder(" [");
-            for (int k = 0; k < tier.getRequiredKills(); k++) {
-               pips.append(k < tierKills ? "●" : "○");
-            }
-            pips.append("]");
+      MatchScoreboardPayload payload = new MatchScoreboardPayload(
+         stateCode, gameModeStr, targetModeStr, targetVal, remaining, elapsed, arenaName, entries
+      );
 
-            lines.add(Component.literal("#" + (index + 1) + " ").withStyle(rankColor)
-               .append(Component.literal(player.getScoreboardName()).withStyle(ChatFormatting.WHITE))
-               .append(Component.literal(" » ").withStyle(ChatFormatting.GRAY))
-               .append(Component.literal("S" + tier.getTierIndex()).withStyle(tier.getColor(), ChatFormatting.BOLD))
-               .append(Component.literal(pips.toString()).withStyle(ChatFormatting.DARK_GRAY)));
-         }
-      } else {
-         lines.add(Component.literal("🏆 TOP RANKING:").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
-         for (int index = 0; index < Math.min(ranking.size(), 10); index++) {
-            ServerPlayer player = ranking.get(index);
-            UUID playerId = player.getUUID();
-            ChatFormatting rankColor = switch (index) {
-               case 0 -> ChatFormatting.GOLD;
-               case 1 -> ChatFormatting.GRAY;
-               case 2 -> ChatFormatting.RED;
-               default -> ChatFormatting.WHITE;
-            };
-            String bounty = isBountyTarget(playerId) ? "👑 " : "";
-            lines.add(Component.literal("#" + (index + 1) + " ").withStyle(rankColor)
-               .append(Component.literal(bounty).withStyle(ChatFormatting.YELLOW))
-               .append(Component.literal(player.getScoreboardName()).withStyle(ChatFormatting.WHITE))
-               .append(Component.literal(" » ").withStyle(ChatFormatting.GRAY))
-               .append(Component.literal(getKills(playerId) + "K").withStyle(ChatFormatting.GREEN))
-               .append(Component.literal(" | ").withStyle(ChatFormatting.GRAY))
-               .append(Component.literal(getKDRatio(playerId)).withStyle(ChatFormatting.AQUA))
-               .append(Component.literal(" | ").withStyle(ChatFormatting.GRAY))
-               .append(Component.literal("⚡" + getStreak(playerId)).withStyle(ChatFormatting.YELLOW))
-               .append(Component.literal(" (★" + getHighestStreak(playerId) + ")").withStyle(ChatFormatting.GOLD)));
-         }
+      for (ServerPlayer player : players) {
+         ServerPlayNetworking.send(player, payload);
       }
-
-      if (ranking.isEmpty()) {
-         lines.add(Component.literal("Keine Spieler online").withStyle(ChatFormatting.GRAY));
-      }
-      lines.add(separator);
-      return lines;
    }
 
    private void syncNameTagTeam(Scoreboard scoreboard, List<ServerPlayer> players) {
@@ -278,10 +142,6 @@ public final class ScoreboardManager {
          team = scoreboard.addPlayerTeam(NAMETAG_TEAM);
          team.setNameTagVisibility(Visibility.NEVER);
       }
-      // Die Farbe des Umrisses eines leuchtenden Spielers kommt aus seinem Team. Alle stehen
-      // ohnehin in diesem einen, und leuchten tut nur, wer vom Radar markiert wurde – also
-      // reicht es, hier Rot zu setzen, statt Markierte in ein zweites Team umzuhängen. Ein
-      // Spieler kann nur in einem Team sein, und das Umhängen brächte seinen Namen zurück.
       team.setColor(java.util.Optional.of(net.minecraft.world.scores.TeamColor.RED));
       Set<String> onlineNames = players.stream().map(ServerPlayer::getScoreboardName).collect(java.util.stream.Collectors.toSet());
       for (String name : onlineNames) {
@@ -347,12 +207,6 @@ public final class ScoreboardManager {
       bountyTargets.remove(playerId);
    }
 
-   /**
-    * Nimmt einem Ziel das Kopfgeld ab und meldet, ob es eines hatte.
-    * <p>
-    * Die Ansage versprach zwei Bonus-Items, ausgezahlt wurden nie welche: die Menge diente
-    * allein der Krone in der Tabelle. Wer den Tragäger erledigt, bekommt sie jetzt wirklich.
-    */
    public boolean claimBounty(UUID playerId) {
       return bountyTargets.remove(playerId);
    }

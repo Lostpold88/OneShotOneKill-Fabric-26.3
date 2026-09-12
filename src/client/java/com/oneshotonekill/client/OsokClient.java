@@ -13,6 +13,7 @@ import com.oneshotonekill.client.hud.MatchHudLayers.MatchStartOverlayLayer;
 import com.oneshotonekill.client.hud.NukeHudLayers.NukeCountdownLayer;
 import com.oneshotonekill.client.hud.NukeHudLayers.NukeFlashLayer;
 import com.oneshotonekill.client.hud.NukeHudLayers.NukeVictoryLayer;
+import com.oneshotonekill.client.hud.TabScoreboardHudLayer;
 import com.oneshotonekill.client.model.OsokClientModels;
 import com.oneshotonekill.client.movement.ClientClimbing;
 import com.oneshotonekill.client.network.OsokClientHandlers;
@@ -125,6 +126,21 @@ public final class OsokClient implements ClientModInitializer {
             }
             original.extractRenderState(graphics, deltaTracker);
         });
+
+        // Vanilla-Tab-Liste unterdrücken
+        HudElementRegistry.replaceElement(VanillaHudElements.PLAYER_LIST, original -> (graphics, deltaTracker) -> {});
+
+        // CS:GO / Valorant Tactical Match Tab Scoreboard (über jedem anderen HUD-Element gerendert)
+        HudElementRegistry.addLast(id("tab_scoreboard"), (graphics, deltaTracker) -> {
+            Minecraft client = Minecraft.getInstance();
+            if (client.gui.screen() != null) {
+                return;
+            }
+            float progress = TabScoreboardState.INSTANCE.getTabOpenProgress(deltaTracker.getGameTimeDeltaPartialTick(false));
+            if (progress > 0.001F) {
+                TabScoreboardHudLayer.render(graphics, deltaTracker, progress);
+            }
+        });
     }
 
     /**
@@ -184,6 +200,8 @@ public final class OsokClient implements ClientModInitializer {
         NukeState.INSTANCE.tick();
         NukeSoundController.INSTANCE.tick(client);
         MinimapState.INSTANCE.tick(client);
+        boolean tabDown = client.options.keyPlayerList.isDown() && client.gui.screen() == null;
+        TabScoreboardState.INSTANCE.tick(tabDown);
         // Der Zeitverzerrer läuft je Bild: Während der Zeitlupe tickt auch der Client nur achtmal
         // je Sekunde, hier bleibt nur das Ablaufen der Frist übrig.
         TimeDistortionEffects.INSTANCE.clientTick();
@@ -273,6 +291,7 @@ public final class OsokClient implements ClientModInitializer {
         TimeDistortionSoundController.INSTANCE.stopAll();
         TimeDistortionEffects.INSTANCE.clear();
         MinimapState.INSTANCE.clear();
+        TabScoreboardState.INSTANCE.reset();
     }
 
     public static boolean isDetonateC4Key(KeyEvent event) {

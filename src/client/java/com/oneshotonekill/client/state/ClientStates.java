@@ -1990,4 +1990,83 @@ public final class ClientStates {
         public record EnemyContact(Vec3 pos, double dy, boolean shooting, int expiryTick) {
         }
     }
+
+    // =========================================================================
+    // TabScoreboardState.java (CS:GO Tactical Match Scoreboard)
+    // =========================================================================
+    public static final class TabScoreboardState {
+        public static final TabScoreboardState INSTANCE = new TabScoreboardState();
+
+        private MatchScoreboardPayload currentPayload = MatchScoreboardPayload.empty();
+        private float openProgress = 0.0F;
+        private float prevOpenProgress = 0.0F;
+
+        private TabScoreboardState() {
+        }
+
+        public void onPayload(MatchScoreboardPayload payload) {
+            this.currentPayload = payload;
+        }
+
+        public MatchScoreboardPayload getPayload() {
+            return currentPayload;
+        }
+
+        public boolean isActiveMatch() {
+            return currentPayload.matchState() != 0;
+        }
+
+        public void tick(boolean tabDown) {
+            prevOpenProgress = openProgress;
+            if (tabDown) {
+                openProgress = Math.min(1.0F, openProgress + 0.45F);
+            } else {
+                openProgress = Math.max(0.0F, openProgress - 0.50F);
+            }
+        }
+
+        public float getTabOpenProgress(float partialTick) {
+            return Mth.lerp(partialTick, prevOpenProgress, openProgress);
+        }
+
+        public List<MatchScoreboardPayload.PlayerEntry> getSortedEntries() {
+            List<MatchScoreboardPayload.PlayerEntry> list = new ArrayList<>(currentPayload.players());
+            if ("GUN_GAME".equals(currentPayload.gameMode())) {
+                list.sort(Comparator.comparingInt(MatchScoreboardPayload.PlayerEntry::tier)
+                    .thenComparingInt(MatchScoreboardPayload.PlayerEntry::tierKills)
+                    .thenComparingInt(MatchScoreboardPayload.PlayerEntry::kills)
+                    .reversed());
+            } else {
+                list.sort(Comparator.comparingInt(MatchScoreboardPayload.PlayerEntry::kills)
+                    .thenComparingDouble(MatchScoreboardPayload.PlayerEntry::kdRatio)
+                    .reversed());
+            }
+            return list;
+        }
+
+        public MatchScoreboardPayload.@Nullable PlayerEntry getLocalPlayerEntry(UUID localPlayerId) {
+            for (MatchScoreboardPayload.PlayerEntry entry : currentPayload.players()) {
+                if (entry.playerId().equals(localPlayerId)) {
+                    return entry;
+                }
+            }
+            return null;
+        }
+
+        public int getLocalPlayerRank(UUID localPlayerId) {
+            List<MatchScoreboardPayload.PlayerEntry> sorted = getSortedEntries();
+            for (int i = 0; i < sorted.size(); i++) {
+                if (sorted.get(i).playerId().equals(localPlayerId)) {
+                    return i + 1;
+                }
+            }
+            return -1;
+        }
+
+        public void reset() {
+            currentPayload = MatchScoreboardPayload.empty();
+            openProgress = 0.0F;
+            prevOpenProgress = 0.0F;
+        }
+    }
 }
