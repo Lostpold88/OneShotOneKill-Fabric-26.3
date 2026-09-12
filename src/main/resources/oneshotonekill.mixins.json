@@ -15,7 +15,8 @@
 		"match.PlayerAdvancementsMixin",
 		"movement.ServerPlayerMantleMixin",
 		"movement.BoogieSprintMixin",
-		"movement.LivingEntityClimbingMixin"
+		"movement.LivingEntityClimbingMixin",
+		"movement.EntityArenaBorderMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

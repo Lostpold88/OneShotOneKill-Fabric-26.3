@@ -34,6 +34,8 @@ public enum Arena {
     private static final Arena DEFAULT = STANDARD;
     private static final Map<String, Arena> BY_ID = java.util.Arrays.stream(values())
             .collect(Collectors.toUnmodifiableMap(Arena::getId, arena -> arena));
+    private static final Map<ResourceKey<Level>, Arena> BY_DIMENSION = java.util.Arrays.stream(values())
+            .collect(Collectors.toUnmodifiableMap(Arena::getDimension, arena -> arena));
 
     private final String id, displayName, archive;
     private final Vec3 lobby;
@@ -63,6 +65,10 @@ public enum Arena {
 
     public static Arena byId(String id) {
         return BY_ID.get(id.toLowerCase(Locale.ROOT));
+    }
+
+    public static Arena byDimension(ResourceKey<Level> dimension) {
+        return dimension != null ? BY_DIMENSION.get(dimension) : null;
     }
 
     public String getId() {
