@@ -1,5 +1,6 @@
 package com.oneshotonekill.client.mixin.effect;
 
+import com.oneshotonekill.client.effect.BoogieBombClient;
 import com.oneshotonekill.client.state.ClientStates.CameraShakeState;
 import com.oneshotonekill.client.state.ClientStates.GrapplePullState;
 import net.minecraft.client.Camera;
@@ -70,14 +71,16 @@ public abstract class CameraShakeMixin {
         float grappleRoll = GrapplePullState.INSTANCE.cameraRoll(partialTick);
         float climbPitch = com.oneshotonekill.client.movement.ClientClimbing.INSTANCE.cameraPitch(partialTick);
         float climbRoll = com.oneshotonekill.client.movement.ClientClimbing.INSTANCE.cameraRoll(partialTick);
+        float boogieRoll = BoogieBombClient.cameraRoll();
         if (!shake.isShaking() && Math.abs(grapplePitch) < 0.001F && Math.abs(grappleRoll) < 0.001F
-                && Math.abs(climbPitch) < 0.001F && Math.abs(climbRoll) < 0.001F) {
+                && Math.abs(climbPitch) < 0.001F && Math.abs(climbRoll) < 0.001F
+                && Math.abs(boogieRoll) < 0.001F) {
             return;
         }
 
         float yaw = yRot + (shake.isShaking() ? shake.getYawOffset(partialTick) : 0.0F);
         float pitch = xRot + grapplePitch + climbPitch + (shake.isShaking() ? shake.getPitchOffset(partialTick) : 0.0F);
-        float roll = (shake.isShaking() ? shake.getRollOffset(partialTick) : 0.0F) + grappleRoll + climbRoll;
+        float roll = (shake.isShaking() ? shake.getRollOffset(partialTick) : 0.0F) + grappleRoll + climbRoll + boogieRoll;
 
         this.rotation.rotationYXZ(
                 (float) Math.PI - yaw * (float) (Math.PI / 180.0),

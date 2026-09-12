@@ -1,5 +1,6 @@
 package com.oneshotonekill.client.effect;
 
+import com.oneshotonekill.client.hud.BoogieHudLayers;
 import com.oneshotonekill.event.InteractionGates;
 import com.oneshotonekill.item.runtime.BoogieBombSystem;
 import com.oneshotonekill.registry.ModSounds;
@@ -10,12 +11,15 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElementRegistry;
 import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
+import net.minecraft.client.renderer.state.LightmapRenderState;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Entity;
+import org.joml.Vector3f;
+import org.joml.Vector3fc;
 import org.jspecify.annotations.Nullable;
 
 import java.util.HashMap;
@@ -29,6 +33,14 @@ public final class BoogieBombClient {
     private static @Nullable ClientLevel level;
     private static @Nullable CameraType previousCamera;
 
+    private static final Vector3fc[] NEON_PALETTE = {
+        new Vector3f(1.0F, 0.12F, 0.58F),  // Hot Pink
+        new Vector3f(0.0F, 0.92F, 1.0F),   // Electric Cyan
+        new Vector3f(0.68F, 0.18F, 1.0F),  // Ultraviolet
+        new Vector3f(1.0F, 0.84F, 0.12F),  // Disco Gold
+        new Vector3f(0.0F, 1.0F, 0.52F)    // Mint Lime
+    };
+
     private BoogieBombClient() {}
 
     @SuppressWarnings("unused")
@@ -39,6 +51,8 @@ public final class BoogieBombClient {
         ClientTickEvents.END_CLIENT_TICK.register(BoogieBombClient::tick);
         ClientPlayConnectionEvents.DISCONNECT.register((_, client) -> clear(client));
         InteractionGates.registerClientDanceGate(player -> isDancing(player.getUUID()));
+        HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("oneshotonekill", "boogie_screen_fx"),
+                new BoogieHudLayers.ScreenFxLayer());
         HudElementRegistry.addLast(Identifier.fromNamespaceAndPath("oneshotonekill", "boogie_dance"),
                 (graphics, _) -> {
                     Minecraft client = Minecraft.getInstance();
@@ -87,6 +101,95 @@ public final class BoogieBombClient {
     public static float seconds(UUID id) {
         Dance dance = DANCERS.get(id);
         return dance == null ? 0 : (System.nanoTime() - dance.start) / 1_000_000_000.0F;
+    }
+
+    public static Vector3f getDiscoColor(float seconds) {
+        float beat = seconds * 2.0F;
+        float phase = (beat * 0.5F) % NEON_PALETTE.length;
+        if (phase < 0) phase += NEON_PALETTE.length;
+        int idx1 = (int) phase;
+        int idx2 = (idx1 + 1) % NEON_PALETTE.length;
+        float t = phase - idx1;
+        float smoothT = t * t * (3.0F - 2.0F * t);
+        Vector3fc c1 = NEON_PALETTE[idx1];
+        Vector3fc c2 = NEON_PALETTE[idx2];
+        return new Vector3f(
+            c1.x() + (c2.x() - c1.x()) * smoothT,
+            c1.y() + (c2.y() - c1.y()) * smoothT,
+            c1.z() + (c2.z() - c1.z()) * smoothT
+        );
+    }
+
+    public static float cameraRoll() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || !isDancing(client.player.getUUID())) return 0.0F;
+        UUID id = client.player.getUUID();
+        float weight = getWeight(id);
+        if (weight <= 0.001F) return 0.0F;
+        float sec = seconds(id);
+        float saltoProg = BoogieDanceAnimation.saltoProgress(sec);
+        float saltoFade = saltoProg >= 0.0F ? (1.0F - Math.clamp((float) Math.sin(saltoProg * Math.PI) * 1.35F, 0.0F, 1.0F)) : 1.0F;
+        float spinProg = BoogieDanceAnimation.spinProgress(sec);
+        float spinFade = spinProg >= 0.0F ? (1.0F - Math.clamp((float) Math.sin(spinProg * Math.PI) * 1.30F, 0.0F, 1.0F)) : 1.0F;
+        float beat = sec * 2.0F;
+        float swing = (float) Math.sin(beat * Math.PI);
+        return swing * 1.8F * weight * saltoFade * spinFade;
+    }
+
+    public static float modifyCameraDistance(float cameraDistance) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || !isDancing(client.player.getUUID())) return cameraDistance;
+        float sec = seconds(client.player.getUUID());
+        float p = BoogieDanceAnimation.saltoProgress(sec);
+        if (p >= 0.0F && p <= 1.0F) {
+            float zoom = (float) Math.sin(p * Math.PI) * 1.1F;
+            return Math.max(1.5F, cameraDistance - zoom);
+        }
+        return cameraDistance;
+    }
+
+    public static float fovModifier() {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || !isDancing(client.player.getUUID())) return 0.0F;
+        UUID id = client.player.getUUID();
+        float weight = getWeight(id);
+        if (weight <= 0.001F) return 0.0F;
+        float sec = seconds(id);
+        float beat = sec * 2.0F;
+        float pulse = (float) Math.sin(beat * Math.PI * 2.0) * 0.016F;
+        float p = BoogieDanceAnimation.saltoProgress(sec);
+        float saltoPunch = (p >= 0.0F && p <= 1.0F) ? (float) Math.sin(p * Math.PI) * 0.035F : 0.0F;
+        return (pulse + saltoPunch) * weight;
+    }
+
+    public static void applyDiscoLighting(LightmapRenderState renderState) {
+        Minecraft client = Minecraft.getInstance();
+        if (client.player == null || !isDancing(client.player.getUUID())) return;
+        UUID id = client.player.getUUID();
+        float weight = getWeight(id);
+        if (weight <= 0.001F) return;
+
+        float sec = seconds(id);
+        float beat = sec * 2.0F;
+        Vector3f discoColor = getDiscoColor(sec);
+
+        float pulse = 0.35F + 0.15F * (float) Math.sin(beat * Math.PI * 2.0);
+        float blendFactor = Math.clamp(pulse * weight, 0.0F, 0.70F);
+
+        Vector3fc origBlock = renderState.blockLightTint;
+        renderState.blockLightTint = new Vector3f(
+            origBlock.x() * (1.0F - blendFactor) + discoColor.x * blendFactor,
+            origBlock.y() * (1.0F - blendFactor) + discoColor.y * blendFactor,
+            origBlock.z() * (1.0F - blendFactor) + discoColor.z * blendFactor
+        );
+
+        Vector3fc origAmbient = renderState.ambientColor;
+        float ambientBlend = blendFactor * 0.40F;
+        renderState.ambientColor = new Vector3f(
+            origAmbient.x() * (1.0F - ambientBlend) + discoColor.x * ambientBlend,
+            origAmbient.y() * (1.0F - ambientBlend) + discoColor.y * ambientBlend,
+            origAmbient.z() * (1.0F - ambientBlend) + discoColor.z * ambientBlend
+        );
     }
 
     private static void handle(BoogieBombSystem.State packet, Minecraft client) {

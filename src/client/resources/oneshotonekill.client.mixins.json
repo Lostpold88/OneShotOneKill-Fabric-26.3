@@ -9,6 +9,7 @@
 		"effect.FogRendererMixin",
 		"effect.GameRendererTimeDistortionMixin",
 		"effect.GuiRenderStateBlurMixin",
+		"effect.LightmapRenderStateExtractorMixin",
 		"effect.PostPassTimeDistortionMixin",
 		"input.KeyboardInputMixin",
 		"input.LocalPlayerDropMixin",

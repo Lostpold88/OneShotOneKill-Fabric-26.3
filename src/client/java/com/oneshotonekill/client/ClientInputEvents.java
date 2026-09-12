@@ -1,6 +1,7 @@
 package com.oneshotonekill.client;
 
 import com.mojang.blaze3d.vertex.PoseStack;
+import com.oneshotonekill.client.effect.BoogieBombClient;
 import com.oneshotonekill.client.effect.TimeDistortionEffects;
 import com.oneshotonekill.client.screen.AirstrikeTargetScreen;
 import com.oneshotonekill.client.state.ClientStates.*;
@@ -152,6 +153,9 @@ public final class ClientInputEvents {
         Minecraft client = Minecraft.getInstance();
         MatchStartState state = MatchStartState.INSTANCE;
         modifier += TimeDistortionEffects.INSTANCE.fovOffset();
+        if (BoogieBombClient.isLocalDancing()) {
+            modifier += BoogieBombClient.fovModifier();
+        }
 
         if (state.isCountdownActive() && client.options.getCameraType() != CameraType.THIRD_PERSON_FRONT) {
             client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
@@ -197,6 +201,9 @@ public final class ClientInputEvents {
         if (MatchStartState.INSTANCE.isCountdownActive()) {
             float partial = Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false);
             return MatchStartState.INSTANCE.getCameraDistance(partial);
+        }
+        if (BoogieBombClient.isLocalDancing()) {
+            return BoogieBombClient.modifyCameraDistance(cameraDistance);
         }
         return cameraDistance;
     }

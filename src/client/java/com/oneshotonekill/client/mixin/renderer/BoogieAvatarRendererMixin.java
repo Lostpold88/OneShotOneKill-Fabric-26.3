@@ -17,7 +17,7 @@ public abstract class BoogieAvatarRendererMixin {
     @Inject(method = "extractRenderState(Lnet/minecraft/world/entity/Avatar;Lnet/minecraft/client/renderer/entity/state/AvatarRenderState;F)V",
             at = @At("RETURN"))
     private void osok$emptyDancingHands(Avatar entity, AvatarRenderState state, float partialTicks, CallbackInfo ci) {
-        if (BoogieBombClient.getWeight(entity.getUUID()) < 0.35F) return;
+        if (BoogieBombClient.getWeight(entity.getUUID()) <= 0.001F) return;
         state.leftHandItemStack = ItemStack.EMPTY;
         state.rightHandItemStack = ItemStack.EMPTY;
         state.leftHandItemState.clear();

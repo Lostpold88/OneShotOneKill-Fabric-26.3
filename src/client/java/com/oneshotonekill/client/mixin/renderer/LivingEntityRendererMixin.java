@@ -108,17 +108,21 @@ public abstract class LivingEntityRendererMixin {
       }
       float seconds = BoogieBombClient.seconds(entity.getUUID());
       float progress = BoogieDanceAnimation.saltoProgress(seconds);
-      if (progress < 0.0F || progress > 1.0F) {
-         return;
+      if (progress >= 0.0F && progress <= 1.0F) {
+         float jumpY = BoogieDanceAnimation.saltoJumpY(progress) * weight;
+         float pitch = BoogieDanceAnimation.saltoPitch(progress) * weight;
+
+         // Drehpunkt auf Körperschwerpunkt (Hüfte Y ~ 0.95F)
+         poseStack.translate(0.0F, jumpY + 0.95F, 0.0F);
+         poseStack.mulPose(Axis.XP.rotationDegrees(pitch));
+         poseStack.translate(0.0F, -0.95F, 0.0F);
       }
 
-      float jumpY = BoogieDanceAnimation.saltoJumpY(progress) * weight;
-      float pitch = BoogieDanceAnimation.saltoPitch(progress) * weight;
-
-      // Drehpunkt auf Körperschwerpunkt (Hüfte Y ~ 0.95F)
-      poseStack.translate(0.0F, jumpY + 0.95F, 0.0F);
-      poseStack.mulPose(Axis.XP.rotationDegrees(pitch));
-      poseStack.translate(0.0F, -0.95F, 0.0F);
+      float spinProgress = BoogieDanceAnimation.spinProgress(seconds);
+      if (spinProgress >= 0.0F && spinProgress <= 1.0F) {
+         float spinYaw = BoogieDanceAnimation.spinYaw(spinProgress) * weight;
+         poseStack.mulPose(Axis.YP.rotationDegrees(spinYaw));
+      }
    }
 
    @Inject(

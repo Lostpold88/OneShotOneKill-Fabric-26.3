@@ -582,19 +582,26 @@ public final class ClientStates {
             return new RenderPose(yaw, elevation, blend);
         }
 
+        private @Nullable RenderPose firstPersonPose(float partialTick) {
+            Minecraft client = Minecraft.getInstance();
+            LocalPlayer player = client.player;
+            if (player == null || !client.options.getCameraType().isFirstPerson()) {
+                return null;
+            }
+            return pose(player, partialTick);
+        }
+
         /**
          * Die Egoansicht neigt sich sanft mit der vertikalen Zugneigung nach oben/unten (ohne seitliches Rollen).
          */
         public float cameraPitch(float partialTick) {
-            Minecraft client = Minecraft.getInstance();
-            LocalPlayer player = client.player;
-            if (player == null || !client.options.getCameraType().isFirstPerson()) {
-                return 0.0F;
-            }
-            RenderPose pose = pose(player, partialTick);
+            RenderPose pose = firstPersonPose(partialTick);
             if (pose == null) {
                 return 0.0F;
             }
+            Minecraft client = Minecraft.getInstance();
+            LocalPlayer player = client.player;
+            if (player == null) return 0.0F;
             float targetPitch = -pose.elevation;
             float currentPitch = player.getXRot(partialTick);
             float deltaPitch = Mth.wrapDegrees(targetPitch - currentPitch);
@@ -605,15 +612,13 @@ public final class ClientStates {
          * Die Egoansicht rollt sich sanft bei seitlichen Grappler-Schwüngen in die Kurve.
          */
         public float cameraRoll(float partialTick) {
-            Minecraft client = Minecraft.getInstance();
-            LocalPlayer player = client.player;
-            if (player == null || !client.options.getCameraType().isFirstPerson()) {
-                return 0.0F;
-            }
-            RenderPose pose = pose(player, partialTick);
+            RenderPose pose = firstPersonPose(partialTick);
             if (pose == null) {
                 return 0.0F;
             }
+            Minecraft client = Minecraft.getInstance();
+            LocalPlayer player = client.player;
+            if (player == null) return 0.0F;
             float deltaYaw = Mth.wrapDegrees(pose.yaw - player.getYRot(partialTick));
             return Math.clamp(deltaYaw * 0.045F, -2.5F, 2.5F) * pose.blend;
         }
@@ -1905,7 +1910,7 @@ public final class ClientStates {
                 }
                 radarViewDirty = true;
                 scanColumn = end;
-                if (scanColumn >= MAP_WIDTH) {
+                if (scanColumn == MAP_WIDTH) {
                     if (anyChunkMissing && scanPasses < 5) {
                         scanPasses++;
                         scanColumn = 0;

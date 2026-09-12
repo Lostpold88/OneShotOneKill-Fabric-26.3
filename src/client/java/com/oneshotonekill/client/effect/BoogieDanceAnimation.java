@@ -23,9 +23,43 @@ public final class BoogieDanceAnimation {
     public static final float SALTO_START = 4.8F;
     public static final float SALTO_DURATION = 1.35F;
 
+    public static final float SPIN_START = 6.15F;
+    public static final float SPIN_DURATION = 1.15F;
+
+    public static final float HUSTLE_START = 7.30F;
+    public static final float HUSTLE_END = 11.0F;
+
+    public static final float FINALE_START = 11.0F;
+
     public static float saltoProgress(float seconds) {
         if (seconds < SALTO_START || seconds > SALTO_START + SALTO_DURATION) return -1.0F;
         return (seconds - SALTO_START) / SALTO_DURATION;
+    }
+
+    public static float spinProgress(float seconds) {
+        if (seconds < SPIN_START || seconds > SPIN_START + SPIN_DURATION) return -1.0F;
+        return (seconds - SPIN_START) / SPIN_DURATION;
+    }
+
+    public static float spinYaw(float progress) {
+        if (progress <= 0.0F) return 0.0F;
+        if (progress >= 1.0F) return 360.0F;
+        float ease = progress * progress * (3.0F - 2.0F * progress);
+        return 360.0F * ease;
+    }
+
+    public static float hustleWeight(float seconds) {
+        if (seconds < HUSTLE_START || seconds > HUSTLE_END) return 0.0F;
+        float blendIn = Math.clamp((seconds - HUSTLE_START) / 0.40F, 0.0F, 1.0F);
+        float blendOut = Math.clamp((HUSTLE_END - seconds) / 0.40F, 0.0F, 1.0F);
+        float target = Math.min(blendIn, blendOut);
+        return target * target * (3.0F - 2.0F * target);
+    }
+
+    public static float finaleWeight(float seconds) {
+        if (seconds < FINALE_START) return 0.0F;
+        float blendIn = Math.clamp((seconds - FINALE_START) / 0.45F, 0.0F, 1.0F);
+        return blendIn * blendIn * (3.0F - 2.0F * blendIn);
     }
 
     public static float saltoJumpY(float progress) {
@@ -86,6 +120,7 @@ public final class BoogieDanceAnimation {
         return a + (b - a) * st;
     }
 
+    @SuppressWarnings("DuplicatedCode")
     public static void pose(HumanoidModel<?> model, float seconds, float weight) {
         if (weight <= 0.0001F) return;
 
@@ -200,21 +235,59 @@ public final class BoogieDanceAnimation {
         float bounce = (1.0F - (float) Math.cos(beat * Math.PI * 2)) * 0.60F * discoGrooveFactor;
         float hip = swing * 1.35F;
 
+        // Phase 3A: 360° Boden-Pirouette
+        float spinP = spinProgress(seconds);
+        float spinBlend = 0.0F;
+        if (spinP >= 0.0F && spinP <= 1.0F) {
+            spinBlend = Math.clamp((float) Math.sin(spinP * Math.PI) * 1.30F, 0.0F, 1.0F);
+        }
+
+        // Phase 3B: The Hustle / Rolling Wheels
+        float hw = hustleWeight(seconds);
+        float rollAngle = (seconds - HUSTLE_START) * 2.0F * (float) (Math.PI * 2.0);
+        float rollSin = (float) Math.sin(rollAngle);
+        float rollCos = (float) Math.cos(rollAngle);
+        float hRArmX = -1.25F + rollSin * 0.28F;
+        float hRArmY = -0.38F + rollCos * 0.22F;
+        float hRArmZ = 0.48F + rollCos * 0.16F;
+        float hLArmX = -1.25F - rollSin * 0.28F;
+        float hLArmY = 0.38F - rollCos * 0.22F;
+        float hLArmZ = -0.48F - rollCos * 0.16F;
+        float shimmy = (float) Math.sin(beat * Math.PI) * 0.10F;
+
+        // Phase 4: Hands in the Air Grand Finale
+        float fw = finaleWeight(seconds);
+        float partyPump = (1.0F - (float) Math.cos(beat * Math.PI * 2.0)) * 0.18F;
+        float fRArmX = -2.75F + partyPump;
+        float fRArmY = -0.15F;
+        float fRArmZ = 0.45F - partyPump * 0.12F;
+        float fLArmX = -2.75F + partyPump;
+        float fLArmY = 0.15F;
+        float fLArmZ = -0.45F + partyPump * 0.12F;
+        float fHeadX = -0.22F + (float) Math.sin(beat * Math.PI * 2.0) * 0.10F;
+
         // Ziel-Posen der Disco-Choreografie
-        float dBodyX = model.body.x + hip * 0.45F;
-        float dBodyY = model.body.y + bounce;
-        float dBodyZ = model.body.z + (1.0F - (float) Math.cos(beat * Math.PI * 2)) * 0.20F * discoGrooveFactor;
-        float dBodyXRot = (0.05F + (float) Math.sin(beat * Math.PI * 2) * 0.03F) * discoGrooveFactor + sBodyXRot * saltoBlend;
-        float dBodyYRot = swing * 0.22F;
-        float dBodyZRot = -swing * 0.08F;
+        float spinCalm = 1.0F - spinBlend;
+        float dBodyX = model.body.x + hip * 0.45F * spinCalm;
+        float dBodyY = model.body.y + bounce * spinCalm;
+        float dBodyZ = model.body.z + (1.0F - (float) Math.cos(beat * Math.PI * 2)) * 0.20F * discoGrooveFactor * spinCalm;
+        float dBodyXRot = ((0.05F + (float) Math.sin(beat * Math.PI * 2) * 0.03F) * discoGrooveFactor + sBodyXRot * saltoBlend) * spinCalm;
+        float dBodyYRot = swing * 0.22F * spinCalm;
+        float dBodyZRot = (-swing * 0.08F + shimmy * hw) * spinCalm;
 
         float[] socket = new float[3];
 
         transformSocket(0.0F, 0.0F, dBodyX, dBodyY, dBodyZ, dBodyXRot, dBodyYRot, dBodyZRot, socket);
         float dHeadX = socket[0], dHeadY = socket[1], dHeadZ = socket[2];
-        float dHeadXRot = (float) Math.sin(beat * Math.PI * 2) * 0.09F * discoGrooveFactor;
+        float dHeadXRot = (float) Math.sin(beat * Math.PI * 2.0) * 0.12F * discoGrooveFactor;
         float dHeadYRot = -swing * 0.20F;
         float dHeadZRot = swing * 0.06F;
+
+        if (spinBlend > 0.001F) {
+            dHeadXRot = net.minecraft.util.Mth.lerp(spinBlend, dHeadXRot, 0.0F);
+            dHeadYRot = net.minecraft.util.Mth.lerp(spinBlend, dHeadYRot, 0.0F);
+            dHeadZRot = net.minecraft.util.Mth.lerp(spinBlend, dHeadZRot, 0.0F);
+        }
 
         transformSocket(-5.0F, 2.0F, dBodyX, dBodyY, dBodyZ, dBodyXRot, dBodyYRot, dBodyZRot, socket);
         float dRArmX = socket[0], dRArmY = socket[1], dRArmZ = socket[2];
@@ -229,6 +302,7 @@ public final class BoogieDanceAnimation {
         blend = blend * blend * (3 - 2 * blend);
 
         float radians = (float) (Math.PI / 180);
+        // Phase 1: Travolta Points
         float dRArmXRot = (ARMS[first][0] + (ARMS[second][0] - ARMS[first][0]) * blend) * radians;
         float dRArmYRot = (ARMS[first][1] + (ARMS[second][1] - ARMS[first][1]) * blend) * radians;
         float dRArmZRot = (ARMS[first][2] + (ARMS[second][2] - ARMS[first][2]) * blend) * radians;
@@ -237,11 +311,45 @@ public final class BoogieDanceAnimation {
         float dLArmYRot = (ARMS[first][4] + (ARMS[second][4] - ARMS[first][4]) * blend) * radians;
         float dLArmZRot = (ARMS[first][5] + (ARMS[second][5] - ARMS[first][5]) * blend) * radians;
 
+        // Phase 3A: Flotte Pirouette (Arme elegant angezogen)
+        if (spinBlend > 0.001F) {
+            float spinRArmX = -0.80F, spinRArmY = -0.30F, spinRArmZ = 0.45F;
+            float spinLArmX = -0.80F, spinLArmY = 0.30F, spinLArmZ = -0.45F;
+            dRArmXRot = net.minecraft.util.Mth.lerp(spinBlend, dRArmXRot, spinRArmX);
+            dRArmYRot = net.minecraft.util.Mth.lerp(spinBlend, dRArmYRot, spinRArmY);
+            dRArmZRot = net.minecraft.util.Mth.lerp(spinBlend, dRArmZRot, spinRArmZ);
+            dLArmXRot = net.minecraft.util.Mth.lerp(spinBlend, dLArmXRot, spinLArmX);
+            dLArmYRot = net.minecraft.util.Mth.lerp(spinBlend, dLArmYRot, spinLArmY);
+            dLArmZRot = net.minecraft.util.Mth.lerp(spinBlend, dLArmZRot, spinLArmZ);
+        }
+
+        // Phase 3B: The Hustle / Rolling Wheels
+        if (hw > 0.001F) {
+            dRArmXRot = net.minecraft.util.Mth.lerp(hw, dRArmXRot, hRArmX);
+            dRArmYRot = net.minecraft.util.Mth.lerp(hw, dRArmYRot, hRArmY);
+            dRArmZRot = net.minecraft.util.Mth.lerp(hw, dRArmZRot, hRArmZ);
+            dLArmXRot = net.minecraft.util.Mth.lerp(hw, dLArmXRot, hLArmX);
+            dLArmYRot = net.minecraft.util.Mth.lerp(hw, dLArmYRot, hLArmY);
+            dLArmZRot = net.minecraft.util.Mth.lerp(hw, dLArmZRot, hLArmZ);
+        }
+
+        // Phase 4: Grand Finale (Hands in the Air)
+        if (fw > 0.001F) {
+            dRArmXRot = net.minecraft.util.Mth.lerp(fw, dRArmXRot, fRArmX);
+            dRArmYRot = net.minecraft.util.Mth.lerp(fw, dRArmYRot, fRArmY);
+            dRArmZRot = net.minecraft.util.Mth.lerp(fw, dRArmZRot, fRArmZ);
+            dLArmXRot = net.minecraft.util.Mth.lerp(fw, dLArmXRot, fLArmX);
+            dLArmYRot = net.minecraft.util.Mth.lerp(fw, dLArmYRot, fLArmY);
+            dLArmZRot = net.minecraft.util.Mth.lerp(fw, dLArmZRot, fLArmZ);
+            dHeadXRot = net.minecraft.util.Mth.lerp(fw, dHeadXRot, fHeadX);
+        }
+
         transformSocket(-1.9F, 12.0F, dBodyX, dBodyY, dBodyZ, dBodyXRot, dBodyYRot, dBodyZRot, socket);
-        float dRLegX = socket[0], dRLegY = socket[1], dRLegZ = socket[2];
+        float stepOffset = swing * 0.18F * discoGrooveFactor * spinCalm;
+        float dRLegX = socket[0], dRLegY = socket[1], dRLegZ = socket[2] + stepOffset;
 
         transformSocket(1.9F, 12.0F, dBodyX, dBodyY, dBodyZ, dBodyXRot, dBodyYRot, dBodyZRot, socket);
-        float dLLegX = socket[0], dLLegY = socket[1], dLLegZ = socket[2];
+        float dLLegX = socket[0], dLLegY = socket[1], dLLegZ = socket[2] - stepOffset;
 
         float bounceBend = -bounce * 0.14F;
         float dRLegXRot = (Math.max(0.0F, swing) * -0.48F + bounceBend) * discoGrooveFactor;
@@ -250,6 +358,15 @@ public final class BoogieDanceAnimation {
         float dLLegYRot = (dBodyYRot * 0.85F + (swing < 0.0F ? -0.08F : 0.04F)) * discoGrooveFactor;
         float dRLegZRot = (0.08F - swing * 0.15F + Math.max(0.0F, swing) * 0.05F) * discoGrooveFactor;
         float dLLegZRot = (-0.08F - swing * 0.15F - Math.max(0.0F, -swing) * 0.05F) * discoGrooveFactor;
+
+        if (spinBlend > 0.001F) {
+            dRLegXRot = net.minecraft.util.Mth.lerp(spinBlend, dRLegXRot, 0.0F);
+            dLLegXRot = net.minecraft.util.Mth.lerp(spinBlend, dLLegXRot, 0.0F);
+            dRLegYRot = net.minecraft.util.Mth.lerp(spinBlend, dRLegYRot, 0.0F);
+            dLLegYRot = net.minecraft.util.Mth.lerp(spinBlend, dLLegYRot, 0.0F);
+            dRLegZRot = net.minecraft.util.Mth.lerp(spinBlend, dRLegZRot, 0.0F);
+            dLLegZRot = net.minecraft.util.Mth.lerp(spinBlend, dLLegZRot, 0.0F);
+        }
 
         if (saltoBlend > 0.001F) {
             dHeadXRot = net.minecraft.util.Mth.lerp(saltoBlend, dHeadXRot, sHeadXRot);
