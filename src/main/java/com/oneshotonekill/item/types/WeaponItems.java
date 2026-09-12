@@ -1,5 +1,5 @@
 package com.oneshotonekill.item.types;
-import com.oneshotonekill.item.StopUsingAware;
+
 import com.oneshotonekill.shared.SpecialItemRules;
 
 import com.oneshotonekill.item.runtime.Deployables;
@@ -140,7 +140,7 @@ public final class WeaponItems {
     * behält seine Railgun: ein Fehlversuch soll nichts kosten, sonst traut sich niemand, das
     * Aufladen überhaupt auszuprobieren.
     */
-   public static final class RailgunItem extends Item implements StopUsingAware {
+   public static final class RailgunItem extends Item {
       public RailgunItem(Properties properties) {
          super(properties);
       }
@@ -177,21 +177,6 @@ public final class WeaponItems {
             }
          }
          return true;
-      }
-   
-      /**
-       * Bricht das Laden ab, wenn der Spieler die Waffe wegsteckt.
-       * <p>
-       * Geschossen wird dabei ausdrücklich nicht: {@code releaseUsing} kommt nur, wenn der Client
-       * das Loslassen meldet, {@code stopUsingItem} dagegen auch beim Waffenwechsel. Ohne diesen
-       * Griff bliebe die Waffe mit weißglühenden Spulen im Inventar liegen.
-       * <p>
-       * Vanilla fragt an dieser Stelle keinen Gegenstand; den Aufruf stellt
-       * {@code LivingEntityStopUsingMixin} über {@link StopUsingAware} wieder her.
-       */
-      @Override
-      public void onStopUsing(ItemStack stack, LivingEntity entity) {
-         RailgunSystem.INSTANCE.cancelCharge(stack);
       }
    
       /**
