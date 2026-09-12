@@ -14,7 +14,7 @@ Fremdbibliothek über Fabric API hinaus.
 | **Fabric Loader** | 0.19.5 |
 | **Fabric API** | 0.160.0+26.2 |
 | **Fabric Loom** | 1.17-SNAPSHOT |
-| **Mod-Version** | 1.0.0 |
+| **Mod-Version** | 2.0.0 |
 | **Java** | 25 |
 | **Gradle** | 9.7.1 |
 | **Abhängigkeiten** | keine über Fabric API hinaus |

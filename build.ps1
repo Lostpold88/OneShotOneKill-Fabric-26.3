@@ -137,7 +137,7 @@ $GradleProperties = Get-PropertiesFile -Path $GradlePropertiesFile
 $ServerModsDir = $DeployProperties['server_mods_dir']
 $ClientModsDir = $DeployProperties['client_mods_dir']
 $ModId         = $GradleProperties['mod_id'] ?? 'oneshotonekill'
-$ModVersion    = $GradleProperties['version'] ?? '1.0.0'
+$ModVersion    = $GradleProperties['version'] ?? '2.0.0'
 $McVersion     = $GradleProperties['minecraft_version'] ?? '26.2'
 $LoaderVersion = $GradleProperties['loader_version'] ?? '0.19.5'
 
