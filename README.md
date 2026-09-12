@@ -1,8 +1,6 @@
 # OneShotOneKill — Fabric 26.2
 
-PvP-Minigame für Minecraft: Ein Treffer genügt. Umschaltbare Arenen, Killstreaks, Kopfgeld und
-19 Spezial-Items — portiert von der NeoForge-Fassung auf **Fabric 26.2**, ohne eine einzige
-Fremdbibliothek über Fabric API hinaus.
+PvP-Minigame für Minecraft: Ein Treffer genügt. Umschaltbare Arenen, Killstreaks, Kopfgeld, Spielmodi (Klassisch & Waffenspiel), modernes CS:GO-Tab-Scoreboard und **20 Spezial-Items** — entwickelt für **Fabric 26.2**, ohne eine einzige Fremdbibliothek über Fabric API hinaus.
 
 ---
 
@@ -18,8 +16,11 @@ Fremdbibliothek über Fabric API hinaus.
 | **Java** | 25 |
 | **Gradle** | 9.7.1 |
 | **Abhängigkeiten** | keine über Fabric API hinaus |
-| **Mixins** | 22 (11 gemeinsam, 11 nur Client) |
+| **Mixins** | 40 (14 gemeinsam, 26 nur Client) |
 | **Access Widener** | 2 Einträge |
+| **Spezial-Items** | 20 einzigartige Ausrüstungsgegenstände |
+| **Arenen** | 4 eingebaute Karten mit physischer Randkollision |
+| **Spielmodi** | Klassisch (One Shot One Kill) & Waffenspiel (Gun Game) |
 
 Mod-ID `oneshotonekill`, Package `com.oneshotonekill`. Geteilte Source-Sets über
 `splitEnvironmentSourceSets()`: `src/main/java` läuft auf Server und Client, `src/client/java`
@@ -27,208 +28,150 @@ ausschließlich auf dem Client.
 
 ---
 
-## Arenen
+## Spielmodi
 
-Drei eingebaute Karten, im laufenden Betrieb umschaltbar:
+1. **Klassisch (One Shot One Kill):**
+   * Jeder direkte Treffer mit Pfeil oder Spezialwaffe ist tödlich.
+   * Killserien (3, 6, 9...) schalten Spezial-Items frei.
+   * Zufällig spawnende Item-Boxen in der Arena sorgen für Abwechslung.
+   * Ziel: Zeitlimit (z. B. 10 Min.) oder Kill-Limit (z. B. 25 Kills).
 
-| Karte | Kampfzone | Decke |
-| :--- | :--- | :--- |
-| **Standard** | Rechteck, Y 58–64 | Y 69 |
-| **DustPvP** | Rechteck, Y 70 | offen |
-| **BO2** | Polygon aus 221 Eckpunkten, Y 63–81 | offen |
-
-Die Arenen sind **Datapack-Dimensionen** mit Void-Generator; die eigentlichen Karten liegen als
-Archive im Jar und werden beim Start in die Dimensionsordner ausgepackt. Ein Reset holt die
-Spieler heraus, lässt die Chunks leerlaufen und packt neu aus.
-
-BO2 ist als Umriss vermessen statt als Quader — von der umschließenden Box gehören nur rund zwei
-Drittel wirklich zur Karte. Der Umriss wird beim Laden einmal in eine Maske gerastert, danach ist
-die Bereichsprüfung ein Feldzugriff statt eines Punkt-in-Polygon-Tests über hundert Ecken.
+2. **Waffenspiel (Gun Game):**
+   * Alle Spieler starten mit der ersten Waffenstufe.
+   * Jeder erzielte Kill schaltet unmittelbar die nächste Stufe frei.
+   * Individuelle Waffen-Tiers mit grafischem Fortschrittsbalken im Tab-Scoreboard.
+   * Wer die finale Stufe erfolgreich meistert, beendet die Runde siegreich.
 
 ---
 
-## Die 19 Spezial-Items
+## Arenen & Physisches Grenzkollisions-System
 
-Jedes ist ein **eigenes registriertes Item mit eigener Textur oder individuellem 3D-Modell** — kein umbenanntes Vanilla-Item.
+Vier eingebaute Karten, im laufenden Betrieb über das Menü umschaltbar:
+
+| Karte | Kampfzone | Decke | Besonderheiten |
+| :--- | :--- | :--- | :--- |
+| **Standard** | Rechteck, Y 58–64 | Y 69 | Klassische Arena für rasante Nahkämpfe |
+| **DustPvP** | Rechteck, Y 70 | offen | Offenes Wüstenareal mit taktischen Deckungen |
+| **BO2** | Polygon aus 221 Eckpunkten, Y 63–81 | offen | Taktischer Stadt-Grundriss mit Raster-Maskenprüfung |
+| **Tilted Towers** | Mehrstöckig, Y 1–35 & Y 7–35 | Y 35 | Wolkenkratzer-Metropole mit Wandklettern & Mantling |
+
+* **Physische Randkollision:** Auf allen vier Karten verhindert ein physikalisches Begrenzungssystem via Mixin (`EntityArenaBorderMixin`), dass Spieler die Arena verlassen. Bewegungen werden exakt an den Begrenzungspolygonen gestoppt – ohne Rausfallen in die Void und ohne fehlerhaftes Zurückteleportieren.
+* **Datapack-Dimensionen mit Void-Generator:** Die eigentlichen Karten liegen als ZIP-Archive im Jar und werden beim Start in die Dimensionsordner ausgepackt. Ein Arena-Reset setzt alle Blöcke sauber zurück.
+
+---
+
+## Die 20 Spezial-Items
+
+Jedes ist ein **eigenes registriertes Item mit individueller Textur oder echtem 3D-Display-Modell** — kein umbenanntes Vanilla-Item.
 
 | Item | Auslöser | Wirkung |
 | :--- | :--- | :--- |
-| **Radar-Puls** | Rechtsklick | Alle Gegner leuchten 30 s |
-| **Explosiv-Schuss** | Rechtsklick | Nächster Pfeil sprengt im Umkreis von 7 |
-| **Reflektor-Schild** | Rechtsklick | Fängt den nächsten tödlichen Treffer ab |
-| **Rauchbombe** | Werfen | Nebelwand, Werfer wird versetzt |
-| **Frost-Falle** | Platzieren | Unsichtbar für Gegner; friert den ersten Spieler 7 s fest |
-| **Minigun** | Rechtsklick | 8 s Dauerfeuer mit rotierendem 3D-Laufbündel |
-| **Teleport-Granate** | Werfen | Versetzt und stößt Gegner weg |
-| **Unsichtbarkeits-Mantel** | Rechtsklick | 15 s unsichtbar |
-| **Pfeil-Magnetfeld** | Rechtsklick | Lenkt Pfeile 15 s ab |
-| **Kettenblitz** | Rechtsklick | Blitz springt auf 2 Gegner über |
-| **Tarnkappenbomber** | Rechtsklick | Zielmenü, 3D-Nurflügler-Anflug, dann 10 s Bombardement (max. 3 Kills) |
-| **Luftangriff** | Rechtsklick | Taktisches Radar mit Zielauswahl, 3D-Nuklearbombe und Atompilz |
-| **C4** | Rechtsklick | Kleben, zünden (Boden/Luft) und abnehmen — dynamischer Modellwechsel & geteilter Zünder |
-| **Railgun** | Halten und loslassen | Voll geladen ein durchschlagender Strahl mit unendlicher Reichweite |
-| **Singularität** | Werfen | 5 s Sog im Umkreis von 10, sichtbarer 3D-Gravitationskern |
-| **Gleitflug** | Rechtsklick | 8 s Dauerschub in Blickrichtung: waagerecht schweben, steil steigen |
-| **Geschützturm** | Platzieren | 20 s Dauerfeuer mit 3D-Drehkopf, drei Treffer töten |
-| **Zeitverzerrer** | Rechtsklick | Verlangsamt den gesamten Zeitfluss für sieben reale Sekunden |
-| **Grappling Hook** | Rechtsklick | Zehn Schüsse; sichtbarer Saughaken und Seil ziehen den Spieler zum Trefferpunkt |
+| **Radar-Puls** | Rechtsklick | Alle Gegner leuchten 30 s lang durch Wände |
+| **Explosiv-Schuss** | Rechtsklick | Nächster Pfeil detoniert im Umkreis von 7 Blöcken |
+| **Reflektor-Schild** | Rechtsklick | Fängt den nächsten tödlichen Treffer ab und schützt den Träger |
+| **Rauchbombe** | Werfen | Blickdichte Nebelwand; der Werfer wird taktisch versetzt |
+| **Frost-Falle** | Platzieren | Unsichtbar für Gegner; friert den ersten Auslöser 7 s bewegungsunfähig ein |
+| **Minigun** | Rechtsklick | 8 s Dauerfeuer mit rotierendem 3D-Laufbündel, Mündungsfeuer & Kamerarütteln |
+| **Teleport-Granate** | Werfen | Versetzt den Werfer zur Einschlagstelle und stößt Gegner weg |
+| **Unsichtbarkeits-Mantel** | Rechtsklick | 15 s vollständige Unsichtbarkeit |
+| **Pfeil-Magnetfeld** | Rechtsklick | Lenkt feindliche Pfeile 15 s lang im Flug ab |
+| **Kettenblitz** | Rechtsklick | Tödlicher Blitzschlag, der auf 2 nahestehende Gegner überspringt |
+| **Tarnkappenbomber** | Rechtsklick | Taktisches Zielmenü, 3D-Nurflügler-Anflug, 10 s Bombenteppich (max. 3 Kills) |
+| **Luftangriff** | Rechtsklick | Taktisches Radar mit Zielauswahl, herabstürzende 3D-Nuklearbombe & 4-Sekunden-Atompilz |
+| **C4** | Rechtsklick | Kleben, fernzünden (Boden/Luft) und abnehmen — dynamischer Modellwechsel & geteilter Zünder |
+| **Railgun** | Halten & Loslassen | Durchschlagender Laserstrahl mit unendlicher Reichweite; bricht beim Wegstecken sauber ab |
+| **Singularität** | Werfen | 5 s Gravitations-Sog im Umkreis von 10 mit sichtbarem 3D-Gravitationskern |
+| **Gleitflug** | Rechtsklick | 8 s Dauerschub in Blickrichtung: waagerecht gleiten, steil aufsteigen |
+| **Geschützturm** | Platzieren | 20 s Dauerfeuer mit rotierendem 3D-Kopf; drei Treffer töten |
+| **Zeitverzerrer** | Rechtsklick | Verlangsamt den gesamten Zeitfluss, Spielticks, Sounds & Animationen für 7 s (Chrono-Shader) |
+| **Grappling Hook** | Rechtsklick | 10 Schüsse; sichtbarer Saughaken und Seil ziehen den Spieler rasant zum Trefferpunkt |
+| **Boogie-Bomb** | Werfen | Aufschlaggranate; zwingt alle Spieler im 5m-Radius für 15 s in einen synchronen Disco-Tanz |
 
-Zwei Items töten bewusst **nicht** mit einem Schlag: Geschützturm und Bomber zielen automatisch
-beziehungsweise ununterbrochen — mit Sofort-Kill wäre jede von ihnen eingesehene Deckung
-unbetretbar. Beide sammeln stattdessen Treffer auf ein Konto, das nach acht Sekunden verfällt.
-
-**Die Karte bleibt unberührt.** Alles Abgestellte ist eine Display-Entity, kein gesetzter Block.
-Explosionen laufen über die eigene Eliminierungs-Buchführung statt über Vanilla-Explosionen und
-können deshalb grundsätzlich keinen Schaden an der Karte anrichten.
-
-**Der Luftangriff endet in einem Atompilz.** Er läuft über vier Sekunden ab statt in einem
-einzigen Partikelstoß: Feuerball am Boden, der von Weißglut über Gelb nach Dunkelrot abkühlt,
-ein Stiel, der daraus hochwächst, ein Hut, der oben aufsetzt und mit hängender Krempe aufreißt,
-und eine Druckwelle über den Boden. Gezeichnet mit `DustParticleOptions`, weil sich nur dort die
-Farbe frei wählen lässt.
-
-Vor dem Einschlag fällt keine Gruppe aus Vanilla-TNT mehr herab, sondern eine einzelne große
-3D-Nuklearbombe: fast vier Blöcke lang, mit bauchiger Panzerhülle, Warnring, Sicherungskästen
-und breitem Leitwerk.
-
-Zwei Items dürfen die Karte bewusst dynamisch verändern: Luftangriff und Tarnkappenbomber reißen
-echte Krater. Beide laufen über dieselbe Buchführung in `shared/ArenaDemolition.java`, die zu
-jedem gesprengten Block seinen Ursprungszustand merkt und ihn nach einer Wartezeit tickweise
-wieder einsetzt.
+### Besondere Item-Mechaniken:
+* **Zerstörung & Wiederaufbau:** Luftangriff und Tarnkappenbomber reißen echte Krater in die Map. Über `shared/ArenaDemolition.java` wird der Ursprungszustand jedes Blocks gespeichert und nach kurzer Zeit tickweise automatisch restauriert.
+* **Boogie-Bomb & Zeitverzerrer-Synergie:**
+  * Getroffene Spieler werden in die 3D-Third-Person-Perspektive gezwungen und führen eine synchrone Tanzchoreografie (Arm- & Beinschwünge, Rückwärtssalto, 360°-Spins) zu 128-BPM-Discomusik aus.
+  * Eine schwebende 3D-Discokugel rotiert über dem Kopf und wirft volumetrische Scheinwerferkegel auf den Boden.
+  * Beim Einschlag erfolgt ein kraftvoller Bass-Drop-Kamerazoom (1.35x), gefolgt von rhythmischen Subwoofer-Kamera-Punches auf jedem Kickdrum-Schlag.
+  * Auf dem Bildschirm pulsiert eine beat-synchrone Neon-Vignette mit Ambient-Stroboskop-Flashes und funkelnden Diamantsternen/Musiknoten.
+  * **Vollständige Zeitverzerrer-Integration:** Wird während des Tanzes die Zeit verzerrt, wird die Discomusik in Echtzeit tiefgepitcht, die Tanzschritte und die Discokugel verlangsamen sich synchron auf 0,55x, und das Overlay erhält eine violette Chrono-Farbverschiebung samt Interferenz-Ripples.
 
 ---
 
-## C4-System & Inventar-Handhabung
+## CS:GO Tab-Scoreboard
 
-* **Dynamischer 3D-Modellwechsel:**
-  * Unplatzierte C4-Ladungen erscheinen in Hotbar und Hand als Sprengstoff-Riegel (`c4_charge`).
-  * Nach dem Platzieren verwandelt sich der Gegenstandsstapel in den aktiven Funkzünder (`c4`).
-  * Weitere erhaltene C4s bleiben unplatzierte Riegel und nutzen beim Platzieren den bestehenden Zünder mit.
-* **Intelligente Klick-Erkennung:**
-  * Rechtsklick mit dem Zünder (in die Luft, auf Blöcke oder den Boden) löst die Detonation aller scharfen Ladungen aus.
-  * Rechtsklick mit leerer Hand, C4 oder Zünder auf eine platzierte C4 nimmt diese sicher ab, ohne den Bogen in der Zweithand aufzuspannen.
-* **Inventar-Schutz:**
-  * Spezial-Items können innerhalb des eigenen Inventars und der Hotbar frei verschoben und umsortiert werden.
-  * Feste Match-Ausrüstung (Dolch, Bogen, Pfeil) bleibt fest an ihren vergebenen Slot gebunden.
-  * Kein Droppen: Weder per Q-Taste noch durch Herausziehen aus dem Inventarfenster können Spezial-Items weggeworfen werden.
+Das alte Vanilla-Scoreboard wurde vollständig durch ein modernes, halbtransparentes Overlay nach Vorbild moderner Taktik-Shooter ersetzt:
+* **Aktivierung:** Halten der Taste `TAB`.
+* **Flüssige Animationen:** Sanftes, synchrones Ein- und Ausblenden über Alpha-Interpolation (kein Nachblitzen von Schriften).
+* **Umfassende Match-Daten:**
+  * Live-Spielerliste mit Rang, Team/Spielername, Ping, Kills, Toden, K/D-Rate und Killserien.
+  * Im **Waffenspiel-Modus**: Automatische Anzeige der aktuellen Waffenstufe und Fortschrittsbalken zum nächsten Tier.
+  * Eigener Spieler wird mit markanter Umrandung und Cyan-Akzent hervorgehoben.
+* **Overlay-Priorität:** Rendert sauber über dem HUD, wird jedoch bei geöffneten GUIs (wie dem Admin-Menü) deaktiviert.
 
 ---
 
 ## Klettern auf Tilted Towers
 
-Nur während eines laufenden Matches innerhalb von Tilted Towers: Zur Wand schauen und
-**Vorwärts + Springen halten**, um zu greifen. Solange Springen gehalten wird, klettert
-**Vorwärts** hoch, **Rückwärts** herunter und **Links/Rechts** seitlich. Ohne Richtung hält
-man sich fest. **Springen loslassen oder Schleichen** löst den Griff. Erreichbare Dachkanten
-werden automatisch überstiegen. Die Tasten im HUD folgen der eigenen Tastenbelegung.
-
-Es gibt keine Ausdauerbegrenzung. Echte Blockkollisionen, Kopffreiheit und Arenagrenzen
-begrenzen den Aufstieg. Countdown, Frost, aktiver Grappler, Gleitflug, Tod, Menüs und
-Mapwechsel beenden ihn. Andere Maps und Kreativ-/Zuschauermodus erhalten kein Wandklettern.
-Der Server prüft Kontakt und Matchzustand laufend; die Bewegung verwendet Vanillas
-Kollision und Positionspakete. Klettern gewährt keine Flugrechte.
+Auf der Karte **Tilted Towers** steht eine intuitive Parkour-Mechanik zur Verfügung:
+* Zur Wand schauen und **Vorwärts + Springen** halten, um die Wand zu greifen.
+* Solange Springen gehalten wird:
+  * **Vorwärts**: Klettert nach oben.
+  * **Rückwärts**: Klettert nach unten.
+  * **Links / Rechts**: Klettert seitlich an der Fassade entlang.
+  * Keine Richtung: Festhalten an der Wand.
+* **Automatisches Mantling:** Erreicht der Spieler eine Mauerkante, Dachkante oder einen Fenstersims, übersteigt er diesen automatisch und steht sicher auf der Fläche.
+* **Abbrechen:** Springen loslassen oder Schleichen (Shift).
 
 ---
 
 ## Match-Start & Countdown
 
-Der Countdown ist eine eigene HUD-Ebene, kein Vanilla-Titel: ein Ring, der die drei Sekunden
-abbaut, ein zweiter, der je Sekunde einmal herumläuft, vier Ecken, die nach innen wandern, und
-die Zahl als Segmentanzeige, die bei jedem Sekundenwechsel kurz aufspringt. Die Farbe geht von
-kühl über gold nach rot, die Tonhöhe des Schlags steigt mit.
-
-Während des Countdowns steht man wirklich still: Der Client verwirft seine Bewegungseingabe in
-`KeyboardInputMixin`, die Maus sperrt `MouseHandlerMixin`, und der Server hält jeden zusätzlich
-auf seinem Startpunkt.
-
----
-
-## Chat-Meldungen & Kill-Feed
-
-* `[OSOK] ▸ Name hat OneShotOneKill betreten · 3 online`
-* `[OSOK] ⚔ Täter hat Opfer mit Railgun ausgeschaltet · Serie 3`
-* `[OSOK] 🛡 Opfer hat Luftangriff von Täter abgewehrt`
-* `[OSOK] ⚡ Name hält eine Serie von 3 und erhält Railgun`
+* **Taktischer Start-Countdown:** Eigene HUD-Ebene mit animierten Segmentziffern, rotierenden Fokusringen und ansteigender Tonhöhe.
+* **Eingabesicherung:** Während des Countdowns werden Bewegungseingaben (`KeyboardInputMixin`) und Maussichten (`MouseHandlerMixin`) verworfen, während der Server die Positionen arretiert.
 
 ---
 
 ## Spezial-Items verdienen
 
-Zwei Wege, im Verwaltungsmenü einzeln abschaltbar:
-
-- **Killserie** — jede dritte Eliminierung ohne eigenen Tod bringt ein gewichtet gezogenes Item (bei 3, 6, 9...).
-- **Boden-Boxen** — schwebende Fragezeichen-Würfel, alle 15 Sekunden eine, bis zu sechs gleichzeitig.
+Im Verwaltungsmenü (`C`) einzeln einstellbar:
+* **Killserie:** Jede dritte Eliminierung in Folge ohne eigenen Tod belohnt den Spieler mit einem gewichteten Spezial-Item (bei 3, 6, 9...).
+* **Boden-Boxen:** Schwebende Fragezeichen-Würfel spawnen alle 15 Sekunden an zufälligen, sicheren Arena-Positionen (maximal 6 gleichzeitig).
 
 ---
 
-## Bedienung
+## Bedienung & Tastenbelegung
 
-| Taste | Wirkung |
+| Taste | Funktion |
 | :--- | :--- |
-| `C` | Verwaltungsmenü (Arenen, Match-Ablauf, Itemgewichtungen) |
-| `X` | Privates Testmenü zum Ausgeben von Items (erfordert Admin-Status) |
-| `R` | C4-Zünder |
+| `TAB` (halten) | CS:GO-Style Tab-Scoreboard (Match-Statistiken, Ränge & K/D) |
+| `C` | Verwaltungsmenü (Arenen, Match-Ablauf, Spielmodi, Itemgewichtungen) |
+| `X` | Privates Testmenü zum direkten Ausgeben von Items (Admin-Status erforderlich) |
+| `R` | C4-Fernzünder aktivieren / detonisieren |
+| `Vorwärts + Springen` | Wandklettern & Mantling an Gebäudewänden auf Tilted Towers |
 
 ---
 
-## Portierung von NeoForge auf Fabric
+## Portierung & Architektur (Fabric 26.2)
 
-Beide Fassungen laufen auf Minecraft 26.2, der gesamte Vanilla-Code blieb deshalb unverändert.
-Ausgetauscht wurde nur die Loader-Schicht mit Fabric API, Access Widener und Mixins gemäß [AGENTS.md](AGENTS.md).
+Das Minigame wurde ohne externe Fremdbibliotheken auf Basis von **Fabric 26.2** und **Java 25** aufgebaut:
 
-**Fabric API** — Registrierungen (`Registry.register` statt `DeferredRegister`),
-Netzwerk (`PayloadTypeRegistry` mit `ServerPlayNetworking`/`ClientPlayNetworking` statt
-`PacketDistributor`), Lebenszyklus und Takt (`ServerLifecycleEvents`, `ServerTickEvents`),
-Spielerereignisse (`ServerPlayerEvents`), Schaden und Tod (`ServerLivingEntityEvents`),
-Interaktion (`AttackEntityCallback`, `UseItemCallback` und Verwandte), Welteintritt
-(`ServerEntityEvents.ALLOW_LOAD`), HUD (`HudElementRegistry`), Tastenbelegung
-(`KeyMappingHelper`), Weltrendering (`LevelExtractionEvents`, `LevelRenderEvents` samt
-`RenderStateDataKey`), Tooltips und Chatfilter.
-
-**Vanilla-Erweiterung & Access Widener** — Die drei eigenen Modellbausteine hängen sich direkt in
-Vanillas offene `LateBoundIdMapper`-Tabellen (`ItemModels`, `ConditionalItemModelProperties`,
-`SpecialModelRenderers`), und die beiden Bildschirmeffekte des Match-Starts nutzen zwei
-Access-Widener-Zeilen für `Hud#extractPortalOverlay` und `#extractConfusionOverlay`. Die Setter
-von `Display` sind bereits durch `fabric-transitive-access-wideners-v1` geöffnet.
-
-**Mixins** — 23 Stück für gezielte Eingriffe in Vanilla-Logik, Rendering, Positions-Sync und Abläufe. Beispiele: die
-Unverwundbarkeits-Vorprüfung vor `hurtServer`, der Wurfschutz in `ServerPlayer#drop`, die
-Tabellenlisten-Zeile, Spannen und Lösen des Bogens, Sichtfeld, Kameraabstand, Kamerawackeln,
-Handanimation, Nebel, Arretierung beim Einfrieren/Countdown und harter Teleport-Snap bei Remote-Spielern.
-
-Injection-Points, die sich aus dem dekompilierten Quelltext nicht sicher ablesen lassen, sind
-mit `javap` am gemappten Jar belegt — so kam etwa heraus, dass der Kameraabstand nicht in
-`Camera#setup`, sondern in `Camera#alignWithEntity` gesetzt wird.
-
----
-
-## API-Quellen unter `APIS/`
-
-`tools/update_api_sources.py` entpackt die Quellen, gegen die entwickelt wird, nach `APIS/`.
-Das Skript enthält keine festen Versionen oder Modullisten — es fragt den Gradle-Wrapper des
-Projekts und leitet alles daraus ab. Der Ordner ist generiert und wird nicht eingecheckt.
-
-```powershell
-python tools/update_api_sources.py
-```
-
-| Ordner | Inhalt |
-| :--- | :--- |
-| `APIS/minecraft/` | Dekompiliertes Minecraft, `common` und `clientOnly` zusammengeführt |
-| `APIS/fabric-api/` | Quellen aller Fabric-API-Module |
-| `APIS/fabric-loader/` | Quellen des Fabric Loaders |
-| `APIS/mixin/` | Sponge Mixin und MixinExtras |
-
-`tools/SOURCES.json` hält fest, aus welchen JARs mit welcher Version und Prüfsumme der Stand
-gebaut wurde. Der erste Lauf dekompiliert Minecraft und dauert einige Minuten, danach ist der
-Aufruf schnell. Mit `--force` wird neu entpackt, mit `--refresh --decompile` nach einem
-Versionswechsel.
+* **Fabric API:**
+  * Lebenszyklus & Takt: `ServerLifecycleEvents`, `ServerTickEvents`, `ClientTickEvents`.
+  * Netzwerk: `PayloadTypeRegistry` mit strikt typisierten Custom Packets (`ServerPlayNetworking`, `ClientPlayNetworking`).
+  * Interaktion: `AttackEntityCallback`, `UseItemCallback`, Interaktions-Gates.
+  * HUD & Rendering: `HudElementRegistry`, `LevelExtractionEvents`, `LevelRenderEvents` mit `RenderStateDataKey`.
+* **40 Mixins:**
+  * 14 gemeinsame Mixins (`src/main/resources/oneshotonekill.mixins.json`): Schadensprüfungen, Wurfschutz, physikalische Arenagrenzkollisionen, Kletter-Logik, Projektil-Handling.
+  * 26 Client-Mixins (`src/client/resources/oneshotonekill.client.mixins.json`): FOV-Steuerung, dynamischer Kameraabstand & -shake, Zeitverzerrer-PostPass-Shader, Lichtberechnung, OpenAL-Tonhöhenskalierung und 3D-Modell-Rendering.
+* **Access Widener:**
+  * Gezielte Freigabe für Minecraft-HUD-Overlays (`extractPortalOverlay`, `extractConfusionOverlay`).
 
 ---
 
 ## Generierung von Texturen & 3D-Modellen
 
-Alle Texturen und 3D-Modelle werden prozedural über Python-Skripte in `tools/` erzeugt:
+Alle Texturen und 3D-Item-Modelle werden prozedural über Python-Generatoren in `tools/` erzeugt:
 
 ```bash
 # Texturen generieren:
@@ -249,29 +192,22 @@ python tools/generate_airstrike_nuke_3d.py
 ## Bauen & Deployment
 
 ```powershell
-# Build und automatisches Deployment in Server- und Client-Verzeichnis:
+# Vollständiger Build und automatisches Deployment in Server- und Client-Verzeichnis:
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 
 # Oder reiner Gradle-Build:
 .\gradlew.bat build
 ```
 
-Das fertige Jar landet in `build/libs/`. Die Zielordner für das Deployment stehen in
-`deploy.properties` und lassen sich mit `.\build.ps1 -Reconfigure` neu setzen. `.\build.ps1
--Clean` baut sauber, `.\build.ps1 -StopDaemons` beendet hängende Gradle-Daemons.
-
-Ein grüner Build ersetzt keinen Laufzeittest: Weil `defaultRequire` auf 1 steht, fällt ein nicht
-greifender Injection-Point erst beim Start auf. Nach Änderungen an Rendering, HUD, Netzwerk oder
-Mixins zusätzlich `.\gradlew.bat runClient` beziehungsweise `runServer` starten und das Log
-prüfen.
+Das fertige Mod-Jar wird in `build/libs/` erzeugt und von `build.ps1` direkt in die konfigurierten Zielordner (Server und Client) kopiert.
 
 ---
 
 ## Projektregeln
 
-Die verbindlichen Regeln für die Arbeit an diesem Projekt stehen in [AGENTS.md](AGENTS.md):
-Einsatz von Fabric-API, Access Widener und Mixins, Rechercheablauf über `APIS/` mit `rg` und `ast-grep`,
-und wann für ein Mixin zusätzlich der Bytecode zu prüfen ist.
+Die Entwicklungsrichtlinien und Architekturvorgaben sind verbindlich in [AGENTS.md](AGENTS.md) dokumentiert:
+* 0 Compiler-Fehler, 0 Warnungen in allen Quelldateien.
+* Einsatz der internen IntelliJ MCP Tools zur Indexierung, Code-Navigation und Verifikation.
 
 ---
 
