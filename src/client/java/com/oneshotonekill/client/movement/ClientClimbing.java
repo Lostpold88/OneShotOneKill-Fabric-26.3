@@ -314,7 +314,7 @@ public final class ClientClimbing {
             next = new Vec3(currentX, currentY, currentZ);
         }
         Vec3 delta = next.subtract(player.position());
-        if (delta.lengthSqr() > 0.20 || !player.level().noCollision(player,
+        if (delta.lengthSqr() > 0.25 || !player.level().noCollision(player,
                 MantleGeometry.standingBox(player, player.position()).deflate(1.0E-5).expandTowards(delta))) {
             cancel();
             return false;
@@ -322,7 +322,7 @@ public final class ClientClimbing {
         player.setDeltaMovement(delta);
         player.move(MoverType.SELF, delta);
         expectedPosition = player.position();
-        if (expectedPosition.distanceToSqr(next) > 0.08) {
+        if (expectedPosition.distanceToSqr(next) > 0.15) {
             cancel();
             return true;
         }

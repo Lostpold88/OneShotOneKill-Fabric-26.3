@@ -51,11 +51,11 @@ public final class GrapplingHookSystem {
     public static final GrapplingHookSystem INSTANCE = new GrapplingHookSystem();
 
     private static final double FIRE_SPEED = 3.20;
-    private static final double MAX_RANGE = 512.0;
-    private static final int MAX_FLIGHT_TICKS = 200;
+    private static final double MAX_RANGE = 45.0;
+    private static final int MAX_FLIGHT_TICKS = 15;
     private static final int MAX_PULL_TICKS = 600;
     private static final double RELEASE_DISTANCE = 2.35;
-    private static final double RETRACT_SPEED = 5.50;
+    private static final double RETRACT_SPEED = 6.00;
     private static final double MAX_PULL_SPEED = 1.15;
     private static final double PULL_ACCELERATION = 0.45;
     private static final int ANCHOR_DELAY_TICKS = 5;
@@ -312,7 +312,10 @@ public final class GrapplingHookSystem {
         grapple.position = next;
         grapple.ticks++;
         double travelled = grapple.position.distanceTo(grapple.launchOrigin);
-        if (travelled >= MAX_RANGE || grapple.ticks >= MAX_FLIGHT_TICKS) {
+        ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
+        Arena arena = worlds == null ? null : worlds.getActive();
+        boolean outsideArena = arena != null && !arena.isInArena(grapple.position.x, grapple.position.y, grapple.position.z);
+        if (travelled >= MAX_RANGE || grapple.ticks >= MAX_FLIGHT_TICKS || outsideArena) {
             beginRetracting(grapple, owner, true);
         } else {
             grapple.level.sendParticles(ParticleTypes.CRIT,
@@ -474,7 +477,7 @@ public final class GrapplingHookSystem {
         Vec3 hand = muzzlePosition(owner, 1.0F);
         Vec3 back = hand.subtract(grapple.position);
         double distance = back.length();
-        if (distance <= RETRACT_SPEED || grapple.retractTicks > 200) {
+        if (distance <= RETRACT_SPEED || grapple.retractTicks > 30) {
             return true;
         }
         grapple.velocity = back.scale(RETRACT_SPEED / distance);

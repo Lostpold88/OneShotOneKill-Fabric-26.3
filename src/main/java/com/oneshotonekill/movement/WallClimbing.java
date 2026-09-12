@@ -38,7 +38,7 @@ public final class WallClimbing {
     public static boolean isClimbableWall(Player player, Direction normal) {
         if (!hasContact(player, normal)) return false;
         AABB box = player.getBoundingBox();
-        double low = box.minY + 1.40, high = box.minY + 1.85;
+        double low = box.minY + 1.55, high = box.minY + 1.95;
         AABB upperGrip = switch (normal) {
             case EAST -> new AABB(box.minX - GRIP_REACH, low, box.minZ + 0.08, box.minX + 0.01, high, box.maxZ - 0.08);
             case WEST -> new AABB(box.maxX - 0.01, low, box.minZ + 0.08, box.maxX + GRIP_REACH, high, box.maxZ - 0.08);

@@ -19,7 +19,6 @@ public final class MantleGeometry {
     public static final double MAX_RISE = 2.80;
     public static final double MAX_REACH = 0.90;
     public static final double CLEARANCE = 0.02;
-    public static final double MIN_RISE_GROUND = 1.80;
     public static final double MIN_RISE_CLIMB = 0.15;
 
     private MantleGeometry() {
@@ -95,7 +94,7 @@ public final class MantleGeometry {
     public static boolean hasSupport(Player player, Vec3 target) {
         BlockHitResult support = clip(player, target.add(0, 0.04, 0), target.add(0, -0.08, 0));
         return support.getType() == HitResult.Type.BLOCK && support.getDirection() == Direction.UP
-                && !support.isInside() && Math.abs(support.getLocation().y + CLEARANCE - target.y) < 0.04;
+                && !support.isInside() && Math.abs(support.getLocation().y + CLEARANCE - target.y) < 0.08;
     }
 
     public static @Nullable Vec3 findTarget(Player player) {
@@ -113,13 +112,14 @@ public final class MantleGeometry {
     private static @Nullable Vec3 findTarget(Player player, Vec3 forward, boolean isWallClimbing) {
         if (!eligibleBody(player)) return null;
         Vec3 feet = player.position();
-        double minRise = isWallClimbing ? MIN_RISE_CLIMB : MIN_RISE_GROUND;
 
         double[] depths = {
-            player.getBbWidth() * 0.5 + 0.08,
-            player.getBbWidth() * 0.5 + 0.45,
+            player.getBbWidth() * 0.5 + 0.05,
+            player.getBbWidth() * 0.5 + 0.35,
+            player.getBbWidth() * 0.5 + 0.65,
             player.getBbWidth() * 0.5 + 0.95,
-            player.getBbWidth() * 0.5 + 1.35
+            player.getBbWidth() * 0.5 + 1.25,
+            player.getBbWidth() * 0.5 + 1.55
         };
 
         for (double height : new double[]{0.35, 0.85, 1.35}) {
@@ -133,7 +133,7 @@ public final class MantleGeometry {
             for (double depth : depths) {
                 Vec3 probe = wall.getLocation().add(stepDir.scale(depth));
                 double topY = feet.y + (isWallClimbing ? 3.00 : MAX_RISE + 0.20);
-                double bottomY = feet.y + (isWallClimbing ? -0.20 : minRise - CLEARANCE);
+                double bottomY = feet.y + (isWallClimbing ? -0.20 : 0.65);
 
                 BlockHitResult landing = clip(player, new Vec3(probe.x, topY, probe.z),
                         new Vec3(probe.x, bottomY, probe.z));
@@ -142,9 +142,15 @@ public final class MantleGeometry {
 
                 Vec3 target = landing.getLocation().add(0, CLEARANCE, 0);
                 double rise = target.y - feet.y;
-                if (rise < minRise || rise > MAX_RISE) continue;
+                if (rise < (isWallClimbing ? MIN_RISE_CLIMB : 0.70) || rise > MAX_RISE) continue;
 
                 double apexY = findApex(player, feet, target);
+                // On ground: reject simple 1-block obstacles that can be jumped normally in vanilla
+                // (rise < 1.20, shallow depth < 0.70, and no obstacle on/in front of the ledge)
+                if (!isWallClimbing && rise < 1.20 && depth < 0.70 && apexY <= target.y + 0.05) {
+                    continue;
+                }
+
                 if (clearRoute(player, feet, target, apexY)) {
                     return target;
                 }
