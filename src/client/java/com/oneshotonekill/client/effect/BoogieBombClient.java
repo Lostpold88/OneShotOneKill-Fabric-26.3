@@ -97,10 +97,12 @@ public final class BoogieBombClient {
     }
 
 
-    /** Continuous seconds, independent of frame rate and the global slow-motion tick rate. */
+    /** Zeitverzerrungs-angepasste Sekunden für synchrone Choreografie in Echtzeit und Zeitlupe. */
     public static float seconds(UUID id) {
         Dance dance = DANCERS.get(id);
-        return dance == null ? 0 : (System.nanoTime() - dance.start) / 1_000_000_000.0F;
+        if (dance == null) return 0.0F;
+        dance.update(System.nanoTime());
+        return dance.accumulatedSeconds;
     }
 
     public static Vector3f getDiscoColor(float seconds) {
@@ -139,13 +141,24 @@ public final class BoogieBombClient {
     public static float modifyCameraDistance(float cameraDistance) {
         Minecraft client = Minecraft.getInstance();
         if (client.player == null || !isDancing(client.player.getUUID())) return cameraDistance;
-        float sec = seconds(client.player.getUUID());
+        UUID id = client.player.getUUID();
+        float weight = getWeight(id);
+        if (weight <= 0.001F) return cameraDistance;
+        float sec = seconds(id);
+
+        // 1. Initialer Bass-Drop Punch (die ersten 0.45s beim Treffer der Granate)
+        float dropZoom = (sec < 0.45F) ? (float) Math.sin(Math.clamp(sec / 0.45F, 0.0F, 1.0F) * Math.PI) * 1.35F : 0.0F;
+
+        // 2. Salto-Zoom während des Saltos
         float p = BoogieDanceAnimation.saltoProgress(sec);
-        if (p >= 0.0F && p <= 1.0F) {
-            float zoom = (float) Math.sin(p * Math.PI) * 1.1F;
-            return Math.max(1.5F, cameraDistance - zoom);
-        }
-        return cameraDistance;
+        float saltoZoom = (p >= 0.0F && p <= 1.0F) ? (float) Math.sin(p * Math.PI) * 1.10F : 0.0F;
+
+        // 3. Rhythmischer Woofer-Puls auf jedem Beat (Subwoofer-Pumpen)
+        float beat = sec * 2.0F;
+        float kick = (float) Math.pow(Math.max(0.0F, Math.sin(beat * Math.PI)), 4.0);
+        float wooferZoom = kick * 0.25F * weight;
+
+        return Math.max(1.4F, cameraDistance - (dropZoom + saltoZoom + wooferZoom));
     }
 
     public static float fovModifier() {
@@ -156,10 +169,20 @@ public final class BoogieBombClient {
         if (weight <= 0.001F) return 0.0F;
         float sec = seconds(id);
         float beat = sec * 2.0F;
+
+        // 1. Initialer Bass-Drop FOV-Kick beim Treffer
+        float dropPunch = (sec < 0.45F) ? (float) Math.sin(Math.clamp(sec / 0.45F, 0.0F, 1.0F) * Math.PI) * 0.075F : 0.0F;
+
+        // 2. Rhythmischer Woofer-Kickdrum-Puls
+        float kick = (float) Math.pow(Math.max(0.0F, Math.sin(beat * Math.PI)), 4.0);
+        float kickFov = kick * 0.026F;
+
+        // 3. Kontinuierliches subtiles Atmen & Salto-Punch
         float pulse = (float) Math.sin(beat * Math.PI * 2.0) * 0.016F;
         float p = BoogieDanceAnimation.saltoProgress(sec);
         float saltoPunch = (p >= 0.0F && p <= 1.0F) ? (float) Math.sin(p * Math.PI) * 0.035F : 0.0F;
-        return (pulse + saltoPunch) * weight;
+
+        return (dropPunch + kickFov + pulse + saltoPunch) * weight;
     }
 
     public static void applyDiscoLighting(LightmapRenderState renderState) {
@@ -211,7 +234,8 @@ public final class BoogieBombClient {
         } else {
             Dance dance = DANCERS.get(packet.playerId());
             if (dance == null) {
-                dance = new Dance(now - Math.clamp(packet.elapsedMillis(), 0, BoogieBombSystem.DURATION_MILLIS) * 1_000_000L);
+                float initialSeconds = Math.clamp(packet.elapsedMillis(), 0, BoogieBombSystem.DURATION_MILLIS) / 1000.0F;
+                dance = new Dance(now - (long) (initialSeconds * 1_000_000_000L), initialSeconds);
                 DANCERS.put(packet.playerId(), dance);
             } else {
                 dance.stopTime = 0L;
@@ -313,7 +337,27 @@ public final class BoogieBombClient {
         long deadline;
         long stopTime = 0L;
         @Nullable DiscoSound sound;
-        Dance(long start) { this.start = start; }
+        float accumulatedSeconds;
+        long lastUpdateNanos;
+
+        Dance(long start, float initialSeconds) {
+            this.start = start;
+            this.accumulatedSeconds = initialSeconds;
+            this.lastUpdateNanos = System.nanoTime();
+        }
+
+        void update(long now) {
+            if (lastUpdateNanos <= 0L) {
+                lastUpdateNanos = now;
+                return;
+            }
+            long deltaNanos = now - lastUpdateNanos;
+            lastUpdateNanos = now;
+            if (deltaNanos <= 0L) return;
+            float dt = deltaNanos / 1_000_000_000.0F;
+            float timeScale = TimeDistortionEffects.INSTANCE.soundPitchFactor(SoundSource.PLAYERS);
+            accumulatedSeconds += dt * timeScale;
+        }
     }
 
     private static final class DiscoSound extends AbstractTickableSoundInstance {
