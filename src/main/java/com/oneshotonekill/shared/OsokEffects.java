@@ -1,6 +1,5 @@
 package com.oneshotonekill.shared;
 
-
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.Holder;
 import net.minecraft.core.particles.BlockParticleOption;
@@ -56,14 +55,14 @@ public final class OsokEffects {
    public void playResumeMatchEffect(ServerPlayer player) {
       ServerLevel level = player.level();
       Vec3 pos = player.position();
-      ServerPlayNetworking.send(player, new MatchNotificationPayload("RESUME", "▶ MATCH FORTGESETZT", "ALLE SYSTEME WIEDER SCHARF", 42, OsokColors.EMERALD));
+      ServerPlayNetworking.send(player, new MatchNotificationPayload("RESUME", "", "", 42, OsokColors.EMERALD));
       level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 0.8F, 1.2F);
    }
 
    public void playPauseMatchEffect(ServerPlayer player) {
       ServerLevel level = player.level();
       Vec3 pos = player.position();
-      ServerPlayNetworking.send(player, new MatchNotificationPayload("PAUSE", "⏸ MATCH PAUSIERT", "WAFFEN EINGEZOGEN · WARTEN AUF WEITERFÜHRUNG", 60, OsokColors.GOLD));
+      ServerPlayNetworking.send(player, new MatchNotificationPayload("PAUSE", "", "", 60, OsokColors.GOLD));
       level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.7F, 1.1F);
       level.sendParticles(ParticleTypes.WITCH, pos.x, pos.y + 1.0, pos.z, 20, 0.4, 0.8, 0.4, 0.05);
    }
@@ -71,7 +70,7 @@ public final class OsokEffects {
    public void playStopMatchEffect(ServerPlayer player) {
       ServerLevel level = player.level();
       Vec3 pos = player.position();
-      ServerPlayNetworking.send(player, new MatchNotificationPayload("STOP", "⏹ MATCH BEENDET", "RUNDE ZU ENDE · RÜCKKEHR ZUR LOBBY", 50, OsokColors.CRIMSON));
+      ServerPlayNetworking.send(player, new MatchNotificationPayload("STOP", "", "", 50, OsokColors.CRIMSON));
       level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.8F, 0.9F);
       level.sendParticles(ParticleTypes.WITCH, pos.x, pos.y + 1.0, pos.z, 25, 0.4, 0.8, 0.4, 0.05);
    }
@@ -79,7 +78,7 @@ public final class OsokEffects {
    public void playMapSwitchEffect(ServerPlayer player, String arenaName) {
       ServerLevel level = player.level();
       Vec3 pos = player.position();
-      ServerPlayNetworking.send(player, new MatchNotificationPayload("ARENA_SWITCH", "🗺 ARENA GEWECHSELT", "Aktive Arena: " + arenaName, 45, OsokColors.CYAN));
+      ServerPlayNetworking.send(player, new MatchNotificationPayload("ARENA_SWITCH", "", arenaName, 45, OsokColors.CYAN));
       level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.CHORUS_FRUIT_TELEPORT, SoundSource.PLAYERS, 0.6F, 1.2F);
       level.sendParticles(ParticleTypes.PORTAL, pos.x, pos.y + 1.0, pos.z, 20, 0.3, 0.8, 0.3, 0.1);
    }
@@ -87,15 +86,15 @@ public final class OsokEffects {
    public void playMapResetEffect(ServerPlayer player, String arenaName) {
       ServerLevel level = player.level();
       Vec3 pos = player.position();
-      ServerPlayNetworking.send(player, new MatchNotificationPayload("ARENA_RESET", "🔄 ARENA ZURÜCKGESETZT", "Arena " + arenaName + " wiederhergestellt", 45, OsokColors.GOLD));
+      ServerPlayNetworking.send(player, new MatchNotificationPayload("ARENA_RESET", "", arenaName, 45, OsokColors.GOLD));
       level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.ANVIL_USE, SoundSource.PLAYERS, 0.4F, 1.4F);
    }
 
    public void playFrostTrapTriggeredEffect(ServerPlayer owner, String victimName) {
-      ServerPlayNetworking.send(owner, new MatchNotificationPayload("FROST_TRAP", "❄ FROST-FALLE AUSGELÖST", victimName + " ist in deine Falle getappt!", 55, OsokColors.CYAN));
+      ServerPlayNetworking.send(owner, new MatchNotificationPayload("FROST_TRAP", "", victimName, 55, OsokColors.CYAN));
       sendPrivateSound(owner, SoundEvents.ARROW_HIT_PLAYER, 0.9F, 1.6F);
       sendPrivateSound(owner, SoundEvents.GLASS_BREAK, 0.7F, 1.4F);
-      Feedback.actionBar(owner, "§b❄ " + victimName + " §7ist in deine Frost-Falle getappt!");
+      Feedback.actionBar(owner, Component.translatable("actionbar.oneshotonekill.frost_trap_triggered", victimName));
    }
 
    public void playEliminationEffect(ServerLevel level, Vec3 deathPos) {

@@ -22,6 +22,7 @@ import java.util.concurrent.ThreadLocalRandom;
 import com.oneshotonekill.event.KillFeed;
 import com.oneshotonekill.shared.Feedback;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -461,7 +462,7 @@ public final class SpecialItemManager {
       ItemStack reward = box.item().createStack();
       if (!player.getInventory().add(reward)) {
          if (currentTick % 20 == 0) {
-            Feedback.actionBar(player, "§c✖ Kein freier Slot — die Item-Box bleibt liegen");
+            Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.box_no_slot"));
          }
          return false;
       }
@@ -470,7 +471,7 @@ public final class SpecialItemManager {
       Vec3 pos = box.basePosition();
       playPickupBurst(level, pos.x, pos.y + HOVER_HEIGHT, pos.z);
       // Ohne Ansage bliebe unklar, was drin war - das Item landet irgendwo im Inventar.
-      Feedback.actionBar(player, "§6🎁 " + box.item().getDisplayName());
+      Feedback.actionBar(player, Component.literal("§6🎁 ").append(box.item().getNameComponent()));
       Hologram.remove(box.display());
       return true;
    }
@@ -517,7 +518,7 @@ public final class SpecialItemManager {
       }
 
       if (!player.getInventory().add(item.createStack())) {
-         Feedback.actionBar(player, "§c✖ Killserien-Belohnung: kein freier Slot");
+         Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.streak_no_slot"));
          return false;
       }
       player.containerMenu.broadcastChanges();
@@ -532,8 +533,8 @@ public final class SpecialItemManager {
       level.sendParticles(ParticleTypes.END_ROD, player.getX(), player.getY() + 0.4, player.getZ(),
          25, 0.4, 0.9, 0.4, 0.1);
 
-      Feedback.actionBar(player, "§6⚡ SERIE " + streak + " – " + item.getDisplayName());
-      KillFeed.streakReward(player, streak, item.getDisplayName());
+      Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.streak_reward_bar", streak, item.getNameComponent()));
+      KillFeed.streakReward(player, streak, item.getIcon().getDescriptionId());
       return true;
    }
 
@@ -567,15 +568,10 @@ public final class SpecialItemManager {
          SoundEvents.AMETHYST_BLOCK_CHIME, SoundSource.PLAYERS, 1.4F, 0.9F);
       level.sendParticles(ParticleTypes.TOTEM_OF_UNDYING, killer.getX(), killer.getY() + 1.0, killer.getZ(),
          60, 0.6, 0.9, 0.6, 0.25);
-      Feedback.actionBar(killer, "§6👑 KOPFGELD KASSIERT — " + given + " Bonus-Items");
+      Feedback.actionBar(killer, net.minecraft.network.chat.Component.translatable("chat.oneshotonekill.bounty_claimed", killer.getName().getString(), target.getName().getString()).getString());
       OneShotOneKill.INSTANCE.getServer().getPlayerList().broadcastSystemMessage(
-         net.minecraft.network.chat.Component.literal("[👑 KOPFGELD] ")
-            .withStyle(net.minecraft.ChatFormatting.RED, net.minecraft.ChatFormatting.BOLD)
-            .append(net.minecraft.network.chat.Component.literal(killer.getName().getString())
-               .withStyle(net.minecraft.ChatFormatting.YELLOW, net.minecraft.ChatFormatting.BOLD))
-            .append(net.minecraft.network.chat.Component.literal(" hat " + target.getName().getString()
-               + " zur Strecke gebracht und kassiert " + given + " Bonus-Items!")
-               .withStyle(net.minecraft.ChatFormatting.YELLOW)), false);
+         net.minecraft.network.chat.Component.translatable("chat.oneshotonekill.bounty_claimed", killer.getName().getString(), target.getName().getString())
+            .withStyle(net.minecraft.ChatFormatting.YELLOW, net.minecraft.ChatFormatting.BOLD), false);
    }
 
    private SpecialItem rollItem() {

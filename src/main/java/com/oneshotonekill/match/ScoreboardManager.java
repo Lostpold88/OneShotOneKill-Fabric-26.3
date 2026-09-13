@@ -193,9 +193,8 @@ public final class ScoreboardManager {
       }
       ServerPlayer player = server.getPlayerList().getPlayer(playerId);
       String name = player == null ? "Ein Spieler" : player.getScoreboardName();
-      Component announcement = Component.literal("[👑 KOPFGELD] ").withStyle(ChatFormatting.RED, ChatFormatting.BOLD)
-         .append(Component.literal(name).withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD))
-         .append(Component.literal(" hat eine 5er Streak! Wer ihn tötet erhält 2 Bonus-Items!").withStyle(ChatFormatting.YELLOW));
+      Component announcement = Component.translatable("chat.oneshotonekill.bounty_announced", name)
+         .withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD);
       server.getPlayerList().broadcastSystemMessage(announcement, false);
       if (player != null) {
          player.level().playSound(null, player.getX(), player.getY(), player.getZ(), SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.MASTER, 0.6F, 1.8F);

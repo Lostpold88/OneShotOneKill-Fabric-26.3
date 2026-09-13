@@ -59,7 +59,7 @@ public final class BomberTargetScreen extends Screen {
    private boolean launched;
 
    private BomberTargetScreen(List<BomberTargetsPayload.Target> targets) {
-      super(Component.literal("Tarnkappenbomber"));
+      super(Component.translatable("gui.oneshotonekill.bomber.title"));
       this.targets = targets;
    }
 
@@ -85,15 +85,15 @@ public final class BomberTargetScreen extends Screen {
       OsokWidgets.panel(graphics, panelLeft, panelTop, panelLeft + PANEL_WIDTH, panelTop + panelHeight, PANEL, PANEL_BORDER);
       graphics.fill(panelLeft + 1, panelTop + 1, panelLeft + PANEL_WIDTH - 1, panelTop + HEADER_HEIGHT, HEADER);
       graphics.fill(panelLeft + 1, panelTop + HEADER_HEIGHT - 1, panelLeft + PANEL_WIDTH - 1, panelTop + HEADER_HEIGHT, HEADER_ACCENT);
-      graphics.text(font, "🐉 TARNKAPPENBOMBER", panelLeft + 10, panelTop + 7, TITLE);
-      graphics.text(font, "ZIEL WÄHLEN", panelLeft + 10, panelTop + 18, SUBTITLE);
+      graphics.text(font, "🐉 " + Component.translatable("gui.oneshotonekill.bomber.title").getString().toUpperCase(), panelLeft + 10, panelTop + 7, TITLE);
+      graphics.text(font, Component.translatable("gui.oneshotonekill.bomber.select_target").getString(), panelLeft + 10, panelTop + 18, SUBTITLE);
 
       hovered = -1;
       for (int index = 0; index < targets.size(); index++) {
          renderRow(graphics, index, mouseX, mouseY);
       }
 
-      graphics.centeredText(font, Component.literal("Klicken zum Anordnen · ESC bricht ab"),
+      graphics.centeredText(font, Component.translatable("gui.oneshotonekill.bomber.hint"),
          panelLeft + PANEL_WIDTH / 2, panelTop + panelHeight - 13, HINT);
 
       super.extractRenderState(graphics, mouseX, mouseY, partial);
@@ -115,11 +115,11 @@ public final class BomberTargetScreen extends Screen {
       graphics.fill(x + 2, y + 2, x + 4, y + ROW_HEIGHT - 2, self ? SELF_ACCENT : ACCENT);
       graphics.text(font, target.name(), x + 9, y + 4, self ? SELF_NAME : NAME);
 
-      String detail = self ? "du selbst" : distanceLabel(target) + " · " + compass(target);
+      String detail = self ? Component.translatable("gui.oneshotonekill.bomber.self").getString() : distanceLabel(target) + " · " + compass(target);
       graphics.text(font, detail, x + 9, y + 14, DETAIL);
 
       if (target.killstreak() > 0) {
-         String streak = "SERIE " + target.killstreak();
+         String streak = Component.translatable("gui.oneshotonekill.bomber.streak", target.killstreak()).getString();
          graphics.text(font, streak, x + rowWidth - 8 - font.width(streak), y + 9,
             target.killstreak() >= NOTEWORTHY_STREAK ? STREAK_HOT : DETAIL);
       }
@@ -158,16 +158,18 @@ public final class BomberTargetScreen extends Screen {
       double side = Math.abs(relative);
 
       if (side < 22.5) {
-         return "voraus";
+         return Component.translatable("gui.oneshotonekill.bomber.compass_ahead").getString();
       }
       if (side >= 157.5) {
-         return "im Rücken";
+         return Component.translatable("gui.oneshotonekill.bomber.compass_behind").getString();
       }
-      String hand = relative > 0 ? "rechts" : "links";
+      String hand = relative > 0
+         ? Component.translatable("gui.oneshotonekill.bomber.compass_right").getString()
+         : Component.translatable("gui.oneshotonekill.bomber.compass_left").getString();
       if (side < 67.5) {
-         return "vorne " + hand;
+         return Component.translatable("gui.oneshotonekill.bomber.compass_front", hand).getString();
       }
-      return side < 112.5 ? hand : "hinten " + hand;
+      return side < 112.5 ? hand : Component.translatable("gui.oneshotonekill.bomber.compass_rear", hand).getString();
    }
 
    @Override

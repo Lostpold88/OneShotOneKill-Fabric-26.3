@@ -128,31 +128,27 @@ public final class PlayerEvents {
       public static void announceJoin(MinecraftServer server, ServerPlayer player) {
          // Der Zähler steht bewusst auf beiden Meldungen: er beantwortet die Frage, die nach einem
          // Beitritt oder Abgang als nächstes kommt, ohne dass jemand die Tabellenliste öffnen muss.
-         broadcast(server, line(player, "▸", JOINED, "betreten", onlineCount(server, player, true)));
+         broadcast(server, line(player, "▸", JOINED, "chat.oneshotonekill.join", onlineCount(server, player, true)));
       }
    
       public static void announceQuit(MinecraftServer server, ServerPlayer player) {
-         broadcast(server, line(player, "◂", LEFT, "verlassen", onlineCount(server, player, false)));
+         broadcast(server, line(player, "◂", LEFT, "chat.oneshotonekill.leave", onlineCount(server, player, false)));
       }
    
       /**
        * Baut die Zeile: {@code [OSOK] ▸ Name hat OneShotOneKill betreten · 3 online}
        */
-      private static Component line(ServerPlayer player, String arrow, ChatFormatting accent, String verb, int online) {
+      private static Component line(ServerPlayer player, String arrow, ChatFormatting accent, String messageKey, int online) {
          MutableComponent message = Component.empty()
             .append(Component.literal("[").withStyle(BRACKET))
             .append(Component.literal("OSOK").withStyle(BRAND, ChatFormatting.BOLD))
             .append(Component.literal("] ").withStyle(BRACKET))
             .append(Component.literal(arrow + " ").withStyle(accent, ChatFormatting.BOLD))
-            .append(Component.literal(player.getGameProfile().name()).withStyle(NAME, ChatFormatting.BOLD))
-            .append(Component.literal(" hat ").withStyle(TEXT))
-            .append(Component.literal("OneShotOneKill").withStyle(BRAND))
-            .append(Component.literal(" ").withStyle(TEXT))
-            .append(Component.literal(verb).withStyle(accent, ChatFormatting.BOLD));
+            .append(Component.translatable(messageKey, Component.literal(player.getGameProfile().name()).withStyle(NAME, ChatFormatting.BOLD)).withStyle(TEXT));
    
          return message
             .append(Component.literal(" · ").withStyle(BRACKET))
-            .append(Component.literal(online + " online").withStyle(BRACKET));
+            .append(Component.translatable("chat.oneshotonekill.online_count", online).withStyle(BRACKET));
       }
    
       /**

@@ -18,6 +18,7 @@ import java.util.List;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -196,7 +197,7 @@ public final class RailgunSystem {
       if (elapsed == CHARGE_TICKS) {
          level.playSound(null, shooter.getX(), shooter.getY(), shooter.getZ(),
             SoundEvents.NOTE_BLOCK_BELL, SoundSource.PLAYERS, 0.9F, 2.0F);
-         Feedback.actionBar(shooter, "§b⚡ RAILGUN GELADEN");
+         Feedback.actionBar(shooter, Component.translatable("actionbar.oneshotonekill.railgun_charged"));
       }
    }
 
@@ -225,7 +226,7 @@ public final class RailgunSystem {
          level.playSound(null, shooter.getX(), shooter.getY(), shooter.getZ(),
             SoundEvents.BEACON_DEACTIVATE, SoundSource.PLAYERS, 0.6F, 1.8F);
          int missing = Math.max(1, (CHARGE_TICKS - elapsed + 19) / 20);
-         Feedback.actionBar(shooter, "§7⚡ Zu früh losgelassen — noch " + missing + " s bis zur vollen Ladung");
+         Feedback.actionBar(shooter, Component.translatable("actionbar.oneshotonekill.railgun_early_release", missing));
          return false;
       }
       fire(level, shooter, 1.0);
@@ -289,10 +290,9 @@ public final class RailgunSystem {
       }
 
       if (victims.isEmpty()) {
-         Feedback.actionBar(shooter, "§7⚡ RAILGUN — Fehlschuss");
+         Feedback.actionBar(shooter, Component.translatable("actionbar.oneshotonekill.railgun_miss"));
       } else {
-         Feedback.actionBar(shooter, "§b⚡ RAILGUN — " + victims.size()
-            + (victims.size() == 1 ? " TREFFER" : " DURCHSCHLAGEN"));
+         Feedback.actionBar(shooter, Component.translatable("actionbar.oneshotonekill.railgun_hits", victims.size()));
       }
    }
 

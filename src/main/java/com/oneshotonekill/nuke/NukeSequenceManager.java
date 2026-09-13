@@ -229,7 +229,7 @@ public final class NukeSequenceManager {
          // Weglaufen leiser – ausgerechnet die Ansage, die allen gleich gilt.
          OsokEffects.INSTANCE.playOwnSound(player, ModSounds.NUKE_INCOMING, 1.0F, 1.0F);
       }
-      announce(server, Component.literal("☢ TAKTISCHE NUKE SCHARF").withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
+      announce(server, Component.translatable("chat.oneshotonekill.nuke.armed").withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
    }
 
    // -- Takt -----------------------------------------------------------------

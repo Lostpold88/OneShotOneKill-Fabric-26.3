@@ -233,7 +233,7 @@ public final class Deployables {
       StatusAbilities.Broadcaster.INSTANCE.refresh(owner);
 
       level.playSound(null, at.x, at.y, at.z, SoundEvents.POWDER_SNOW_PLACE, SoundSource.PLAYERS, 0.4F, 1.1F);
-      Feedback.actionBar(owner, "§b❄ FROST-FALLE SCHARF §7· sie leuchtet nicht, merk dir die Stelle");
+      Feedback.actionBar(owner, Component.translatable("actionbar.oneshotonekill.frost_trap_armed"));
       return true;
    }
 
@@ -281,9 +281,9 @@ public final class Deployables {
       level.playSound(null, at.x, at.y, at.z, SoundEvents.NETHERITE_BLOCK_PLACE, SoundSource.PLAYERS, 0.9F, 1.3F);
       level.playSound(null, at.x, at.y, at.z, SoundEvents.COMPARATOR_CLICK, SoundSource.PLAYERS, 0.8F, 1.6F);
       level.sendParticles(ParticleTypes.ELECTRIC_SPARK, at.x, at.y, at.z, 10, 0.15, 0.15, 0.15, 0.05);
-      Component msg = Component.literal("§6💥 C4 HAFTET — " + ownedCharges(owner.getUUID()) + " scharf §7· Zünder oder [")
-         .append(Component.keybind("key.oneshotonekill.detonate_c4").withStyle(ChatFormatting.YELLOW))
-         .append(Component.literal("§7] zündet · Klick auf Ladung nimmt sie ab"));
+      Component msg = Component.translatable("actionbar.oneshotonekill.c4_attached",
+         ownedCharges(owner.getUUID()),
+         Component.keybind("key.oneshotonekill.detonate_c4").withStyle(ChatFormatting.YELLOW));
       Feedback.actionBar(owner, msg);
       return true;
    }
@@ -370,7 +370,7 @@ public final class Deployables {
 
       level.playSound(null, at.x, at.y, at.z, SoundEvents.IRON_DOOR_OPEN, SoundSource.PLAYERS, 1.0F, 0.7F);
       level.playSound(null, at.x, at.y, at.z, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 0.8F, 1.5F);
-      Feedback.actionBar(owner, "§6🤖 GESCHÜTZTURM FÄHRT AUS — 20 s");
+      Feedback.actionBar(owner, Component.translatable("actionbar.oneshotonekill.turret_deploying"));
       return true;
    }
 
@@ -391,7 +391,7 @@ public final class Deployables {
 
       List<Charge> own = charges.stream().filter(charge -> charge.owner.equals(owner.getUUID())).toList();
       if (own.isEmpty()) {
-         Feedback.actionBar(owner, "§7💥 Keine Ladung scharf");
+         Feedback.actionBar(owner, Component.translatable("actionbar.oneshotonekill.c4_none_armed"));
          return false;
       }
 
@@ -403,7 +403,7 @@ public final class Deployables {
       // Der Zünder wird beim Zünden verbraucht
       consumeArmedDetonators(owner);
       StatusAbilities.Broadcaster.INSTANCE.refresh(owner);
-      Feedback.actionBar(owner, "§6💥 " + own.size() + " LADUNG(EN) GEZÜNDET");
+      Feedback.actionBar(owner, Component.translatable("actionbar.oneshotonekill.c4_detonated", own.size()));
       return true;
    }
 
@@ -540,7 +540,7 @@ public final class Deployables {
       level.playSound(null, anchor.x, anchor.y, anchor.z, SoundEvents.PLAYER_HURT_FREEZE, SoundSource.PLAYERS, 0.9F, 1.0F);
       level.sendParticles(ParticleTypes.SNOWFLAKE, anchor.x, anchor.y + 0.9, anchor.z, 90, 0.6, 0.9, 0.6, 0.14);
       level.sendParticles(ParticleTypes.ITEM_SNOWBALL, trapAt.x, trapAt.y + 0.2, trapAt.z, 40, 0.35, 0.1, 0.35, 0.22);
-      Feedback.actionBar(player, "§b❄ EINGEFROREN");
+      Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.frozen"));
    }
 
    /**
@@ -652,7 +652,7 @@ public final class Deployables {
                SoundEvents.GLASS_BREAK, SoundSource.PLAYERS, 1.0F, 1.3F);
             ((ServerLevel) player.level()).sendParticles(ParticleTypes.SNOWFLAKE,
                state.anchor.x, state.anchor.y + 0.9, state.anchor.z, 50, 0.5, 0.8, 0.5, 0.18);
-            Feedback.actionBar(player, "§b❄ Aufgetaut");
+            Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.thawed"));
             continue;
          }
          poseCage(state);
@@ -798,7 +798,7 @@ public final class Deployables {
          SoundEvents.ITEM_FRAME_REMOVE_ITEM, SoundSource.PLAYERS, 0.9F, 1.2F);
       level.sendParticles(ParticleTypes.ELECTRIC_SPARK,
          best.position.x, best.position.y, best.position.z, 12, 0.2, 0.2, 0.2, 0.06);
-      Feedback.actionBar(owner, "§a💥 C4 ABGENOMMEN — " + remaining + " noch scharf");
+      Feedback.actionBar(owner, Component.translatable("actionbar.oneshotonekill.c4_removed", remaining));
       return true;
    }
 
@@ -884,7 +884,7 @@ public final class Deployables {
             // Anpeilen ist hörbar: zwei Schichten, damit es über das Gefecht kommt.
             level.playSound(null, pivot.x, pivot.y, pivot.z, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 0.9F, 2.0F);
             level.playSound(null, pivot.x, pivot.y, pivot.z, SoundEvents.NOTE_BLOCK_BELL, SoundSource.PLAYERS, 0.7F, 1.9F);
-            Feedback.actionBar(found, "§c🤖 TURM HAT DICH ERFASST");
+            Feedback.actionBar(found, Component.translatable("actionbar.oneshotonekill.turret_locked_on"));
          }
          turret.target = found == null ? null : found.getUUID();
          target = found;
@@ -905,7 +905,7 @@ public final class Deployables {
                level.playSound(null, pivot.x, pivot.y, pivot.z, SoundEvents.BEACON_ACTIVATE, SoundSource.PLAYERS, 0.9F, 2.0F);
                ServerPlayer victim = server.getPlayerList().getPlayer(turret.targetTurret.owner);
                if (victim != null) {
-                  Feedback.actionBar(victim, "§c🤖 DEIN TURM WIRD VON EINEM TURM ANGEGRIFFEN");
+                  Feedback.actionBar(victim, Component.translatable("actionbar.oneshotonekill.turret_under_attack"));
                }
             }
          }
@@ -1023,18 +1023,17 @@ public final class Deployables {
 
       if (--turret.integrity <= 0) {
          if (credit != null) {
-            Feedback.actionBar(credit, "§a🤖 TURM ZERSTÖRT");
+            Feedback.actionBar(credit, Component.translatable("actionbar.oneshotonekill.turret_destroyed"));
          }
          shutDown(level, turret);
          return;
       }
       if (credit != null) {
-         Feedback.actionBar(credit, "§e🤖 TURM " + (TURRET_INTEGRITY - turret.integrity)
-            + "/" + TURRET_INTEGRITY);
+         Feedback.actionBar(credit, Component.translatable("actionbar.oneshotonekill.turret_integrity", (TURRET_INTEGRITY - turret.integrity)));
       }
       ServerPlayer owner = level.getServer().getPlayerList().getPlayer(turret.owner);
       if (owner != null) {
-         Feedback.actionBar(owner, "§c🤖 DEIN TURM WIRD BESCHOSSEN");
+         Feedback.actionBar(owner, Component.translatable("actionbar.oneshotonekill.turret_taking_fire"));
       }
    }
 
@@ -1120,7 +1119,7 @@ public final class Deployables {
             DamageListener.INSTANCE.eliminate(owner, target, arena, KillFeed.Cause.SENTRY_TURRET);
          }
       } else {
-         Feedback.actionBar(target, "§c🤖 TURMTREFFER " + account.hits + "/" + TURRET_HITS_TO_KILL);
+         Feedback.actionBar(target, Component.translatable("actionbar.oneshotonekill.turret_hit", account.hits, TURRET_HITS_TO_KILL));
       }
    }
 

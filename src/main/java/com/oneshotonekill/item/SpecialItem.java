@@ -58,6 +58,10 @@ public enum SpecialItem {
       return displayName;
    }
 
+   public net.minecraft.network.chat.Component getNameComponent() {
+      return net.minecraft.network.chat.Component.translatable(icon.getDescriptionId());
+   }
+
    public Item getIcon() {
       return icon;
    }

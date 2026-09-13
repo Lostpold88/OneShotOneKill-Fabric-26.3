@@ -97,7 +97,7 @@ public final class TabScoreboardHudLayer {
 
       for (int i = 0; i < rowCount; i++) {
          if (i >= players.size()) {
-            graphics.text(font, "Keine weiteren Spieler im Match", left + 14, rowY + 4, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
+            graphics.text(font, Component.translatable("hud.oneshotonekill.scoreboard.empty").getString(), left + 14, rowY + 4, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
             break;
          }
 
@@ -115,10 +115,18 @@ public final class TabScoreboardHudLayer {
                                   MatchScoreboardPayload payload, int accent, boolean isGunGame, boolean isPaused, boolean isLobby,
                                   int playerCount, float alphaRatio) {
       // Modus-Badge & Arena-Name (links)
-      String modeBadge = isPaused ? "[ ⏸ PAUSIERT ]" : (isLobby ? "[ 🌐 LOBBY // VORBEREITUNG ]" : (isGunGame ? "[ 🔫 WAFFENSPIEL ]" : "[ 🎯 MATCH // DEATHMATCH ]"));
+      String modeBadge = isPaused
+         ? Component.translatable("hud.oneshotonekill.scoreboard.paused").getString()
+         : (isLobby
+            ? Component.translatable("hud.oneshotonekill.scoreboard.lobby").getString()
+            : (isGunGame
+               ? Component.translatable("hud.oneshotonekill.scoreboard.gungame").getString()
+               : Component.translatable("hud.oneshotonekill.scoreboard.deathmatch").getString()));
       graphics.text(font, modeBadge, left + 14, top + 10, withAlpha(accent, alphaRatio));
 
-      String arenaTag = payload.arenaName().isEmpty() ? (isLobby ? "HAUPT-LOBBY" : "STANDARD ARENA") : "ARENA: " + payload.arenaName().toUpperCase();
+      String arenaTag = payload.arenaName().isEmpty()
+         ? (isLobby ? Component.translatable("hud.oneshotonekill.scoreboard.main_lobby").getString() : Component.translatable("hud.oneshotonekill.scoreboard.default_arena").getString())
+         : Component.translatable("hud.oneshotonekill.scoreboard.arena_tag", payload.arenaName().toUpperCase()).getString();
       graphics.text(font, arenaTag, left + 14, top + 22, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
 
       // Zentraler Timer / Zielwert
@@ -131,24 +139,24 @@ public final class TabScoreboardHudLayer {
          centerColor = OsokWidgets.COLOR_CYAN;
       } else if ("TIME_LIMIT".equals(payload.targetMode())) {
          int secs = Math.max(0, payload.remainingTicks() / 20);
-         centerTitle = String.format("⏱ %02d:%02d VERBLEIBEND", secs / 60, secs % 60);
+         centerTitle = Component.translatable("hud.oneshotonekill.scoreboard.time_remaining", secs / 60, secs % 60).getString();
          if (secs <= 30) {
             centerColor = OsokWidgets.COLOR_CRIMSON;
          } else if (secs <= 60) {
             centerColor = OsokWidgets.COLOR_GOLD;
          }
       } else if ("KILL_LIMIT".equals(payload.targetMode())) {
-         centerTitle = "🎯 ZIEL: " + payload.targetValue() + " KILLS";
+         centerTitle = Component.translatable("hud.oneshotonekill.scoreboard.kill_target", payload.targetValue()).getString();
          centerColor = OsokWidgets.COLOR_CYAN;
       } else {
          int secs = payload.elapsedTicks() / 20;
-         centerTitle = String.format("⏱ %02d:%02d GESPIELT", secs / 60, secs % 60);
+         centerTitle = Component.translatable("hud.oneshotonekill.scoreboard.time_elapsed", secs / 60, secs % 60).getString();
       }
 
       graphics.centeredText(font, Component.literal(centerTitle), centerX, top + 14, withAlpha(centerColor, alphaRatio));
 
       // Spieleranzahl (rechts)
-      String countTag = "👥 " + playerCount + " SPIELER";
+      String countTag = Component.translatable("hud.oneshotonekill.scoreboard.player_count", playerCount).getString();
       right(graphics, font, countTag, right - 14, top + 14, withAlpha(OsokWidgets.COLOR_TEXT_WHITE, alphaRatio));
 
       // Header-Trennlinie
@@ -160,14 +168,14 @@ public final class TabScoreboardHudLayer {
       graphics.fill(left + 6, y, right - 6, y + COL_HEADER_HEIGHT - 2, withAlpha(0x14FFFFFF, alphaRatio));
 
       graphics.text(font, "#", left + 14, y + 3, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
-      graphics.text(font, "SPIELER", left + 44, y + 3, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
-      graphics.text(font, isGunGame ? "STUFE / FORTSCHRITT" : "STATUS", left + COL_STATUS_LEFT, y + 3, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
+      graphics.text(font, Component.translatable("hud.oneshotonekill.scoreboard.col_player").getString(), left + 44, y + 3, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
+      graphics.text(font, isGunGame ? Component.translatable("hud.oneshotonekill.scoreboard.col_tier_progress").getString() : Component.translatable("hud.oneshotonekill.scoreboard.col_status").getString(), left + COL_STATUS_LEFT, y + 3, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
 
       right(graphics, font, "K", right - COL_KILLS_EDGE, y + 3, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
       right(graphics, font, "D", right - COL_DEATHS_EDGE, y + 3, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
       right(graphics, font, "K/D", right - COL_KD_EDGE, y + 3, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
-      right(graphics, font, "SERIE", right - COL_STREAK_EDGE, y + 3, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
-      right(graphics, font, "PING", right - COL_PING_EDGE, y + 3, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
+      right(graphics, font, Component.translatable("hud.oneshotonekill.scoreboard.col_streak").getString(), right - COL_STREAK_EDGE, y + 3, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
+      right(graphics, font, Component.translatable("hud.oneshotonekill.scoreboard.col_ping").getString(), right - COL_PING_EDGE, y + 3, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
 
       graphics.horizontalLine(left + 6, right - 7, y + COL_HEADER_HEIGHT - 2, withAlpha(0x30FFFFFF, alphaRatio));
    }
@@ -207,7 +215,7 @@ public final class TabScoreboardHudLayer {
       // Spielername & Kopfgeld-Krone
       int nameX = headX + 14;
       int nameColor = isLocal ? OsokWidgets.COLOR_CYAN : (entry.isAlive() ? OsokWidgets.COLOR_TEXT_WHITE : 0xFF71717A);
-      String displayName = (entry.isBounty() ? "👑 " : "") + entry.name() + (isLocal ? " (DU)" : "");
+      String displayName = (entry.isBounty() ? "👑 " : "") + entry.name() + (isLocal ? Component.translatable("hud.oneshotonekill.scoreboard.you").getString() : "");
       graphics.text(font, font.plainSubstrByWidth(displayName, 150), nameX, y + 5, withAlpha(nameColor, alphaRatio));
 
       // Status / Waffenspiel-Fortschritt
@@ -221,7 +229,9 @@ public final class TabScoreboardHudLayer {
          graphics.text(font, tierStr, left + COL_STATUS_LEFT, y + 5, withAlpha(OsokWidgets.COLOR_GOLD, alphaRatio));
          graphics.text(font, pips.toString(), left + COL_STATUS_LEFT + font.width(tierStr), y + 5, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
       } else {
-         String statusText = entry.isAlive() ? "LEBEND" : "TOT ☠";
+         String statusText = entry.isAlive()
+            ? Component.translatable("hud.oneshotonekill.scoreboard.alive").getString()
+            : Component.translatable("hud.oneshotonekill.scoreboard.dead").getString();
          int statusColor = entry.isAlive() ? 0xFF38BDF8 : OsokWidgets.COLOR_CRIMSON;
          graphics.text(font, statusText, left + COL_STATUS_LEFT, y + 5, withAlpha(statusColor, alphaRatio));
       }
@@ -252,17 +262,17 @@ public final class TabScoreboardHudLayer {
       PlayerEntry local = localId != null ? state.getLocalPlayerEntry(localId) : null;
 
       if (local != null) {
-         String summary = String.format("DEINE STATS: Platz #%d · %d Kills · %d Tode · K/D %s · Serie: ⚡%d",
-            rank, local.kills(), local.deaths(), local.kdRatioFormatted(), local.streak());
+         String summary = Component.translatable("hud.oneshotonekill.scoreboard.footer_stats",
+            rank, local.kills(), local.deaths(), local.kdRatioFormatted(), local.streak()).getString();
          if (local.isBounty()) {
-            summary += " (👑 KOPFGELD AKTIV!)";
+            summary += Component.translatable("hud.oneshotonekill.scoreboard.bounty_active").getString();
          }
          graphics.text(font, summary, left + 14, y + 10, withAlpha(OsokWidgets.COLOR_CYAN, alphaRatio));
       } else {
-         graphics.text(font, "MATCH-STATISTIKEN · ONESHOTONEKILL", left + 14, y + 10, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
+         graphics.text(font, Component.translatable("hud.oneshotonekill.scoreboard.footer_default").getString(), left + 14, y + 10, withAlpha(OsokWidgets.COLOR_TEXT_MUTED, alphaRatio));
       }
 
-      String hint = "[TAB] HALTEN";
+      String hint = Component.translatable("hud.oneshotonekill.scoreboard.hold_hint").getString();
       right(graphics, font, hint, right - 14, y + 10, withAlpha(0x8894A3B8, alphaRatio));
    }
 

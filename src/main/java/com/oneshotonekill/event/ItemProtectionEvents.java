@@ -9,6 +9,7 @@ import com.oneshotonekill.registry.ModItems;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.InteractionResult;
 import net.minecraft.world.entity.Display;
@@ -29,9 +30,9 @@ import org.jspecify.annotations.Nullable;
 @SuppressWarnings({"resource", "unused"})
 public final class ItemProtectionEvents {
    /** Feste Ausrüstung – Dolch, Bogen, Pfeil – ist an ihren Slot gebunden. */
-   private static final String LOCK_MESSAGE = "§c✖ Feste Ausrüstung bleibt in ihrem Slot";
-   private static final String DROP_MESSAGE = "§c✖ Items können nicht weggeworfen werden";
-   private static final String STASH_MESSAGE = "§c✖ Spezial-Items bleiben im eigenen Inventar";
+   private static final String LOCK_MESSAGE = "actionbar.oneshotonekill.lock_message";
+   private static final String DROP_MESSAGE = "actionbar.oneshotonekill.drop_message";
+   private static final String STASH_MESSAGE = "actionbar.oneshotonekill.stash_message";
 
    private ItemProtectionEvents() {
    }
@@ -69,7 +70,7 @@ public final class ItemProtectionEvents {
             player.getGameProfile().name(), restored.getHoverName().getString());
       }
       player.containerMenu.broadcastChanges();
-      Feedback.actionBar(player, DROP_MESSAGE);
+      Feedback.actionBar(player, Component.translatable(DROP_MESSAGE));
       return true;
    }
 
@@ -83,7 +84,7 @@ public final class ItemProtectionEvents {
    public static boolean blocksHandSwap(ServerPlayer player) {
       if (ProtectedItems.isSlotLocked(player.getMainHandItem())
          || ProtectedItems.isSlotLocked(player.getOffhandItem())) {
-         Feedback.actionBar(player, LOCK_MESSAGE);
+         Feedback.actionBar(player, Component.translatable(LOCK_MESSAGE));
          return true;
       }
       return false;
@@ -184,7 +185,7 @@ public final class ItemProtectionEvents {
     */
    private static boolean refuse(Player player, String message) {
       if (player instanceof ServerPlayer serverPlayer) {
-         Feedback.actionBar(serverPlayer, message);
+         Feedback.actionBar(serverPlayer, Component.translatable(message));
       }
       return true;
    }

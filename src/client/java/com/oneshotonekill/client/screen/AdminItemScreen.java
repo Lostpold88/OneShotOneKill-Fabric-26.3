@@ -63,19 +63,23 @@ public final class AdminItemScreen extends Screen {
    private int contentLength;
 
    public enum ItemCategory {
-      ALL("Alle", OsokWidgets.COLOR_GOLD),
-      FAVORITES("⭐ Favoriten", OsokWidgets.COLOR_GOLD),
-      WEAPONS("Waffen", OsokWidgets.COLOR_CYAN),
-      ABILITIES("Fähigkeiten", OsokWidgets.COLOR_EMERALD),
-      DEPLOYABLES("Platzierbar", OsokWidgets.COLOR_AMBER),
-      STREAKS("Killstreaks", OsokWidgets.COLOR_PURPLE);
+      ALL("gui.oneshotonekill.admin.cat_all", OsokWidgets.COLOR_GOLD),
+      FAVORITES("gui.oneshotonekill.admin.cat_favorites", OsokWidgets.COLOR_GOLD),
+      WEAPONS("gui.oneshotonekill.admin.cat_weapons", OsokWidgets.COLOR_CYAN),
+      ABILITIES("gui.oneshotonekill.admin.cat_abilities", OsokWidgets.COLOR_EMERALD),
+      DEPLOYABLES("gui.oneshotonekill.admin.cat_deployables", OsokWidgets.COLOR_AMBER),
+      STREAKS("gui.oneshotonekill.admin.cat_streaks", OsokWidgets.COLOR_PURPLE);
 
-      public final String label;
+      public final String translationKey;
       public final int accent;
 
-      ItemCategory(String label, int accent) {
-         this.label = label;
+      ItemCategory(String translationKey, int accent) {
+         this.translationKey = translationKey;
          this.accent = accent;
+      }
+
+      public String label() {
+         return Component.translatable(translationKey).getString();
       }
 
       public boolean matches(SpecialItem item, Set<SpecialItem> favorites) {
@@ -96,7 +100,7 @@ public final class AdminItemScreen extends Screen {
    }
 
    public AdminItemScreen() {
-      super(Component.literal("Spezialitems-Arsenal"));
+      super(Component.translatable("gui.oneshotonekill.admin.title"));
       this.scroll.set(rememberedScroll);
    }
 
@@ -111,28 +115,8 @@ public final class AdminItemScreen extends Screen {
    }
 
    public static String getItemDescription(SpecialItem item) {
-      return switch (item) {
-         case RADAR_PULSE -> "Deckt alle Gegner in der Arena kurzzeitig auf.";
-         case EXPLOSIVE_SHOT -> "Hochexplosive Munition mit Flächenschaden.";
-         case REFLECTOR_SHIELD -> "Wirft ankommende Projektile und Pfeile direkt zurück.";
-         case SMOKE_BOMB -> "Erzeugt eine dichte, sichtbehindernde Rauchwolke.";
-         case FROST_TRAP -> "Friert Gegner bei Kontakt ein und verlangsamt sie.";
-         case MINIGUN -> "Schwere Minigun mit rotierenden Läufen und extremer Kadenz.";
-         case TELEPORT_GRENADE -> "Teleportiert den Werfer sofort zum Aufschlagpunkt.";
-         case INVISIBILITY_CLOAK -> "Macht für begrenzte Zeit vollkommen unsichtbar.";
-         case ARROW_MAGNET -> "Zieht feindliche Pfeile magnetisch an und fängt sie ab.";
-         case CHAIN_LIGHTNING -> "Tödlicher Blitzstrahl, der auf nahe Feinde überspringt.";
-         case STEALTH_BOMBER -> "Tarnkappenbomber-Luftschlag auf ein ausgewähltes Ziel.";
-         case AIRSTRIKE -> "Taktisches Radar-Terminal für gezielte Bombenteppiche.";
-         case C4 -> "Fernzündbare Sprengladung mit massiver Zerstörungskraft.";
-         case RAILGUN -> "Präziser Hochgeschwindigkeits-Sofortstrahl durch Wände.";
-         case SINGULARITY -> "Erzeugt ein Schwarzes Loch, das Feinde und Schüsse anzieht.";
-         case GLIDER -> "Taktischer Hängegleiter für hohe Mobilität in der Luft.";
-         case SENTRY_TURRET -> "Automatischer Geschützturm mit Zielerfassung.";
-         case SLOW_MOTION -> "Verlangsamt den gesamten Zeitfluss für sieben Sekunden.";
-         case GRAPPLING_HOOK -> "Zehn Schüsse: Hakt sich an Flächen ein und zieht dich dorthin.";
-         case BOOGIE_BOMB -> "Disco-Granate: 15 Sekunden Zwangstanz. Keine Waffen oder Items.";
-      };
+      if (item == null) return "";
+      return Component.translatable("desc.oneshotonekill." + item.getId()).getString();
    }
 
    @Override
@@ -158,7 +142,8 @@ public final class AdminItemScreen extends Screen {
          if (!currentCategory.matches(item, FAVORITES)) {
             continue;
          }
-         if (!query.isEmpty() && !item.getDisplayName().toLowerCase(Locale.ROOT).contains(query)) {
+         String localizedName = item.getNameComponent().getString().toLowerCase(Locale.ROOT);
+         if (!query.isEmpty() && !localizedName.contains(query) && !item.getDisplayName().toLowerCase(Locale.ROOT).contains(query)) {
             continue;
          }
          list.add(item);
@@ -247,10 +232,12 @@ public final class AdminItemScreen extends Screen {
       hotspots.clear();
 
       graphics.text(font, "✦ OneShotOneKill", cardLeft + 16, cardTop + 14, OsokWidgets.COLOR_GOLD);
-      graphics.text(font, "• Admin-Spezialitem-Arsenal", cardLeft + 16 + font.width("✦ OneShotOneKill ") + 4, cardTop + 14, OsokWidgets.COLOR_TEXT_MUTED);
+      graphics.text(font, Component.translatable("gui.oneshotonekill.admin.subtitle"), cardLeft + 16 + font.width("✦ OneShotOneKill ") + 4, cardTop + 14, OsokWidgets.COLOR_TEXT_MUTED);
 
       List<SpecialItem> filteredItems = getFilteredItems();
-      String countText = filteredItems.size() + (filteredItems.size() == 1 ? " Item" : " Items");
+      String countText = filteredItems.size() == 1
+         ? Component.translatable("gui.oneshotonekill.admin.item_count", filteredItems.size()).getString()
+         : Component.translatable("gui.oneshotonekill.admin.items_count", filteredItems.size()).getString();
       OsokWidgets.statusBadge(graphics, font, cardLeft + CARD_WIDTH - 16 - (font.width(countText) + 18), cardTop + 12, countText, currentCategory.accent, false);
 
       drawCategoryTabsAndSearch(graphics, mouseX, mouseY, delta);
@@ -268,14 +255,14 @@ public final class AdminItemScreen extends Screen {
       OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, footerY, OsokWidgets.COLOR_CARD_BORDER);
 
       String keyName = OsokClient.adminMenuKeyName().getString();
-      graphics.text(font, "Schnelltaste [" + keyName + "] oder [ESC] schließt · ⭐ = Favorit · [+1] / [+16] = Items",
+      graphics.text(font, Component.translatable("gui.oneshotonekill.admin.hint", keyName),
          cardLeft + 16, footerY + 12, OsokWidgets.COLOR_TEXT_FAINT);
 
       // Batch-Aktionen: [📦 Alle +1] & [Schließen]
       int closeWidth = 78;
       int closeX = cardLeft + CARD_WIDTH - 16 - closeWidth;
       boolean closeHover = OsokWidgets.isOver(mouseX, mouseY, closeX, footerY + 6, closeWidth, 20);
-      OsokWidgets.cyberButton(graphics, font, closeX, footerY + 6, closeWidth, 20, "Schließen", true, closeHover, OsokWidgets.COLOR_CARD_BORDER);
+      OsokWidgets.cyberButton(graphics, font, closeX, footerY + 6, closeWidth, 20, Component.translatable("gui.oneshotonekill.admin.close").getString(), true, closeHover, OsokWidgets.COLOR_CARD_BORDER);
       hotspots.add(new Hotspot(closeX, footerY + 6, closeWidth, 20, false, () -> {
          OsokWidgets.playUiClickSound();
          this.onClose();
@@ -285,7 +272,7 @@ public final class AdminItemScreen extends Screen {
       int giveAllX = closeX - giveAllWidth - 6;
       boolean giveAllHover = OsokWidgets.isOver(mouseX, mouseY, giveAllX, footerY + 6, giveAllWidth, 20);
       boolean hasItems = !filteredItems.isEmpty();
-      OsokWidgets.cyberButton(graphics, font, giveAllX, footerY + 6, giveAllWidth, 20, "📦 Alle +1", hasItems, giveAllHover, OsokWidgets.COLOR_EMERALD);
+      OsokWidgets.cyberButton(graphics, font, giveAllX, footerY + 6, giveAllWidth, 20, Component.translatable("gui.oneshotonekill.admin.give_all").getString(), hasItems, giveAllHover, OsokWidgets.COLOR_EMERALD);
       hotspots.add(new Hotspot(giveAllX, footerY + 6, giveAllWidth, 20, false, () -> {
          boolean isTilted = isTiltedActive();
          for (SpecialItem item : filteredItems) {
@@ -317,23 +304,24 @@ public final class AdminItemScreen extends Screen {
 
    private List<Component> buildTooltip(SpecialItem item, ItemCategory cat, boolean isFav) {
       boolean isTilted = isTiltedActive();
+      Component itemName = item.getNameComponent();
       if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
          return List.of(
-            Component.literal((isFav ? "⭐ " : "") + item.getDisplayName()).withColor(cat.accent),
-            Component.literal("Status: Permanente Start-Ausrüstung auf Tilted Towers").withColor(OsokWidgets.COLOR_AMBER),
+            Component.literal((isFav ? "⭐ " : "")).append(itemName).withColor(cat.accent),
+            Component.translatable("gui.oneshotonekill.admin.tilted_grappler_status").withColor(OsokWidgets.COLOR_AMBER),
             Component.empty(),
-            Component.literal("Jeder Spieler besitzt diesen Grappler auf Tilted Towers dauerhaft in Slot 2 mit unendlicher Haltbarkeit.").withColor(OsokWidgets.COLOR_TEXT_WHITE),
+            Component.translatable("gui.oneshotonekill.admin.tilted_grappler_desc").withColor(OsokWidgets.COLOR_TEXT_WHITE),
             Component.empty(),
-            Component.literal("🔒 Auf dieser Map kann der Grappler nicht per Admin-GUI vergeben werden.").withColor(OsokWidgets.COLOR_CRIMSON)
+            Component.translatable("gui.oneshotonekill.admin.tilted_grappler_locked").withColor(OsokWidgets.COLOR_CRIMSON)
          );
       }
       return List.of(
-         Component.literal((isFav ? "⭐ " : "") + item.getDisplayName()).withColor(cat.accent),
-         Component.literal("Kategorie: " + cat.label).withColor(OsokWidgets.COLOR_TEXT_MUTED),
+         Component.literal((isFav ? "⭐ " : "")).append(itemName).withColor(cat.accent),
+         Component.translatable("gui.oneshotonekill.admin.category_label", cat.label()).withColor(OsokWidgets.COLOR_TEXT_MUTED),
          Component.empty(),
          Component.literal(getItemDescription(item)).withColor(OsokWidgets.COLOR_TEXT_WHITE),
          Component.empty(),
-         Component.literal("💡 [★] = Favorit umschalten · [+1] = 1 Stück · [+16] = 16 Stück").withColor(OsokWidgets.COLOR_TEXT_FAINT)
+         Component.translatable("gui.oneshotonekill.admin.tooltip_hint").withColor(OsokWidgets.COLOR_TEXT_FAINT)
       );
    }
 
@@ -374,10 +362,10 @@ public final class AdminItemScreen extends Screen {
       SpecialItem hoveredItemForTooltip = null;
 
       if (filteredItems.isEmpty()) {
-         String emptyMsg = currentCategory == ItemCategory.FAVORITES
-            ? "Noch keine Favoriten markiert (Klicke auf ★ bei einem Item)"
-            : "Keine Items gefunden für '" + searchQuery + "'";
-         graphics.centeredText(font, Component.literal(emptyMsg), (left + right) / 2, listTop + listHeight / 2 - 4, OsokWidgets.COLOR_TEXT_FAINT);
+         Component emptyMsg = currentCategory == ItemCategory.FAVORITES
+            ? Component.translatable("gui.oneshotonekill.admin.empty_favorites")
+            : Component.translatable("gui.oneshotonekill.admin.empty_search", searchQuery);
+         graphics.centeredText(font, emptyMsg, (left + right) / 2, listTop + listHeight / 2 - 4, OsokWidgets.COLOR_TEXT_FAINT);
       } else {
          for (SpecialItem item : filteredItems) {
             boolean rowHovered = OsokWidgets.isOver(mouseX, mouseY, left, y, right - left, ROW_HEIGHT)
@@ -429,22 +417,23 @@ public final class AdminItemScreen extends Screen {
             int btn1X = btn16X - BTN_WIDTH - 6;
             boolean isTilted = isTiltedActive();
             int actionLeft = (isTilted && item == SpecialItem.GRAPPLING_HOOK)
-               ? (right - (font.width("🔒 START-AUSRÜSTUNG") + 18) - 8)
+               ? (right - (font.width(Component.translatable("gui.oneshotonekill.admin.tilted_badge")) + 18) - 8)
                : btn1X;
             int maxDescWidth = Math.max(20, actionLeft - (left + 48) - 8);
 
-            graphics.text(font, item.getDisplayName(), left + 48, y + 8, OsokWidgets.COLOR_TEXT_WHITE);
-            int nameWidth = font.width(item.getDisplayName());
+            Component itemName = item.getNameComponent();
+            graphics.text(font, itemName, left + 48, y + 8, OsokWidgets.COLOR_TEXT_WHITE);
+            int nameWidth = font.width(itemName);
             if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
-               graphics.text(font, "• Tilted Towers: Start-Ausrüstung", left + 52 + nameWidth, y + 8, OsokWidgets.COLOR_AMBER);
-               graphics.text(font, trimText(font, "Dauerhaft in Slot 2 vergeben · Unendlich oft einsetzbar.", maxDescWidth), left + 48, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
+               graphics.text(font, Component.translatable("gui.oneshotonekill.admin.tilted_sub"), left + 52 + nameWidth, y + 8, OsokWidgets.COLOR_AMBER);
+               graphics.text(font, trimText(font, Component.translatable("gui.oneshotonekill.admin.tilted_desc").getString(), maxDescWidth), left + 48, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
             } else {
-               graphics.text(font, "• " + cat.label, left + 52 + nameWidth, y + 8, cat.accent);
+               graphics.text(font, "• " + cat.label(), left + 52 + nameWidth, y + 8, cat.accent);
                graphics.text(font, trimText(font, getItemDescription(item), maxDescWidth), left + 48, y + 20, OsokWidgets.COLOR_TEXT_FAINT);
             }
 
             if (isTilted && item == SpecialItem.GRAPPLING_HOOK) {
-               String badge = "🔒 START-AUSRÜSTUNG";
+               String badge = Component.translatable("gui.oneshotonekill.admin.tilted_badge").getString();
                int badgeWidth = font.width(badge) + 18;
                int badgeX = right - badgeWidth - 8;
                OsokWidgets.statusBadge(graphics, font, badgeX, btnY + 3, badge, OsokWidgets.COLOR_AMBER, false);
@@ -501,7 +490,7 @@ public final class AdminItemScreen extends Screen {
          int count = cat.count(FAVORITES);
          String tabTitle = cat == ItemCategory.FAVORITES
             ? (count > 0 ? "⭐ " + count : "⭐")
-            : cat.label + " (" + count + ")";
+            : cat.label() + " (" + count + ")";
          int tabWidth = font.width(tabTitle) + 12;
          boolean isActive = currentCategory == cat;
          boolean hovered = OsokWidgets.isOver(mouseX, mouseY, x, y, tabWidth, 20);
@@ -530,7 +519,7 @@ public final class AdminItemScreen extends Screen {
       int searchWidth = 130;
       int searchX = cardLeft + CARD_WIDTH - 16 - searchWidth;
       boolean searchHover = OsokWidgets.isOver(mouseX, mouseY, searchX, y, searchWidth, 20);
-      OsokWidgets.searchInput(graphics, font, searchX, y, searchWidth, 20, searchQuery, "Suchen…", searchFocused, searchHover);
+      OsokWidgets.searchInput(graphics, font, searchX, y, searchWidth, 20, searchQuery, Component.translatable("gui.oneshotonekill.admin.search").getString(), searchFocused, searchHover);
 
       hotspots.add(new Hotspot(searchX, y, searchWidth, 20, false, CursorTypes.IBEAM,
          () -> searchFocused = true));

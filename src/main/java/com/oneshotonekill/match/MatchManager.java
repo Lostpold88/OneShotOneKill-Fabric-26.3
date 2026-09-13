@@ -113,7 +113,7 @@ public final class MatchManager {
 
    public void setGameMode(ServerPlayer player, String modeName) {
       if (!settleBeforeArenaChange(player)) {
-         player.sendSystemMessage(Component.literal("Spielmodus kann nur bei gestopptem Match geändert werden.")
+         player.sendSystemMessage(Component.translatable("chat.oneshotonekill.match.error_mode_only_stopped")
             .withStyle(ChatFormatting.YELLOW));
          return;
       }
@@ -132,13 +132,13 @@ public final class MatchManager {
 
    public void setMatchTarget(ServerPlayer player, String modeName, int value) {
       if (currentMatchState != MatchState.STOPPED) {
-         player.sendSystemMessage(Component.literal("Match-Ziele können nur bei gestopptem Match geändert werden.")
+         player.sendSystemMessage(Component.translatable("chat.oneshotonekill.match.error_target_only_stopped")
             .withStyle(ChatFormatting.YELLOW));
          return;
       }
       MatchTargetMode mode = MatchTargetMode.fromName(modeName);
       if (currentGameMode == GameMode.GUN_GAME && mode == MatchTargetMode.KILL_LIMIT) {
-         player.sendSystemMessage(Component.literal("Kill-Limit ist im Waffenspiel-Modus deaktiviert (Sieg erfolgt über Stufe 13).")
+         player.sendSystemMessage(Component.translatable("chat.oneshotonekill.match.error_gungame_no_kill_limit")
             .withStyle(ChatFormatting.YELLOW));
          return;
       }
@@ -333,7 +333,7 @@ public final class MatchManager {
          }
 
          if (remainingTicks <= 0) {
-            endMatchWithWinner(server, "⏱ Zeit abgelaufen!");
+            endMatchWithWinner(server, Component.translatable("chat.oneshotonekill.time_over").getString());
          }
       } else if (targetMode == MatchTargetMode.UNLIMITED) {
          if (elapsedTicks % 20 == 0) {
@@ -347,7 +347,7 @@ public final class MatchManager {
          if (currentKills >= targetValue) {
             MinecraftServer server = OneShotOneKill.INSTANCE.getServer();
             if (server != null) {
-               endMatchWithWinner(server, "🎯 Kill-Ziel von " + targetValue + " Kills erreicht!");
+               endMatchWithWinner(server, Component.translatable("chat.oneshotonekill.kill_limit_reached").getString());
             }
          }
       }
@@ -388,26 +388,23 @@ public final class MatchManager {
       boolean isDraw = winner == null || (currentGameMode == GameMode.GUN_GAME ? topTier == 1 && topKills == 0 : topKills == 0);
 
       Component title = isDraw
-         ? Component.literal("🏆 UNENTSCHIEDEN!").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
-         : Component.literal("🏆 " + winner.getScoreboardName() + " GEWINNT!").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
+         ? Component.translatable("chat.oneshotonekill.match_draw").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
+         : Component.translatable("chat.oneshotonekill.match_winner", winner.getScoreboardName()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
 
       Component subtitle;
       if (currentGameMode == GameMode.GUN_GAME && winner != null && !isDraw) {
-         subtitle = Component.literal("Stufe " + topTier + "/12 (" + topKills + " Kills) · " + reason).withStyle(ChatFormatting.YELLOW);
+         subtitle = Component.literal("S" + topTier + " (" + topKills + " Kills) · " + reason).withStyle(ChatFormatting.YELLOW);
       } else {
          subtitle = Component.literal((isDraw ? "" : topKills + " Kills · ") + reason).withStyle(ChatFormatting.YELLOW);
       }
 
       Component chatMsg;
       if (currentGameMode == GameMode.GUN_GAME && winner != null && !isDraw) {
-         chatMsg = Component.literal("[OSOK] 🏆 ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
-            .append(Component.literal(winner.getScoreboardName()).withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD))
-            .append(Component.literal(" gewinnt das Waffenspiel auf Stufe " + topTier + "/12! (" + reason + ")").withStyle(ChatFormatting.GOLD));
+         chatMsg = Component.literal("[OSOK] ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
+            .append(Component.translatable("chat.oneshotonekill.match_winner", winner.getScoreboardName()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
       } else {
-         chatMsg = Component.literal("[OSOK] 🏆 ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
-            .append(isDraw
-               ? Component.literal("Match beendet: Unentschieden! (" + reason + ")").withStyle(ChatFormatting.YELLOW)
-               : Component.literal(winner.getScoreboardName() + " gewinnt mit " + topKills + " Kills! (" + reason + ")").withStyle(ChatFormatting.GOLD));
+         chatMsg = Component.literal("[OSOK] ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
+            .append(title);
       }
 
       server.getPlayerList().broadcastSystemMessage(chatMsg, false);
@@ -461,7 +458,7 @@ public final class MatchManager {
    public void selectArena(ServerPlayer player, String arenaId) {
       withArena(player, arenaId, (arena, worlds) -> {
          if (!settleBeforeArenaChange(player)) {
-            player.sendSystemMessage(Component.literal("Arenen können nur bei gestopptem Match gewechselt werden.")
+            player.sendSystemMessage(Component.translatable("chat.oneshotonekill.match.error_arena_only_stopped")
                .withStyle(ChatFormatting.YELLOW));
             return;
          }
@@ -470,7 +467,7 @@ public final class MatchManager {
             return;
          }
          if (worlds.switchTo(arena) == null) {
-            player.sendSystemMessage(Component.literal("Arena " + arena.getDisplayName() + " ist nicht geladen.")
+            player.sendSystemMessage(Component.translatable("chat.oneshotonekill.match.error_arena_not_loaded", arena.getDisplayName())
                .withStyle(ChatFormatting.RED));
             return;
          }
@@ -486,7 +483,7 @@ public final class MatchManager {
    public void resetArena(ServerPlayer player, String arenaId) {
       withArena(player, arenaId, (arena, worlds) -> {
          if (!settleBeforeArenaChange(player)) {
-            player.sendSystemMessage(Component.literal("Arenen können nur bei gestopptem Match zurückgesetzt werden.")
+            player.sendSystemMessage(Component.translatable("chat.oneshotonekill.match.error_reset_only_stopped")
                .withStyle(ChatFormatting.YELLOW));
             return;
          }
@@ -500,9 +497,9 @@ public final class MatchManager {
                });
                broadcastState();
             }
-            case BUSY -> player.sendSystemMessage(Component.literal("Es wird bereits eine Arena neu geladen – einen Moment.")
+            case BUSY -> player.sendSystemMessage(Component.translatable("chat.oneshotonekill.match.error_reset_busy")
                .withStyle(ChatFormatting.YELLOW));
-            case NOT_OPEN -> player.sendSystemMessage(Component.literal(arena.getDisplayName() + " ist nicht geladen – siehe Serverlog.")
+            case NOT_OPEN -> player.sendSystemMessage(Component.translatable("chat.oneshotonekill.match.error_not_open", arena.getDisplayName())
                .withStyle(ChatFormatting.RED));
          }
       });
@@ -561,7 +558,7 @@ public final class MatchManager {
          return;
       }
       int removed = MinigunRuntime.INSTANCE.clearAllArrows(server);
-      Feedback.actionBar(player, "§b➶ " + removed + " Pfeil" + (removed == 1 ? "" : "e") + " entfernt");
+      Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.arrows_cleared", removed));
    }
 
    public void adjustWeight(ServerPlayer player, AdjustSpecialItemWeightPayload payload) {
@@ -614,12 +611,12 @@ public final class MatchManager {
       Arena playerArena = worlds != null ? worlds.arenaOf(player) : null;
       if ((playerArena == Arena.TILTED_TOWERS || activeArena == Arena.TILTED_TOWERS)
          && item == SpecialItem.GRAPPLING_HOOK) {
-         Feedback.actionBar(player, "§c✖ Auf Tilted Towers ist der Grappler feste Start-Ausrüstung");
+         Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.tilted_grappler_fixed"));
          return;
       }
 
       if (!player.getInventory().add(item.createStack())) {
-         Feedback.actionBar(player, "§c✖ Kein freier Slot für das Spezial-Item");
+         Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.no_slot_for_item"));
       }
    }
 

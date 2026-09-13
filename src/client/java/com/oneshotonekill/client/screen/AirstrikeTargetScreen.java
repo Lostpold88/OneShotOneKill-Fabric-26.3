@@ -92,7 +92,7 @@ public final class AirstrikeTargetScreen extends Screen {
    private CyberStrikeButton fireButton;
 
    public AirstrikeTargetScreen() {
-      super(Component.literal("Orbital-Command Radar"));
+      super(Component.translatable("gui.oneshotonekill.airstrike.title"));
       Arena found = Arena.getDefault();
       if (Minecraft.getInstance().level != null) {
          for (Arena candidate : Arena.values()) {
@@ -130,12 +130,12 @@ public final class AirstrikeTargetScreen extends Screen {
 
       int buttonWidth = Math.min(240, panelWidth - 48);
       fireButton = new CyberStrikeButton(width / 2 - buttonWidth / 2, mapTop + mapHeight + 54, buttonWidth, 22,
-         Component.literal("✦ ANGRIFF AUSLÖSEN ✦"), () -> hasTarget(), ignored -> confirm());
+         Component.translatable("gui.oneshotonekill.airstrike.launch"), () -> hasTarget(), ignored -> confirm());
       fireButton.active = false;
       addRenderableWidget(fireButton);
 
       addRenderableWidget(new CyberAbortButton(width / 2 - buttonWidth / 2, mapTop + mapHeight + 80, buttonWidth, 18,
-         Component.literal("✕ ABBRECHEN [RECHTSKLICK / ESC]"), ignored -> onClose()));
+         Component.translatable("gui.oneshotonekill.airstrike.cancel"), ignored -> onClose()));
 
       ClientPlayNetworking.send(AirstrikeSystem.OpenRadarPayload.EMPTY);
    }
@@ -245,13 +245,14 @@ public final class AirstrikeTargetScreen extends Screen {
       graphics.fill(panelLeft + 4, panelTop + 4, panelLeft + 6, panelTop + 12, BRACKET_GOLD);
 
       // Scharf gezeichnetes 2D-Vektor Satelliten-Icon
-      int titleTextWidth = font.width("ORBITAL STRIKE TERMINAL // SAT-UPLINK v4.2");
+      Component terminalTitle = Component.translatable("gui.oneshotonekill.airstrike.terminal");
+      int titleTextWidth = font.width(terminalTitle);
       int satX = width / 2 - titleTextWidth / 2 - 14;
       int satY = panelTop + 13;
       drawVectorSatelliteIcon(graphics, satX, satY);
 
-      graphics.centeredText(font, Component.literal("ORBITAL STRIKE TERMINAL // SAT-UPLINK v4.2"), width / 2 + 4, panelTop + 10, OsokWidgets.COLOR_CYAN);
-      graphics.centeredText(font, Component.literal("SEKTOR: " + arena.getDisplayName().toUpperCase() + "  ·  GPS LOCK: ACTIVE"), width / 2, panelTop + 23, TEXT_MUTED);
+      graphics.centeredText(font, terminalTitle, width / 2 + 4, panelTop + 10, OsokWidgets.COLOR_CYAN);
+      graphics.centeredText(font, Component.translatable("gui.oneshotonekill.airstrike.sector", arena.getDisplayName().toUpperCase()), width / 2, panelTop + 23, TEXT_MUTED);
 
       // Status-Beacon rechts
       boolean armed = hasTarget();
@@ -504,7 +505,7 @@ public final class AirstrikeTargetScreen extends Screen {
       graphics.fill(x - 2, z, x + 3, z + 1, color);
       graphics.fill(x, z, x + 1, z + 1, 0xFFFFFFFF);
 
-      drawMicroLabel(graphics, "DU", x, z + 6, endangered ? DANGER_PULSE : PLAYER_EMERALD);
+      drawMicroLabel(graphics, Component.translatable("gui.oneshotonekill.airstrike.you").getString(), x, z + 6, endangered ? DANGER_PULSE : PLAYER_EMERALD);
    }
 
    private void drawContacts(GuiGraphicsExtractor graphics) {
@@ -530,21 +531,21 @@ public final class AirstrikeTargetScreen extends Screen {
    }
 
    private void drawHint(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-      String hint;
+      Component hint;
       int color;
       if (!hasScan) {
-         hint = "SAT-LINK SCAN WIRD INITIALISIERT ...";
+         hint = Component.translatable("gui.oneshotonekill.airstrike.scan_init");
          color = TEXT_MUTED;
       } else if (!hasTarget()) {
          hint = isOverMap(mouseX, mouseY)
-            ? String.format("ZIELPEILUNG: [ X: %d / Z: %d ]", (int) worldXAt(mouseX), (int) worldZAt(mouseY))
-            : "KLICKE AUF DAS GELÄNDE, UM EINEN EINSCHLAG ZU PROGRAMMIEREN";
+            ? Component.translatable("gui.oneshotonekill.airstrike.target_coords", (int) worldXAt(mouseX), (int) worldZAt(mouseY))
+            : Component.translatable("gui.oneshotonekill.airstrike.click_hint");
          color = OsokWidgets.COLOR_CYAN;
       } else {
-         hint = "✦ ZIEL AUFGESCHALTET · FREIGABE ERTEILT ✦";
+         hint = Component.translatable("gui.oneshotonekill.airstrike.locked_hint");
          color = OsokWidgets.COLOR_GOLD;
       }
-      graphics.centeredText(font, Component.literal(hint), width / 2, mapTop + mapHeight + 7, color);
+      graphics.centeredText(font, hint, width / 2, mapTop + mapHeight + 7, color);
    }
 
    /** 4-Kachel Telemetrie-Deck am unteren Bildschirmrand */
@@ -566,13 +567,17 @@ public final class AirstrikeTargetScreen extends Screen {
          ? Math.round(Math.hypot(selectedX - player.getX(), selectedZ - player.getZ())) + "m"
          : "---";
       String radiusVal = "24m";
-      String statusVal = !hasTarget() ? "STANDBY" : (selfInBlast ? "GEFAHR!" : "LOCK");
+      String statusVal = !hasTarget()
+         ? Component.translatable("gui.oneshotonekill.airstrike.status_standby").getString()
+         : (selfInBlast
+            ? Component.translatable("gui.oneshotonekill.airstrike.status_danger").getString()
+            : Component.translatable("gui.oneshotonekill.airstrike.status_lock").getString());
       int statusCol = !hasTarget() ? TEXT_MUTED : (selfInBlast ? DANGER_PULSE : OsokWidgets.COLOR_EMERALD);
 
-      drawTelemetryTile(graphics, deckLeft, y, tileWidth, tileHeight, "ZIEL", targetVal, hasTarget() ? OsokWidgets.COLOR_CYAN : TEXT_MUTED);
-      drawTelemetryTile(graphics, deckLeft + (tileWidth + gap), y, tileWidth, tileHeight, "DISTANZ", distVal, hasTarget() ? OsokWidgets.COLOR_CYAN : TEXT_MUTED);
-      drawTelemetryTile(graphics, deckLeft + 2 * (tileWidth + gap), y, tileWidth, tileHeight, "RADIUS", radiusVal, OsokWidgets.COLOR_GOLD);
-      drawTelemetryTile(graphics, deckLeft + 3 * (tileWidth + gap), y, tileWidth, tileHeight, "STATUS", statusVal, statusCol);
+      drawTelemetryTile(graphics, deckLeft, y, tileWidth, tileHeight, Component.translatable("gui.oneshotonekill.airstrike.tile_target").getString(), targetVal, hasTarget() ? OsokWidgets.COLOR_CYAN : TEXT_MUTED);
+      drawTelemetryTile(graphics, deckLeft + (tileWidth + gap), y, tileWidth, tileHeight, Component.translatable("gui.oneshotonekill.airstrike.tile_distance").getString(), distVal, hasTarget() ? OsokWidgets.COLOR_CYAN : TEXT_MUTED);
+      drawTelemetryTile(graphics, deckLeft + 2 * (tileWidth + gap), y, tileWidth, tileHeight, Component.translatable("gui.oneshotonekill.airstrike.tile_radius").getString(), radiusVal, OsokWidgets.COLOR_GOLD);
+      drawTelemetryTile(graphics, deckLeft + 3 * (tileWidth + gap), y, tileWidth, tileHeight, Component.translatable("gui.oneshotonekill.airstrike.tile_status").getString(), statusVal, statusCol);
    }
 
    private void drawTelemetryTile(GuiGraphicsExtractor graphics, int x, int y, int w, int h, String title, String val, int valColor) {

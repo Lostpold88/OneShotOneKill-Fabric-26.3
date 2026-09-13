@@ -30,7 +30,7 @@ public final class MinimapConfigScreen extends Screen {
     private boolean isDraggingRadiusSlider = false;
 
     public MinimapConfigScreen() {
-        super(Component.literal("Minimap Konfiguration"));
+        super(Component.translatable("gui.oneshotonekill.minimap.title"));
     }
 
     @Override
@@ -299,8 +299,8 @@ public final class MinimapConfigScreen extends Screen {
         OsokWidgets.panel(graphics, panelLeft, panelTop, panelLeft + panelW, panelTop + panelH, 0xF40D111C, OsokWidgets.COLOR_CARD_BORDER);
 
         // Titel
-        graphics.text(font, "✦ MINIMAP-EDITOR", panelLeft + 14, panelTop + 10, OsokWidgets.COLOR_CYAN);
-        graphics.text(font, "(Map anklicken & frei ziehen)", panelLeft + 120, panelTop + 10, OsokWidgets.COLOR_TEXT_FAINT);
+        graphics.text(font, Component.translatable("gui.oneshotonekill.minimap.editor"), panelLeft + 14, panelTop + 10, OsokWidgets.COLOR_CYAN);
+        graphics.text(font, Component.translatable("gui.oneshotonekill.minimap.drag_hint"), panelLeft + 120, panelTop + 10, OsokWidgets.COLOR_TEXT_FAINT);
 
         // Radius Slider
         int sliderX = panelLeft + 14;
@@ -311,7 +311,7 @@ public final class MinimapConfigScreen extends Screen {
         String valText = (radius * 2) + " px (Radius " + radius + ")";
         boolean sliderHover = OsokWidgets.isOver(mouseX, mouseY, sliderX, sliderY, sliderW, sliderH);
         OsokWidgets.modernSlider(graphics, font, sliderX, sliderY, sliderW, sliderH,
-                "Größe / Skalierung:", valText, sRatio, true, sliderHover, isDraggingRadiusSlider, OsokWidgets.COLOR_CYAN);
+                Component.translatable("gui.oneshotonekill.minimap.scale").getString(), valText, sRatio, true, sliderHover, isDraggingRadiusSlider, OsokWidgets.COLOR_CYAN);
 
         // Presets Buttons
         int presetY = panelTop + 58;
@@ -320,7 +320,13 @@ public final class MinimapConfigScreen extends Screen {
         int buttonW = (panelW - 28 - (buttonCount - 1) * gap) / buttonCount;
         int px = panelLeft + 14;
 
-        String[] labels = {"↖ Oben L", "↗ Oben R", "↙ Unten L", "↘ Unten R", "🔄 Reset"};
+        String[] labels = {
+            Component.translatable("gui.oneshotonekill.minimap.top_left").getString(),
+            Component.translatable("gui.oneshotonekill.minimap.top_right").getString(),
+            Component.translatable("gui.oneshotonekill.minimap.bottom_left").getString(),
+            Component.translatable("gui.oneshotonekill.minimap.bottom_right").getString(),
+            Component.translatable("gui.oneshotonekill.minimap.reset").getString()
+        };
         for (String lbl : labels) {
             boolean hov = OsokWidgets.isOver(mouseX, mouseY, px, presetY, buttonW, 18);
             OsokWidgets.cyberButton(graphics, font, px, presetY, buttonW, 18, lbl, true, hov, OsokWidgets.COLOR_CARD_BORDER);
@@ -334,7 +340,7 @@ public final class MinimapConfigScreen extends Screen {
         int saveH = 20;
         boolean saveHover = OsokWidgets.isOver(mouseX, mouseY, saveX, saveY, saveW, saveH);
         String keyName = OsokClient.minimapConfigKeyName().getString();
-        String saveText = String.format("✔ Fertig & Speichern [%s / ESC]", keyName);
+        String saveText = Component.translatable("gui.oneshotonekill.minimap.save", keyName).getString();
         OsokWidgets.cyberButton(graphics, font, saveX, saveY, saveW, saveH,
                 saveText, true, saveHover, OsokWidgets.COLOR_EMERALD);
 

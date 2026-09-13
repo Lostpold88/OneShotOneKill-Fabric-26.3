@@ -32,27 +32,35 @@ public final class KillFeed {
    /** Ab dieser Serie wird sie mitgeschrieben – darunter ist sie keine Meldung wert. */
    private static final int STREAK_WORTH_MENTIONING = 2;
 
-   /** Womit jemand ausgeschaltet wurde. Der Name steht so im Chat. */
+   /** Womit jemand ausgeschaltet wurde. */
    public enum Cause {
-      BOW("Bogen"),
-      SWORD("Schwert"),
-      MINIGUN("Minigun"),
-      RAILGUN("Railgun"),
-      EXPLOSIVE_SHOT("Explosiv-Schuss"),
-      CHAIN_LIGHTNING("Kettenblitz"),
-      C4("C4"),
-      SENTRY_TURRET("Geschützturm"),
-      AIRSTRIKE("Luftangriff"),
-      STEALTH_BOMBER("Tarnkappenbomber");
+      BOW("item.minecraft.bow"),
+      SWORD("item.minecraft.iron_sword"),
+      MINIGUN("item.oneshotonekill.minigun"),
+      RAILGUN("item.oneshotonekill.railgun"),
+      EXPLOSIVE_SHOT("item.oneshotonekill.explosive_shot"),
+      CHAIN_LIGHTNING("item.oneshotonekill.chain_lightning"),
+      C4("item.oneshotonekill.c4"),
+      SENTRY_TURRET("item.oneshotonekill.sentry_turret"),
+      AIRSTRIKE("item.oneshotonekill.airstrike"),
+      STEALTH_BOMBER("item.oneshotonekill.stealth_bomber");
 
-      private final String label;
+      private final String translationKey;
 
-      Cause(String label) {
-         this.label = label;
+      Cause(String translationKey) {
+         this.translationKey = translationKey;
+      }
+
+      public String getTranslationKey() {
+         return translationKey;
+      }
+
+      public Component getComponent() {
+         return Component.translatable(translationKey);
       }
 
       public String getLabel() {
-         return label;
+         return getComponent().getString();
       }
    }
 
@@ -68,25 +76,24 @@ public final class KillFeed {
 
       if (killer.equals(victim)) {
          broadcast(server, prefix("☠", VICTIM)
-            .append(name(victim, VICTIM))
-            .append(text(" hat sich selbst mit "))
-            .append(Component.literal(cause.getLabel()).withStyle(WEAPON))
-            .append(text(" ausgeschaltet")));
+            .append(Component.translatable("chat.oneshotonekill.kill_self",
+               name(victim, VICTIM),
+               cause.getComponent().copy().withStyle(WEAPON)
+            ).withStyle(TEXT)));
          return;
       }
 
       MutableComponent line = prefix("⚔", KILLER)
-         .append(name(killer, KILLER))
-         .append(text(" hat "))
-         .append(name(victim, VICTIM))
-         .append(text(" mit "))
-         .append(Component.literal(cause.getLabel()).withStyle(WEAPON))
-         .append(text(" ausgeschaltet"));
+         .append(Component.translatable("chat.oneshotonekill.kill",
+            name(killer, KILLER),
+            name(victim, VICTIM),
+            cause.getComponent().copy().withStyle(WEAPON)
+         ).withStyle(TEXT));
 
       int streak = ScoreboardManager.INSTANCE.getStreak(killer.getUUID());
       if (streak >= STREAK_WORTH_MENTIONING) {
          line.append(Component.literal(" · ").withStyle(BRACKET))
-            .append(Component.literal("Serie " + streak).withStyle(BRAND));
+            .append(Component.translatable("chat.oneshotonekill.streak_suffix", streak).withStyle(BRAND));
       }
       broadcast(server, line);
    }
@@ -104,18 +111,20 @@ public final class KillFeed {
          return;
       }
 
-      MutableComponent line = prefix("🛡", SHIELD)
-         .append(name(defender, SHIELD))
-         .append(text(" hat "));
-
+      MutableComponent line = prefix("🛡", SHIELD);
       if (attacker == null || attacker.equals(defender)) {
-         line.append(Component.literal(cause.getLabel()).withStyle(WEAPON));
+         line.append(Component.translatable("chat.oneshotonekill.deflect_self",
+            name(defender, SHIELD),
+            cause.getComponent().copy().withStyle(WEAPON)
+         ).withStyle(TEXT));
       } else {
-         line.append(Component.literal(cause.getLabel()).withStyle(WEAPON))
-            .append(text(" von "))
-            .append(name(attacker, VICTIM));
+         line.append(Component.translatable("chat.oneshotonekill.deflect",
+            name(defender, SHIELD),
+            cause.getComponent().copy().withStyle(WEAPON),
+            name(attacker, VICTIM)
+         ).withStyle(TEXT));
       }
-      broadcast(server, line.append(text(" abgewehrt")));
+      broadcast(server, line);
    }
 
    /** Eine Killserie hat ein Spezial-Item eingebracht. */
@@ -124,12 +133,15 @@ public final class KillFeed {
       if (server == null) {
          return;
       }
+      Component itemComponent = (itemName != null && (itemName.startsWith("item.") || itemName.startsWith("equipment.")))
+         ? Component.translatable(itemName)
+         : Component.literal(itemName != null ? itemName : "");
       broadcast(server, prefix("⚡", BRAND)
-         .append(name(player, KILLER))
-         .append(text(" hält eine Serie von "))
-         .append(Component.literal(Integer.toString(streak)).withStyle(BRAND, ChatFormatting.BOLD))
-         .append(text(" und erhält "))
-         .append(Component.literal(itemName).withStyle(WEAPON)));
+         .append(Component.translatable("chat.oneshotonekill.streak_reward",
+            name(player, KILLER),
+            streak,
+            itemComponent.copy().withStyle(WEAPON)
+         ).withStyle(TEXT)));
    }
 
    /** Tod ohne Gegner: Sturz, Void, die eigene Ladung. */
@@ -139,8 +151,9 @@ public final class KillFeed {
          return;
       }
       broadcast(server, prefix("☠", VICTIM)
-         .append(name(victim, VICTIM))
-         .append(text(" ist gestorben")));
+         .append(Component.translatable("chat.oneshotonekill.death",
+            name(victim, VICTIM)
+         ).withStyle(TEXT)));
    }
 
    private static MutableComponent prefix(String symbol, ChatFormatting symbolColor) {

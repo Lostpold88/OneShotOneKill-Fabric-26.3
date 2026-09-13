@@ -20,6 +20,7 @@ import com.oneshotonekill.registry.ModItems;
 import com.oneshotonekill.match.ScoreboardManager;
 import com.oneshotonekill.arena.RandomTpSystem.RespawnSystem;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -304,7 +305,7 @@ public final class CombatEvents {
          if (!Deployables.INSTANCE.isFrozen(player)) {
             return false;
          }
-         Feedback.actionBar(player, "§b❄ EINGEFROREN §7· keine Aktionen möglich");
+         Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.frozen_combat"));
          return true;
       }
    }

@@ -24,29 +24,29 @@ public final class SpecialItemRules {
    public static boolean canUseOrExplain(ServerPlayer player) {
       ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
       if (worlds == null) {
-         Feedback.actionBar(player, "§c✖ Arenaverwaltung läuft nicht");
+         Feedback.actionBar(player, net.minecraft.network.chat.Component.translatable("actionbar.oneshotonekill.arena_not_running"));
          return false;
       }
       if (MatchManager.INSTANCE.getCurrentMatchState() != MatchState.RUNNING) {
-         Feedback.actionBar(player, "§e✖ Spezial-Items wirken nur im laufenden Match");
+         Feedback.actionBar(player, net.minecraft.network.chat.Component.translatable("actionbar.oneshotonekill.special_only_in_match"));
          return false;
       }
       if (MatchManager.Countdown.INSTANCE.isCountdownRunning()) {
-         Feedback.actionBar(player, "§e✖ Während des Countdowns gesperrt");
+         Feedback.actionBar(player, net.minecraft.network.chat.Component.translatable("actionbar.oneshotonekill.special_locked_countdown"));
          return false;
       }
       if (com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.isDancing(player)) {
-         Feedback.actionBar(player, "§d♫ BOOGIE! §7· keine Waffen oder Items");
+         Feedback.actionBar(player, net.minecraft.network.chat.Component.translatable("actionbar.oneshotonekill.boogie_active"));
          return false;
       }
       if (Deployables.INSTANCE.isFrozen(player)) {
-         Feedback.actionBar(player, "§b❄ Eingefroren — keine Items einsetzbar");
+         Feedback.actionBar(player, net.minecraft.network.chat.Component.translatable("actionbar.oneshotonekill.frozen_cannot_use"));
          return false;
       }
 
       Arena arena = worlds.getActive();
       if (worlds.arenaOf(player) != arena || !arena.isInArena(player.getX(), player.getY(), player.getZ())) {
-         Feedback.actionBar(player, "§e✖ Nur innerhalb der Arena einsetzbar");
+         Feedback.actionBar(player, net.minecraft.network.chat.Component.translatable("actionbar.oneshotonekill.arena_boundary_only"));
          return false;
       }
       return true;

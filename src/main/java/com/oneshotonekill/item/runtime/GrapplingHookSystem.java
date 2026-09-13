@@ -13,6 +13,7 @@ import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -236,7 +237,7 @@ public final class GrapplingHookSystem {
      */
     public boolean fire(ServerLevel level, ServerPlayer player, net.minecraft.world.InteractionHand hand) {
         if (active.containsKey(player.getUUID())) {
-            Feedback.actionBar(player, "§7⛓ Der Haken ist noch unterwegs");
+            Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.hook_in_flight"));
             return false;
         }
 
@@ -385,7 +386,7 @@ public final class GrapplingHookSystem {
         syncGrappleState(grapple, true);
 
         double metres = owner.getEyePosition().distanceTo(grapple.anchor);
-        Feedback.actionBar(owner, "§b⛓ EINGEHAKT §7· " + Math.round(metres) + " m");
+        Feedback.actionBar(owner, Component.translatable("actionbar.oneshotonekill.hook_attached", Math.round(metres)));
 
         BlockState anchorState = grapple.level.getBlockState(hit.getBlockPos());
         grapple.level.sendParticles(new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, anchorState),
@@ -494,7 +495,7 @@ public final class GrapplingHookSystem {
             grapple.aimDirection = returnDirection.normalize().scale(-1.0);
         }
         if (missed) {
-            Feedback.actionBar(owner, "§7⛓ Kein Halt");
+            Feedback.actionBar(owner, Component.translatable("actionbar.oneshotonekill.hook_no_hold"));
             grapple.level.playSound(null, owner.getX(), owner.getY(), owner.getZ(),
                     SoundEvents.FISHING_BOBBER_THROW, SoundSource.PLAYERS, 0.35F, 0.55F);
         }

@@ -193,7 +193,7 @@ public final class StealthBomberSystem {
       // Der Anfordernde steht selbst mit auf der Liste – bleibt sie leer, läuft kein Match
       // oder er steht gar nicht in der Arena.
       if (targets.isEmpty()) {
-         Feedback.actionBar(attacker, "§7🐉 Nur im laufenden Match in der Arena");
+         Feedback.actionBar(attacker, Component.translatable("actionbar.oneshotonekill.bomber_only_in_match"));
          return false;
       }
 
@@ -262,17 +262,17 @@ public final class StealthBomberSystem {
 
       if (onSelf) {
          OsokEffects.INSTANCE.sendTitle(attacker,
-            Component.literal("⚠ BOMBER AUF DICH SELBST").withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
-            Component.literal("Du hast 10 Sekunden.").withStyle(ChatFormatting.GRAY),
+            Component.translatable("title.oneshotonekill.bomber.self_title").withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
+            Component.translatable("title.oneshotonekill.bomber.self_subtitle").withStyle(ChatFormatting.GRAY),
             TITLE_FADE_IN, TITLE_STAY, TITLE_FADE_OUT);
       } else {
          OsokEffects.INSTANCE.sendTitle(attacker,
-            Component.literal("🐉 BOMBER GESTARTET").withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD),
-            Component.literal("Ziel: " + targetName).withStyle(ChatFormatting.LIGHT_PURPLE),
+            Component.translatable("title.oneshotonekill.bomber.launched_title").withStyle(ChatFormatting.DARK_PURPLE, ChatFormatting.BOLD),
+            Component.translatable("title.oneshotonekill.bomber.launched_subtitle", targetName).withStyle(ChatFormatting.LIGHT_PURPLE),
             TITLE_FADE_IN, TITLE_STAY, TITLE_FADE_OUT);
          OsokEffects.INSTANCE.sendTitle(target,
-            Component.literal("⚠ BOMBER IM ANFLUG").withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
-            Component.literal("Such Deckung!").withStyle(ChatFormatting.GRAY),
+            Component.translatable("title.oneshotonekill.bomber.inbound_title").withStyle(ChatFormatting.RED, ChatFormatting.BOLD),
+            Component.translatable("title.oneshotonekill.bomber.inbound_subtitle").withStyle(ChatFormatting.GRAY),
             TITLE_FADE_IN, TITLE_STAY, TITLE_FADE_OUT);
       }
 

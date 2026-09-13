@@ -94,7 +94,7 @@ public final class EquipmentManager {
 
    public ItemStack createSword() {
       ItemStack sword = new ItemStack(Items.IRON_SWORD);
-      sword.set(DataComponents.CUSTOM_NAME, Component.literal("⚔ OneShot Dolch").withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
+      sword.set(DataComponents.CUSTOM_NAME, Component.translatable("equipment.oneshotonekill.dagger").withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
       sword.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
       sword.set(DataComponents.ATTRIBUTE_MODIFIERS, createWeaponModifiers());
       return ProtectedItems.lockToSlot(sword);
@@ -102,7 +102,7 @@ public final class EquipmentManager {
 
    public ItemStack createBow(ServerPlayer player) {
       ItemStack bow = new ItemStack(Items.BOW);
-      bow.set(DataComponents.CUSTOM_NAME, Component.literal("⚡ OneShot Bogen").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
+      bow.set(DataComponents.CUSTOM_NAME, Component.translatable("equipment.oneshotonekill.bow").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD));
       bow.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
       player.registryAccess()
          .lookupOrThrow(Registries.ENCHANTMENT)
@@ -113,7 +113,7 @@ public final class EquipmentManager {
 
    private ItemStack createInfiniteGrappler() {
       ItemStack grappler = new ItemStack(ModItems.GRAPPLING_HOOK);
-      grappler.set(DataComponents.CUSTOM_NAME, Component.literal("🪝 Tilted Grappler").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+      grappler.set(DataComponents.CUSTOM_NAME, Component.translatable("equipment.oneshotonekill.grappler").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
       grappler.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
       return ProtectedItems.lockToSlot(grappler);
    }

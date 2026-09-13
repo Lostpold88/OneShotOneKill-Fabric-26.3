@@ -72,7 +72,7 @@ public final class ArenaMenuScreen extends Screen {
     private double lastSliderValue = Double.NaN;
 
     public ArenaMenuScreen(ArenaMenuStatePayload state) {
-        super(Component.literal("OneShotOneKill"));
+        super(Component.translatable("gui.oneshotonekill.menu.title"));
         this.state = state;
         this.currentTab = lastSelectedTab;
         this.scroll.set(SCROLL_MEMORY.getOrDefault(currentTab, 0.0F));
@@ -254,7 +254,7 @@ public final class ArenaMenuScreen extends Screen {
 
     private void drawHeader(GuiGraphicsExtractor graphics) {
         graphics.text(font, "✦ OneShotOneKill", cardLeft + 16, cardTop + 14, OsokWidgets.COLOR_GOLD);
-        graphics.text(font, "• Arena-Verwaltung", cardLeft + 16 + font.width("✦ OneShotOneKill ") + 4, cardTop + 14, OsokWidgets.COLOR_TEXT_MUTED);
+        graphics.text(font, Component.translatable("gui.oneshotonekill.menu.subtitle"), cardLeft + 16 + font.width("✦ OneShotOneKill ") + 4, cardTop + 14, OsokWidgets.COLOR_TEXT_MUTED);
 
         // Live-Match-Status Badge rechts oben
         drawMatchStateBadge(graphics, cardLeft + CARD_WIDTH - 16, cardTop + 12);
@@ -267,7 +267,7 @@ public final class ArenaMenuScreen extends Screen {
         float activeWidth = 0.0F;
 
         for (Tab tab : Tab.values()) {
-            String label = tab.label;
+            String label = tab.label();
             int tabWidth = font.width(label) + 16;
             boolean isActive = currentTab == tab;
             boolean hovered = OsokWidgets.isOver(mouseX, mouseY, x, y, tabWidth, 22);
@@ -306,7 +306,7 @@ public final class ArenaMenuScreen extends Screen {
 
         if (!isMatchState(MatchState.STOPPED)) {
             OsokWidgets.alertBanner(graphics, font, left, y, right - left, 26,
-                    new ItemStack(Items.BARRIER), "Arena-Wechsel gesperrt (Laufendes/pausiertes Match)", OsokWidgets.COLOR_CRIMSON);
+                    new ItemStack(Items.BARRIER), Component.translatable("gui.oneshotonekill.menu.arena_locked_alert").getString(), OsokWidgets.COLOR_CRIMSON);
             y += 32;
         }
 
@@ -361,22 +361,23 @@ public final class ArenaMenuScreen extends Screen {
         graphics.item(new ItemStack(itemFor(arena)), left + 10, y + 14);
         graphics.text(font, arena.getDisplayName(), left + 36, y + 8, OsokWidgets.COLOR_TEXT_WHITE);
 
-        String subtitle = switch (arena) {
-            case STANDARD -> "Klassische CQB-Arena · Strukturierter Nahkampf";
-            case DUSTPVP -> "Wüstenstadt-Szenario · Vertikale Schusslinien";
-            case BO2 -> "Taktisches Häuserkampf-Gelände · Eng & Verwinkelt";
-            case TILTED_TOWERS -> "Fortnite-Klassiker · Hohe Gebäude & Vertikaler Häuserkampf";
+        Component subtitle = switch (arena) {
+            case STANDARD -> Component.translatable("gui.oneshotonekill.menu.arena_sub_standard");
+            case DUSTPVP -> Component.translatable("gui.oneshotonekill.menu.arena_sub_dustpvp");
+            case BO2 -> Component.translatable("gui.oneshotonekill.menu.arena_sub_bo2");
+            case TILTED_TOWERS -> Component.translatable("gui.oneshotonekill.menu.arena_sub_tilted");
         };
         graphics.text(font, subtitle, left + 36, y + 25, OsokWidgets.COLOR_TEXT_FAINT);
 
         // Status-Tags
         int badgeX = left + 40 + font.width(arena.getDisplayName());
         if (isActive) {
-            OsokWidgets.statusBadge(graphics, font, badgeX, y + 6, "Aktiv", OsokWidgets.COLOR_GOLD, true);
-            badgeX += font.width("Aktiv") + 22;
+            String activeText = Component.translatable("gui.oneshotonekill.menu.arena_active").getString();
+            OsokWidgets.statusBadge(graphics, font, badgeX, y + 6, activeText, OsokWidgets.COLOR_GOLD, true);
+            badgeX += font.width(activeText) + 22;
         }
         if (isPlayerHere) {
-            OsokWidgets.statusBadge(graphics, font, badgeX, y + 6, "Hier", OsokWidgets.COLOR_EMERALD, true);
+            OsokWidgets.statusBadge(graphics, font, badgeX, y + 6, Component.translatable("gui.oneshotonekill.menu.arena_here").getString(), OsokWidgets.COLOR_EMERALD, true);
         }
 
         boolean stopped = isMatchState(MatchState.STOPPED);
@@ -389,9 +390,16 @@ public final class ArenaMenuScreen extends Screen {
         boolean switchHover = OsokWidgets.isOver(mouseX, mouseY, switchX, btnY, BUTTON_WIDTH, 20);
         boolean resetHover = OsokWidgets.isOver(mouseX, mouseY, resetX, btnY, BUTTON_WIDTH, 20);
 
-        OsokWidgets.cyberButton(graphics, font, switchX, btnY, BUTTON_WIDTH, 20, isActive ? "Aktiv" : "Wählen",
+        String switchLabel = isActive
+                ? Component.translatable("gui.oneshotonekill.menu.arena_active").getString()
+                : Component.translatable("gui.oneshotonekill.menu.arena_select").getString();
+        String resetLabel = isResetting
+                ? Component.translatable("gui.oneshotonekill.menu.arena_loading").getString()
+                : Component.translatable("gui.oneshotonekill.menu.arena_reset").getString();
+
+        OsokWidgets.cyberButton(graphics, font, switchX, btnY, BUTTON_WIDTH, 20, switchLabel,
                 canSwitch, switchHover, OsokWidgets.COLOR_GOLD);
-        OsokWidgets.cyberButton(graphics, font, resetX, btnY, BUTTON_WIDTH, 20, isResetting ? "Lädt…" : "Reset",
+        OsokWidgets.cyberButton(graphics, font, resetX, btnY, BUTTON_WIDTH, 20, resetLabel,
                 canReset, resetHover, OsokWidgets.COLOR_CYAN);
 
         hotspots.add(new Hotspot(switchX, btnY, BUTTON_WIDTH, 20, canSwitch,
@@ -420,8 +428,8 @@ public final class ArenaMenuScreen extends Screen {
         graphics.verticalLine(left, y, y + 49, OsokWidgets.COLOR_CARD_BORDER);
         graphics.verticalLine(right - 1, y, y + 49, OsokWidgets.COLOR_CARD_BORDER);
 
-        graphics.text(font, "🎮 PvP-Match Status & Steuerung", left + 12, y + 10, OsokWidgets.COLOR_TEXT_WHITE);
-        graphics.text(font, "Startet, pausiert oder beendet das Minigame für alle Spieler in der Arena.", left + 12, y + 28, OsokWidgets.COLOR_TEXT_FAINT);
+        graphics.text(font, Component.translatable("gui.oneshotonekill.menu.control_card_title"), left + 12, y + 10, OsokWidgets.COLOR_TEXT_WHITE);
+        graphics.text(font, Component.translatable("gui.oneshotonekill.menu.control_card_desc"), left + 12, y + 28, OsokWidgets.COLOR_TEXT_FAINT);
 
         y += 62;
 
@@ -433,26 +441,26 @@ public final class ArenaMenuScreen extends Screen {
         boolean canRespawn = isMatchState(MatchState.RUNNING) && state.isOutsideArena() && !isCountdown && !isNuke;
 
         int x = left;
-        controlButton(graphics, x, y, "▶ Start", canStart, mouseX, mouseY, true, false, OsokWidgets.COLOR_EMERALD,
+        controlButton(graphics, x, y, Component.translatable("gui.oneshotonekill.menu.btn_start").getString(), canStart, mouseX, mouseY, true, false, OsokWidgets.COLOR_EMERALD,
                 () -> {
                     ClientPlayNetworking.send(StartMatchPayload.EMPTY);
                     onClose();
                 });
         x += CONTROL_BUTTON_WIDTH + 8;
-        controlButton(graphics, x, y, isPaused ? "▶ Fortsetzen" : "⏸ Pause",
+        controlButton(graphics, x, y, isPaused ? Component.translatable("gui.oneshotonekill.menu.btn_resume").getString() : Component.translatable("gui.oneshotonekill.menu.btn_pause").getString(),
                 canPause, mouseX, mouseY, false, !isPaused, OsokWidgets.COLOR_AMBER,
                 () -> {
                     ClientPlayNetworking.send(isPaused ? StartMatchPayload.EMPTY : PauseMatchPayload.EMPTY);
                     onClose();
                 });
         x += CONTROL_BUTTON_WIDTH + 8;
-        controlButton(graphics, x, y, "⏹ Stopp", !isMatchState(MatchState.STOPPED), mouseX, mouseY, false, OsokWidgets.COLOR_CRIMSON,
+        controlButton(graphics, x, y, Component.translatable("gui.oneshotonekill.menu.btn_stop").getString(), !isMatchState(MatchState.STOPPED), mouseX, mouseY, false, OsokWidgets.COLOR_CRIMSON,
                 () -> {
                     ClientPlayNetworking.send(StopMatchPayload.EMPTY);
                     onClose();
                 });
         x += CONTROL_BUTTON_WIDTH + 8;
-        controlButton(graphics, x, y, "🔄 Respawn", canRespawn, mouseX, mouseY, true, OsokWidgets.COLOR_CYAN,
+        controlButton(graphics, x, y, Component.translatable("gui.oneshotonekill.menu.btn_respawn").getString(), canRespawn, mouseX, mouseY, true, OsokWidgets.COLOR_CYAN,
                 () -> {
                     ClientPlayNetworking.send(RequestRespawnPayload.EMPTY);
                     onClose();
@@ -461,7 +469,9 @@ public final class ArenaMenuScreen extends Screen {
         y += 32;
         boolean isAdmin = Minecraft.getInstance().player != null
                 && OneShotOneKill.isAdmin(Minecraft.getInstance().player);
-        String arrowLabel = isAdmin ? "➶ Pfeile löschen" : "🔒 Pfeile löschen";
+        String arrowLabel = isAdmin
+                ? Component.translatable("gui.oneshotonekill.menu.btn_clear_arrows").getString()
+                : Component.translatable("gui.oneshotonekill.menu.btn_clear_arrows_locked").getString();
         controlButton(graphics, left, y, arrowLabel, isAdmin, mouseX, mouseY, false, OsokWidgets.COLOR_CYAN,
                 () -> {
                     ClientPlayNetworking.send(ClearArrowsPayload.EMPTY);
@@ -473,8 +483,8 @@ public final class ArenaMenuScreen extends Screen {
         y += 10;
 
         // Spielmodus-Auswahl
-        graphics.text(font, "🕹 Spielmodus auswählen", left, y, OsokWidgets.COLOR_GOLD);
-        graphics.text(font, "Legt das Spielprinzip für die Arena fest (nur vor Rundenstart änderbar):", left, y + 14, OsokWidgets.COLOR_TEXT_FAINT);
+        graphics.text(font, Component.translatable("gui.oneshotonekill.menu.mode_select_title"), left, y, OsokWidgets.COLOR_GOLD);
+        graphics.text(font, Component.translatable("gui.oneshotonekill.menu.mode_select_desc"), left, y + 14, OsokWidgets.COLOR_TEXT_FAINT);
         y += 30;
 
         boolean stopped = isMatchState(MatchState.STOPPED);
@@ -483,9 +493,15 @@ public final class ArenaMenuScreen extends Screen {
         boolean isGunGame = "GUN_GAME".equalsIgnoreCase(currentMode);
 
         int modeCardW = (right - left - 12) / 2;
-        drawModeSelectionCard(graphics, left, y, modeCardW, 46, "🏆 Klassisch", "Standard Deathmatch & Kisten", isClassic, stopped, mouseX, mouseY,
+        drawModeSelectionCard(graphics, left, y, modeCardW, 46,
+                Component.translatable("gui.oneshotonekill.menu.mode_classic_title").getString(),
+                Component.translatable("gui.oneshotonekill.menu.mode_classic_desc").getString(),
+                isClassic, stopped, mouseX, mouseY,
                 () -> ClientPlayNetworking.send(new SetGameModePayload("CLASSIC")));
-        drawModeSelectionCard(graphics, left + modeCardW + 12, y, modeCardW, 46, "🎯 Waffenspiel", "13-Stufen Progression bis Meisterdolch", isGunGame, stopped, mouseX, mouseY,
+        drawModeSelectionCard(graphics, left + modeCardW + 12, y, modeCardW, 46,
+                Component.translatable("gui.oneshotonekill.menu.mode_gungame_title").getString(),
+                Component.translatable("gui.oneshotonekill.menu.mode_gungame_desc").getString(),
+                isGunGame, stopped, mouseX, mouseY,
                 () -> ClientPlayNetworking.send(new SetGameModePayload("GUN_GAME")));
 
         y += 56;
@@ -498,11 +514,11 @@ public final class ArenaMenuScreen extends Screen {
             graphics.verticalLine(left, y, y + 87, OsokWidgets.COLOR_GOLD);
             graphics.verticalLine(right - 1, y, y + 87, OsokWidgets.COLOR_GOLD);
 
-            graphics.text(font, "🎯 WAFFENSPIEL REGELN & STUFEN (12 Tiers):", left + 10, y + 8, OsokWidgets.COLOR_GOLD);
-            graphics.text(font, "• Leichte Waffen (T1-T2): 3 Kills nötig (Bogen, Dolch)", left + 10, y + 24, 0xFFE2E8F0);
-            graphics.text(font, "• Spezialwaffen (T3-T7): 2 Kills nötig (Explosiv, Kettenblitz, Railgun, Minigun, Singularität + Bogen)", left + 10, y + 38, 0xFFE2E8F0);
-            graphics.text(font, "• Schwere Waffen (T8-T11): 1 Kill nötig (C4, Frostfalle, Geschützturm, Stealth-Bomber)", left + 10, y + 52, 0xFFE2E8F0);
-            graphics.text(font, "• T12: Zeitverzerrer + Dolch · FINALE (T13): 👑 Meisterdolch", left + 10, y + 68, OsokWidgets.COLOR_AMBER);
+            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_rules_title"), left + 10, y + 8, OsokWidgets.COLOR_GOLD);
+            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_rules_t1"), left + 10, y + 24, 0xFFE2E8F0);
+            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_rules_t2"), left + 10, y + 38, 0xFFE2E8F0);
+            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_rules_t3"), left + 10, y + 52, 0xFFE2E8F0);
+            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_rules_t4"), left + 10, y + 68, OsokWidgets.COLOR_AMBER);
             y += 96;
         }
 
@@ -558,7 +574,7 @@ public final class ArenaMenuScreen extends Screen {
 
         if (!stopped) {
             OsokWidgets.alertBanner(graphics, font, left, y, right - left, 26,
-                    new ItemStack(Items.BARRIER), "Ziel-Änderungen nur vor Match-Start möglich (Match läuft/pausiert)", OsokWidgets.COLOR_CRIMSON);
+                    new ItemStack(Items.BARRIER), Component.translatable("gui.oneshotonekill.menu.target_locked_alert").getString(), OsokWidgets.COLOR_CRIMSON);
             y += 32;
         }
 
@@ -571,8 +587,8 @@ public final class ArenaMenuScreen extends Screen {
             graphics.verticalLine(right - 1, y, y + 41, OsokWidgets.COLOR_GOLD);
 
             graphics.item(new ItemStack(Items.GOLDEN_SWORD), left + 8, y + 13);
-            graphics.text(font, "🎯 Waffenspiel-Modus aktiv: Ziel ist Stufe 13 (👑 Meisterdolch)", left + 32, y + 8, OsokWidgets.COLOR_GOLD);
-            graphics.text(font, "Wähle 'Zeitbegrenzt' für eine maximale Rundendauer oder 'Bis Stufe 13' für Open-End.", left + 32, y + 24, OsokWidgets.COLOR_TEXT_FAINT);
+            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_gungame_banner_title"), left + 32, y + 8, OsokWidgets.COLOR_GOLD);
+            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_gungame_banner_desc"), left + 32, y + 24, OsokWidgets.COLOR_TEXT_FAINT);
             y += 50;
         }
 
@@ -583,7 +599,7 @@ public final class ArenaMenuScreen extends Screen {
         graphics.verticalLine(left, y, y + 55, OsokWidgets.COLOR_CARD_BORDER);
         graphics.verticalLine(right - 1, y, y + 55, OsokWidgets.COLOR_CARD_BORDER);
 
-        graphics.text(font, isGunGame ? "Waffenspiel-Rundenbegrenzung festlegen:" : "Match-Zielmodus vor Spielstart festlegen:", left + 10, y + 8, OsokWidgets.COLOR_TEXT_MUTED);
+        graphics.text(font, isGunGame ? Component.translatable("gui.oneshotonekill.menu.target_section_title_gungame") : Component.translatable("gui.oneshotonekill.menu.target_section_title"), left + 10, y + 8, OsokWidgets.COLOR_TEXT_MUTED);
 
         MatchTargetMode currentMode = matchTargetMode();
         int buttonWidth = (right - left - 24) / 3;
@@ -594,12 +610,18 @@ public final class ArenaMenuScreen extends Screen {
             boolean canClick = stopped && !isSelected && !isKillLimitInGunGame;
             boolean hovered = OsokWidgets.isOver(mouseX, mouseY, modeX, y + 24, buttonWidth, 22);
 
-            String label = mode.getDisplayName();
+            String label;
             if (isGunGame) {
                 label = switch (mode) {
-                    case TIME_LIMIT -> "⏱ Zeitbegrenzt";
-                    case KILL_LIMIT -> "🎯 Kill-Limit 🔒";
-                    case UNLIMITED -> "👑 Bis Stufe 13";
+                    case TIME_LIMIT -> Component.translatable("gui.oneshotonekill.menu.target_time_btn_gungame").getString();
+                    case KILL_LIMIT -> Component.translatable("gui.oneshotonekill.menu.target_kills_btn_gungame").getString();
+                    case UNLIMITED -> Component.translatable("gui.oneshotonekill.menu.target_none_btn_gungame").getString();
+                };
+            } else {
+                label = switch (mode) {
+                    case TIME_LIMIT -> Component.translatable("gui.oneshotonekill.menu.target_time_btn").getString();
+                    case KILL_LIMIT -> Component.translatable("gui.oneshotonekill.menu.target_kills_btn").getString();
+                    case UNLIMITED -> Component.translatable("gui.oneshotonekill.menu.target_none_btn").getString();
                 };
             }
 
@@ -628,7 +650,7 @@ public final class ArenaMenuScreen extends Screen {
         switch (currentMode) {
             case TIME_LIMIT -> {
                 int effectiveMins = localPreviewMinutes != null ? localPreviewMinutes : Math.clamp(state.getMatchTargetValue() / 60, 1, 60);
-                String formattedTime = String.format("%02d:00 Minuten", effectiveMins);
+                String formattedTime = Component.translatable("gui.oneshotonekill.menu.target_time_minutes", effectiveMins).getString();
 
                 graphics.fill(left, y, right, y + 46, 0xFF141924);
                 graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_CARD_BORDER);
@@ -637,10 +659,10 @@ public final class ArenaMenuScreen extends Screen {
                 graphics.verticalLine(right - 1, y, y + 45, OsokWidgets.COLOR_CARD_BORDER);
 
                 graphics.item(new ItemStack(Items.CLOCK), left + 10, y + 15);
-                graphics.text(font, "Eingestellte Match-Dauer: " + formattedTime, left + 36, y + 11, OsokWidgets.COLOR_GOLD);
+                graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_time_card_title", formattedTime), left + 36, y + 11, OsokWidgets.COLOR_GOLD);
                 graphics.text(font, isGunGame
-                        ? "Läuft die Zeit ab, gewinnt der Spieler auf der höchsten erreichten Waffenstufe."
-                        : "Das Match endet nach Ablauf der Zeit automatisch mit Siegerehrung.", left + 36, y + 27, OsokWidgets.COLOR_TEXT_FAINT);
+                        ? Component.translatable("gui.oneshotonekill.menu.target_time_card_desc_gungame")
+                        : Component.translatable("gui.oneshotonekill.menu.target_time_card_desc"), left + 36, y + 27, OsokWidgets.COLOR_TEXT_FAINT);
                 y += 56;
 
                 // Schieberegler (Slider: 1 bis 60 Min)
@@ -652,11 +674,11 @@ public final class ArenaMenuScreen extends Screen {
                         ClientPlayNetworking.send(new SetMatchTargetPayload(MatchTargetMode.TIME_LIMIT.name(), newSecs));
                     }
                 });
-                drawSlider(graphics, timeSlider, "⏱ Dauer per Schieberegler wählen (1 bis 60 Min):", effectiveMins + " Min", mouseX, mouseY);
+                drawSlider(graphics, timeSlider, Component.translatable("gui.oneshotonekill.menu.target_time_slider").getString(), Component.translatable("gui.oneshotonekill.menu.target_time_min_short", effectiveMins).getString(), mouseX, mouseY);
                 y += 44;
 
                 // Schnellauswahl Presets
-                graphics.text(font, "Schnellauswahl (Voreinstellungen):", left, y + 4, OsokWidgets.COLOR_TEXT_MUTED);
+                graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_presets_title"), left, y + 4, OsokWidgets.COLOR_TEXT_MUTED);
                 y += 18;
                 int presetWidth = (right - left - 25) / 6;
                 int[][] presets = new int[][]{{60, 1}, {300, 5}, {600, 10}, {900, 15}, {1800, 30}, {3600, 60}};
@@ -664,7 +686,7 @@ public final class ArenaMenuScreen extends Screen {
                 for (int[] preset : presets) {
                     int val = preset[0];
                     int mins = preset[1];
-                    String label = mins + " Min";
+                    String label = Component.translatable("gui.oneshotonekill.menu.target_time_min_short", mins).getString();
                     boolean isCurrent = effectiveMins == mins;
                     boolean hovered = OsokWidgets.isOver(mouseX, mouseY, px, y, presetWidth, 20);
                     OsokWidgets.cyberButton(graphics, font, px, y, presetWidth, 20, label, stopped, hovered, isCurrent ? OsokWidgets.COLOR_GOLD : OsokWidgets.COLOR_CARD_BORDER);
@@ -685,9 +707,9 @@ public final class ArenaMenuScreen extends Screen {
                     graphics.verticalLine(right - 1, y, y + 53, OsokWidgets.COLOR_AMBER);
 
                     graphics.item(new ItemStack(Items.BARRIER), left + 10, y + 18);
-                    graphics.text(font, "⚠ Kill-Limit ist im Waffenspiel-Modus deaktiviert", left + 36, y + 12, OsokWidgets.COLOR_AMBER);
-                    graphics.text(font, "Der Sieg erfolgt automatisch durch das Beenden aller 13 Waffenstufen (Meisterdolch).", left + 36, y + 26, OsokWidgets.COLOR_TEXT_WHITE);
-                    graphics.text(font, "Wähle oben '⏱ Zeitbegrenzt' oder '👑 Bis Stufe 13'.", left + 36, y + 38, OsokWidgets.COLOR_TEXT_FAINT);
+                    graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_kills_gungame_alert_title"), left + 36, y + 12, OsokWidgets.COLOR_AMBER);
+                    graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_kills_gungame_alert_desc1"), left + 36, y + 26, OsokWidgets.COLOR_TEXT_WHITE);
+                    graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_kills_gungame_alert_desc2"), left + 36, y + 38, OsokWidgets.COLOR_TEXT_FAINT);
                     y += 64;
                 } else {
                     int effectiveKills = localPreviewKills != null ? localPreviewKills : Math.clamp(state.getMatchTargetValue(), 1, 100);
@@ -699,8 +721,8 @@ public final class ArenaMenuScreen extends Screen {
                     graphics.verticalLine(right - 1, y, y + 45, OsokWidgets.COLOR_CARD_BORDER);
 
                     graphics.item(new ItemStack(Items.TARGET), left + 10, y + 15);
-                    graphics.text(font, "Eingestelltes Kill-Ziel: " + effectiveKills + " Kills", left + 36, y + 11, OsokWidgets.COLOR_GOLD);
-                    graphics.text(font, "Der erste Spieler, der das Kill-Ziel erreicht, gewinnt das Match sofort.", left + 36, y + 27, OsokWidgets.COLOR_TEXT_FAINT);
+                    graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_kills_card_title", effectiveKills), left + 36, y + 11, OsokWidgets.COLOR_GOLD);
+                    graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_kills_card_desc"), left + 36, y + 27, OsokWidgets.COLOR_TEXT_FAINT);
                     y += 56;
 
                     // Schieberegler (Slider: 1 bis 100 Kills)
@@ -711,17 +733,19 @@ public final class ArenaMenuScreen extends Screen {
                             ClientPlayNetworking.send(new SetMatchTargetPayload(MatchTargetMode.KILL_LIMIT.name(), newKills));
                         }
                     });
-                    drawSlider(graphics, killSlider, "🎯 Kill-Ziel per Schieberegler wählen (1 bis 100 Kills):", effectiveKills + " Kills", mouseX, mouseY);
+                    drawSlider(graphics, killSlider, Component.translatable("gui.oneshotonekill.menu.target_kills_slider").getString(), Component.translatable("gui.oneshotonekill.menu.target_kills_count", effectiveKills).getString(), mouseX, mouseY);
                     y += 44;
 
                     // Schnellauswahl Presets
-                    graphics.text(font, "Schnellauswahl (Voreinstellungen):", left, y + 4, OsokWidgets.COLOR_TEXT_MUTED);
+                    graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_presets_title"), left, y + 4, OsokWidgets.COLOR_TEXT_MUTED);
                     y += 18;
                     int presetWidth = (right - left - 25) / 6;
                     int[] presets = new int[]{1, 10, 25, 50, 75, 100};
                     int px = left;
                     for (int val : presets) {
-                        String label = val + (val == 1 ? " Kill" : " Kills");
+                        String label = val == 1
+                                ? Component.translatable("gui.oneshotonekill.menu.target_kills_one", val).getString()
+                                : Component.translatable("gui.oneshotonekill.menu.target_kills_count", val).getString();
                         boolean isCurrent = effectiveKills == val;
                         boolean hovered = OsokWidgets.isOver(mouseX, mouseY, px, y, presetWidth, 20);
                         OsokWidgets.cyberButton(graphics, font, px, y, presetWidth, 20, label, stopped, hovered, isCurrent ? OsokWidgets.COLOR_GOLD : OsokWidgets.COLOR_CARD_BORDER);
@@ -744,14 +768,14 @@ public final class ArenaMenuScreen extends Screen {
                 if (isGunGame) {
                     graphics.fill(left + 2, y + 2, left + 5, y + 54, OsokWidgets.COLOR_GOLD);
                     graphics.item(new ItemStack(Items.GOLDEN_SWORD), left + 10, y + 19);
-                    graphics.text(font, "👑 Waffenspiel-Ziel: Spielen bis Stufe 13 gemeistert ist", left + 36, y + 12, OsokWidgets.COLOR_GOLD);
-                    graphics.text(font, "Das Match läuft ohne Zeitdruck, bis ein Spieler Stufe 13 mit dem Meisterdolch beendet.", left + 36, y + 27, OsokWidgets.COLOR_TEXT_WHITE);
-                    graphics.text(font, "Dies ist die empfohlene Standardeinstellung für Waffenspiel-Matches.", left + 36, y + 41, OsokWidgets.COLOR_TEXT_FAINT);
+                    graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_unlimited_gungame_title"), left + 36, y + 12, OsokWidgets.COLOR_GOLD);
+                    graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_unlimited_gungame_desc1"), left + 36, y + 27, OsokWidgets.COLOR_TEXT_WHITE);
+                    graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_unlimited_gungame_desc2"), left + 36, y + 41, OsokWidgets.COLOR_TEXT_FAINT);
                     y += 66;
                 } else {
                     graphics.item(new ItemStack(Items.COMPASS), left + 10, y + 15);
-                    graphics.text(font, "Endlos-Modus aktiviert (Kein Zeit- oder Kill-Limit)", left + 36, y + 11, OsokWidgets.COLOR_GOLD);
-                    graphics.text(font, "Das Match läuft unbegrenzt, bis es in der Match-Steuerung manuell gestoppt wird.", left + 36, y + 27, OsokWidgets.COLOR_TEXT_FAINT);
+                    graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_unlimited_title"), left + 36, y + 11, OsokWidgets.COLOR_GOLD);
+                    graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_unlimited_desc"), left + 36, y + 27, OsokWidgets.COLOR_TEXT_FAINT);
                     y += 56;
                 }
             }
@@ -783,7 +807,7 @@ public final class ArenaMenuScreen extends Screen {
         graphics.verticalLine(left, y, y + 53, OsokWidgets.COLOR_CARD_BORDER);
         graphics.verticalLine(right - 1, y, y + 53, OsokWidgets.COLOR_CARD_BORDER);
 
-        graphics.text(font, "Item-Spawn-Modus:", left + 10, y + 8, OsokWidgets.COLOR_TEXT_MUTED);
+        graphics.text(font, Component.translatable("gui.oneshotonekill.menu.weights_mode_title"), left + 10, y + 8, OsokWidgets.COLOR_TEXT_MUTED);
         boolean modeHover = OsokWidgets.isOver(mouseX, mouseY, left + 10, y + 22, 220, 20);
         OsokWidgets.cyberButton(graphics, font, left + 10, y + 22, 220, 20, itemModeLabel(), true, modeHover, OsokWidgets.COLOR_GOLD);
         hotspots.add(new Hotspot(left + 10, y + 22, 220, 20, true,
@@ -801,11 +825,11 @@ public final class ArenaMenuScreen extends Screen {
             double chance = spawnChanceFor(item);
             if (chance > 0) {
                 AdminItemScreen.ItemCategory cat = AdminItemScreen.getCategoryFor(item);
-                segments.add(new OsokWidgets.DistributionSegment(item.getDisplayName(), chance, cat.accent));
+                segments.add(new OsokWidgets.DistributionSegment(item.getNameComponent().getString(), chance, cat.accent));
             }
         }
 
-        graphics.text(font, "📊 Gesamtverteilung aller Spawnchancen:", left, y, OsokWidgets.COLOR_TEXT_MUTED);
+        graphics.text(font, Component.translatable("gui.oneshotonekill.menu.weights_distribution_title"), left, y, OsokWidgets.COLOR_TEXT_MUTED);
         y += 12;
 
         OsokWidgets.DistributionSegment hoveredSeg = OsokWidgets.drawStackedDistributionBar(
@@ -814,7 +838,7 @@ public final class ArenaMenuScreen extends Screen {
 
         // Floating Tooltip für das überfahrene Segment
         if (hoveredSeg != null && mouseY >= contentTop && mouseY < contentTop + contentHeight) {
-            String tip = String.format(Locale.GERMANY, "%s: %.1f %%", hoveredSeg.label(), hoveredSeg.percentage());
+            String tip = String.format(Locale.ROOT, "%s: %.1f %%", hoveredSeg.label(), hoveredSeg.percentage());
             int tipW = font.width(tip) + 12;
             int tipX = Math.clamp(mouseX - tipW / 2, left, right - tipW);
             int tipY = y - 36;
@@ -830,10 +854,10 @@ public final class ArenaMenuScreen extends Screen {
         int filterX = left;
         for (AdminItemScreen.ItemCategory cat : AdminItemScreen.ItemCategory.values()) {
             if (cat == AdminItemScreen.ItemCategory.FAVORITES) continue;
-            int catWidth = font.width(cat.label) + 12;
+            int catWidth = font.width(cat.label()) + 12;
             boolean isSelected = weightFilterCategory == cat;
             boolean hov = OsokWidgets.isOver(mouseX, mouseY, filterX, y, catWidth, 20);
-            OsokWidgets.tabHeader(graphics, font, filterX, y, catWidth, 20, cat.label, isSelected, hov, cat.accent, true);
+            OsokWidgets.tabHeader(graphics, font, filterX, y, catWidth, 20, cat.label(), isSelected, hov, cat.accent, true);
             AdminItemScreen.ItemCategory targetCat = cat;
             hotspots.add(new Hotspot(filterX, y, catWidth, 20, true, true, true, false, () -> {
                 weightFilterCategory = targetCat;
@@ -843,7 +867,7 @@ public final class ArenaMenuScreen extends Screen {
         }
 
         boolean resetHover = OsokWidgets.isOver(mouseX, mouseY, right - 100, y, 100, 20);
-        OsokWidgets.cyberButton(graphics, font, right - 100, y, 100, 20, "Zurücksetzen", true, resetHover, OsokWidgets.COLOR_CRIMSON);
+        OsokWidgets.cyberButton(graphics, font, right - 100, y, 100, 20, Component.translatable("gui.oneshotonekill.menu.weights_btn_reset").getString(), true, resetHover, OsokWidgets.COLOR_CRIMSON);
         hotspots.add(new Hotspot(right - 100, y, 100, 20, true, true, true, false,
                 () -> {
                     ClientPlayNetworking.send(ResetSpecialItemWeightsPayload.EMPTY);
@@ -880,18 +904,19 @@ public final class ArenaMenuScreen extends Screen {
 
         graphics.fill(left + 2, y + 2, left + 5, y + 26, isTiltedHook ? OsokWidgets.COLOR_AMBER : cat.accent);
         graphics.item(new ItemStack(item.getIcon()), left + 8, y + 6);
-        graphics.text(font, item.getDisplayName(), left + 32, y + 5, OsokWidgets.COLOR_TEXT_WHITE);
+        graphics.text(font, item.getNameComponent(), left + 32, y + 5, OsokWidgets.COLOR_TEXT_WHITE);
 
         if (isTiltedHook) {
-            String lockedText = "§6✦ Dauerhafte Start-Ausrüstung (Slot 2) · Spawnt nicht in Boxen";
+            String lockedText = Component.translatable("gui.oneshotonekill.menu.weights_tilted_grappler").getString();
             graphics.text(font, lockedText, left + 32, y + 16, OsokWidgets.COLOR_TEXT_FAINT);
 
-            int badgeWidth = 148;
+            String badgeText = Component.translatable("gui.oneshotonekill.menu.weights_start_loadout").getString();
+            int badgeWidth = font.width(badgeText) + 18;
             int badgeX = right - badgeWidth - 4;
-            OsokWidgets.statusBadge(graphics, font, badgeX, y + 4, "🔒 START-AUSRÜSTUNG", OsokWidgets.COLOR_AMBER, false);
+            OsokWidgets.statusBadge(graphics, font, badgeX, y + 4, badgeText, OsokWidgets.COLOR_AMBER, false);
         } else {
             double chance = spawnChanceFor(item);
-            String chanceText = String.format(Locale.GERMANY, "Gewicht: %d · %.1f %%", weightFor(item), chance);
+            String chanceText = Component.translatable("gui.oneshotonekill.menu.weights_row_format", weightFor(item), String.format(Locale.ROOT, "%.1f", chance)).getString();
             graphics.text(font, chanceText, left + 32, y + 16, OsokWidgets.COLOR_TEXT_FAINT);
 
             int x = right - (WEIGHT_BUTTON_WIDTH + 4) * 4 - 4;
@@ -913,15 +938,15 @@ public final class ArenaMenuScreen extends Screen {
 
     private void drawMatchStateBadge(GuiGraphicsExtractor graphics, int rightX, int y) {
         if (isMatchState(MatchState.RUNNING)) {
-            String text = "Match LIVE";
+            String text = Component.translatable("gui.oneshotonekill.menu.state_running").getString();
             int width = font.width(text) + 18;
             OsokWidgets.statusBadge(graphics, font, rightX - width, y, text, OsokWidgets.COLOR_EMERALD, true);
         } else if (isMatchState(MatchState.PAUSED)) {
-            String text = "Pausiert";
+            String text = Component.translatable("gui.oneshotonekill.menu.state_paused").getString();
             int width = font.width(text) + 18;
             OsokWidgets.statusBadge(graphics, font, rightX - width, y, text, OsokWidgets.COLOR_AMBER, false);
         } else {
-            String text = "Gestoppt";
+            String text = Component.translatable("gui.oneshotonekill.menu.state_stopped").getString();
             int width = font.width(text) + 18;
             OsokWidgets.statusBadge(graphics, font, rightX - width, y, text, OsokWidgets.COLOR_TEXT_DISABLED, false);
         }
@@ -929,12 +954,12 @@ public final class ArenaMenuScreen extends Screen {
 
     private void drawFooter(GuiGraphicsExtractor graphics, int mouseX, int mouseY, int y) {
         graphics.item(new ItemStack(Items.PAPER), cardLeft + 16, y - 4);
-        graphics.text(font, Component.literal("Schnelltaste: ").append(OsokClient.menuKeyName()).append(" oder [ESC] zum Schließen"),
+        graphics.text(font, Component.translatable("gui.oneshotonekill.menu.hotkey_hint", OsokClient.menuKeyName()),
                 cardLeft + 38, y, OsokWidgets.COLOR_TEXT_FAINT);
 
         int closeX = cardLeft + CARD_WIDTH - 16 - BUTTON_WIDTH;
         boolean closeHover = OsokWidgets.isOver(mouseX, mouseY, closeX, y - 6, BUTTON_WIDTH, 20);
-        OsokWidgets.cyberButton(graphics, font, closeX, y - 6, BUTTON_WIDTH, 20, "Schließen", true, closeHover, OsokWidgets.COLOR_CARD_BORDER);
+        OsokWidgets.cyberButton(graphics, font, closeX, y - 6, BUTTON_WIDTH, 20, Component.translatable("gui.oneshotonekill.menu.footer_close").getString(), true, closeHover, OsokWidgets.COLOR_CARD_BORDER);
         hotspots.add(new Hotspot(closeX, y - 6, BUTTON_WIDTH, 20, true, false, this::onClose));
     }
 
@@ -1148,17 +1173,17 @@ public final class ArenaMenuScreen extends Screen {
 
     private String itemModeLabel() {
         return switch (itemMode()) {
-            case STREAK -> "🏆 Nur Killstreaks";
-            case SPAWN -> "📦 Nur Boden-Spawns";
-            case BOTH -> "✨ Killstreaks + Boden-Spawns";
+            case STREAK -> Component.translatable("gui.oneshotonekill.menu.weights_mode_streak").getString();
+            case SPAWN -> Component.translatable("gui.oneshotonekill.menu.weights_mode_spawn").getString();
+            case BOTH -> Component.translatable("gui.oneshotonekill.menu.weights_mode_both").getString();
         };
     }
 
-    private String itemModeDescription() {
+    private Component itemModeDescription() {
         return switch (itemMode()) {
-            case STREAK -> "Bodenboxen sind deaktiviert.";
-            case SPAWN -> "Items erscheinen ausschließlich alle 30 Sekunden auf dem Arena-Boden.";
-            case BOTH -> "Bodenboxen erscheinen alle 30 Sekunden; künftige Killstreak-Belohnungen bleiben aktiv.";
+            case STREAK -> Component.translatable("gui.oneshotonekill.menu.weights_desc_streak");
+            case SPAWN -> Component.translatable("gui.oneshotonekill.menu.weights_desc_spawn");
+            case BOTH -> Component.translatable("gui.oneshotonekill.menu.weights_desc_both");
         };
     }
 
@@ -1182,15 +1207,19 @@ public final class ArenaMenuScreen extends Screen {
     }
 
     public enum Tab {
-        ARENAS("🗺 Arenen"),
-        MATCH_CONTROL("🎮 Match-Steuerung"),
-        MATCH_TARGET("⏱ Match-Dauer"),
-        ITEM_WEIGHTS("🎲 Itemgewichtungen");
+        ARENAS("gui.oneshotonekill.menu.tab_arenas"),
+        MATCH_CONTROL("gui.oneshotonekill.menu.tab_match"),
+        MATCH_TARGET("gui.oneshotonekill.menu.tab_target"),
+        ITEM_WEIGHTS("gui.oneshotonekill.menu.tab_weights");
 
-        private final String label;
+        private final String translationKey;
 
-        Tab(String label) {
-            this.label = label;
+        Tab(String translationKey) {
+            this.translationKey = translationKey;
+        }
+
+        public String label() {
+            return Component.translatable(translationKey).getString();
         }
     }
 

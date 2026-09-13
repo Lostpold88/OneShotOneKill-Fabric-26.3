@@ -6,6 +6,7 @@ import com.oneshotonekill.network.OsokPayloads.TimeDistortionPayload;
 import java.util.concurrent.TimeUnit;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
@@ -53,7 +54,7 @@ public final class SlowMotionSystem {
          return false;
       }
       if (active) {
-         Feedback.actionBar(activator, "§d⌛ Der Zeitfluss ist bereits verlangsamt");
+         Feedback.actionBar(activator, Component.translatable("actionbar.oneshotonekill.slowmo_already_active"));
          return false;
       }
 
@@ -138,7 +139,7 @@ public final class SlowMotionSystem {
          }
          if (announce) {
             for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-               Feedback.actionBar(player, "§b◇ Zeitfluss wieder normal");
+               Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.slowmo_normal"));
                OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.BEACON_ACTIVATE, 0.75F, 1.35F);
                OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.AMETHYST_BLOCK_RESONATE, 0.65F, 0.72F);
                player.level().sendParticles(ParticleTypes.PORTAL,
@@ -162,7 +163,6 @@ public final class SlowMotionSystem {
    }
 
    private void sendSlowNotice(ServerPlayer player, int remainingSeconds) {
-      Feedback.actionBar(player, "§d⌛ Zeitlupe §7· §f" + remainingSeconds
-         + "s §7· aktiviert von §f" + activatorName);
+      Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.slowmo_remaining", remainingSeconds, activatorName));
    }
 }

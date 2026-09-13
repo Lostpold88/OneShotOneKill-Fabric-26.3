@@ -43,83 +43,85 @@ public final class GunGameManager {
    }
 
    public enum Tier {
-      TIER_1(1, "OneShot Bogen", 3, ChatFormatting.YELLOW, Items.BOW,
+      TIER_1(1, "OneShot Bogen", "equipment.oneshotonekill.bow", 3, ChatFormatting.YELLOW, Items.BOW,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, createBow(player));
          }),
-      TIER_2(2, "OneShot Dolch", 3, ChatFormatting.RED, Items.IRON_SWORD,
+      TIER_2(2, "OneShot Dolch", "equipment.oneshotonekill.dagger", 3, ChatFormatting.RED, Items.IRON_SWORD,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
             player.getInventory().setItem(0, createSword(false));
          }),
-      TIER_3(3, "Explosiv-Schuss", 2, ChatFormatting.GOLD, ModItems.EXPLOSIVE_SHOT,
+      TIER_3(3, "Explosiv-Schuss", "item.oneshotonekill.explosive_shot", 2, ChatFormatting.GOLD, ModItems.EXPLOSIVE_SHOT,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, createBow(player));
             player.getInventory().setItem(0, new ItemStack(ModItems.EXPLOSIVE_SHOT));
          }),
-      TIER_4(4, "Kettenblitz", 2, ChatFormatting.AQUA, ModItems.CHAIN_LIGHTNING,
+      TIER_4(4, "Kettenblitz", "item.oneshotonekill.chain_lightning", 2, ChatFormatting.AQUA, ModItems.CHAIN_LIGHTNING,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, createBow(player));
             player.getInventory().setItem(0, new ItemStack(ModItems.CHAIN_LIGHTNING));
          }),
-      TIER_5(5, "Railgun", 2, ChatFormatting.BLUE, ModItems.RAILGUN,
+      TIER_5(5, "Railgun", "item.oneshotonekill.railgun", 2, ChatFormatting.BLUE, ModItems.RAILGUN,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
             player.getInventory().setItem(0, new ItemStack(ModItems.RAILGUN));
          }),
-      TIER_6(6, "Minigun", 2, ChatFormatting.GOLD, ModItems.MINIGUN,
+      TIER_6(6, "Minigun", "item.oneshotonekill.minigun", 2, ChatFormatting.GOLD, ModItems.MINIGUN,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
             player.getInventory().setItem(0, new ItemStack(ModItems.MINIGUN));
          }),
-      TIER_7(7, "Singularität & Bogen", 2, ChatFormatting.DARK_PURPLE, ModItems.SINGULARITY,
+      TIER_7(7, "Singularität & Bogen", "item.oneshotonekill.singularity", 2, ChatFormatting.DARK_PURPLE, ModItems.SINGULARITY,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, createBow(player));
             player.getInventory().setItem(0, new ItemStack(ModItems.SINGULARITY));
          }),
-      TIER_8(8, "C4-Sprengladung", 1, ChatFormatting.GOLD, ModItems.C4,
+      TIER_8(8, "C4-Sprengladung", "item.oneshotonekill.c4", 1, ChatFormatting.GOLD, ModItems.C4,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
             player.getInventory().setItem(0, new ItemStack(ModItems.C4));
          }),
-      TIER_9(9, "Frost-Falle", 1, ChatFormatting.AQUA, ModItems.FROST_TRAP,
+      TIER_9(9, "Frost-Falle", "item.oneshotonekill.frost_trap", 1, ChatFormatting.AQUA, ModItems.FROST_TRAP,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
             player.getInventory().setItem(0, new ItemStack(ModItems.FROST_TRAP));
             player.getInventory().setItem(1, createSword(false));
          }),
-      TIER_10(10, "Geschützturm", 1, ChatFormatting.GREEN, ModItems.SENTRY_TURRET,
+      TIER_10(10, "Geschützturm", "item.oneshotonekill.sentry_turret", 1, ChatFormatting.GREEN, ModItems.SENTRY_TURRET,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
             player.getInventory().setItem(0, new ItemStack(ModItems.SENTRY_TURRET));
          }),
-      TIER_11(11, "Tarnkappenbomber", 1, ChatFormatting.DARK_AQUA, ModItems.STEALTH_BOMBER,
+      TIER_11(11, "Tarnkappenbomber", "item.oneshotonekill.stealth_bomber", 1, ChatFormatting.DARK_AQUA, ModItems.STEALTH_BOMBER,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
             player.getInventory().setItem(0, new ItemStack(ModItems.STEALTH_BOMBER));
          }),
-      TIER_12(12, "Zeitverzerrer & Dolch", 1, ChatFormatting.LIGHT_PURPLE, ModItems.SLOW_MOTION,
+      TIER_12(12, "Zeitverzerrer & Dolch", "item.oneshotonekill.slow_motion", 1, ChatFormatting.LIGHT_PURPLE, ModItems.SLOW_MOTION,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
             player.getInventory().setItem(0, new ItemStack(ModItems.SLOW_MOTION));
             player.getInventory().setItem(1, createSword(false));
          }),
-      TIER_13(13, "👑 Meisterdolch", 1, ChatFormatting.GOLD, Items.GOLDEN_SWORD,
+      TIER_13(13, "Meisterdolch", "equipment.oneshotonekill.master_dagger", 1, ChatFormatting.GOLD, Items.GOLDEN_SWORD,
          player -> {
             player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
             player.getInventory().setItem(0, createSword(true));
          });
 
       private final int tierIndex;
-      private final String displayName;
+      private final String fallbackName;
+      private final String translationKey;
       private final int requiredKills;
       private final ChatFormatting color;
       private final Item icon;
       private final Consumer<ServerPlayer> equipAction;
 
-      Tier(int tierIndex, String displayName, int requiredKills, ChatFormatting color, Item icon, Consumer<ServerPlayer> equipAction) {
+      Tier(int tierIndex, String fallbackName, String translationKey, int requiredKills, ChatFormatting color, Item icon, Consumer<ServerPlayer> equipAction) {
          this.tierIndex = tierIndex;
-         this.displayName = displayName;
+         this.fallbackName = fallbackName;
+         this.translationKey = translationKey;
          this.requiredKills = requiredKills;
          this.color = color;
          this.icon = icon;
@@ -127,7 +129,10 @@ public final class GunGameManager {
       }
 
       public int getTierIndex() { return tierIndex; }
-      public String getDisplayName() { return displayName; }
+      public String getTranslationKey() { return translationKey; }
+      public String getDisplayName() {
+         return Component.translatable(translationKey).getString();
+      }
       public int getRequiredKills() { return requiredKills; }
       public ChatFormatting getColor() { return color; }
       public Item getIcon() { return icon; }
@@ -252,18 +257,20 @@ public final class GunGameManager {
          OsokEffects.INSTANCE.sendPrivateSound(killer, SoundEvents.BEACON_POWER_SELECT, 1.0F, 1.5F);
 
          killer.connection.send(new ClientboundSetTitlesAnimationPacket(5, 40, 15));
-         killer.connection.send(new ClientboundSetTitleTextPacket(Component.literal("✦ STUFE " + nextTier.getTierIndex() + " ✦").withStyle(nextTier.getColor(), ChatFormatting.BOLD)));
-         killer.connection.send(new ClientboundSetSubtitleTextPacket(Component.literal(nextTier.getDisplayName()).withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD)));
+         killer.connection.send(new ClientboundSetTitleTextPacket(Component.translatable("chat.oneshotonekill.gungame_tier_title", nextTier.getTierIndex()).withStyle(nextTier.getColor(), ChatFormatting.BOLD)));
+         killer.connection.send(new ClientboundSetSubtitleTextPacket(Component.translatable(nextTier.getTranslationKey()).withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD)));
 
-         Feedback.actionBar(killer, "§a▲ AUFGESTIEGEN! §fNeue Waffe: " + nextTier.getColor() + nextTier.getDisplayName());
+         Feedback.actionBar(killer, Component.translatable("hud.oneshotonekill.match.level_up").getString() + " · " + Component.translatable("hud.oneshotonekill.match.new_weapon", nextTier.getDisplayName()).getString());
          giveTierEquipment(killer);
 
          MinecraftServer server = killer.level().getServer();
          if (server != null) {
             Component announcement = Component.literal("[OSOK] ⚡ ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
-               .append(Component.literal(killer.getScoreboardName()).withStyle(ChatFormatting.GREEN, ChatFormatting.BOLD))
-               .append(Component.literal(" ist aufgestiegen zu ").withStyle(ChatFormatting.GRAY))
-               .append(Component.literal("Stufe " + nextTier.getTierIndex() + ": " + nextTier.getDisplayName()).withStyle(nextTier.getColor(), ChatFormatting.BOLD));
+               .append(Component.translatable("chat.oneshotonekill.gungame_tier_advance",
+                  killer.getScoreboardName(),
+                  nextTier.getTierIndex(),
+                  Component.translatable(nextTier.getTranslationKey()).getString()
+               ).withStyle(ChatFormatting.GRAY));
             server.getPlayerList().broadcastSystemMessage(announcement, false);
          }
 
@@ -301,13 +308,13 @@ public final class GunGameManager {
                player.inventoryMenu.broadcastChanges();
                replenishCooldowns.remove(uuid);
                OsokEffects.INSTANCE.sendPrivateSound(player, SoundEvents.ITEM_PICKUP, 0.8F, 1.2F);
-               Feedback.actionBar(player, "§a✦ " + tier.getDisplayName() + " nachgeladen");
+               Feedback.actionBar(player, Component.translatable("chat.oneshotonekill.gungame_reloaded", tier.getDisplayName()).getString());
             } else {
                replenishCooldowns.put(uuid, count);
                if (count % 20 == 0) {
-                  int remainingSecs = (REPLENISH_COOLDOWN_TICKS - count) / 20;
-                  Feedback.actionBar(player, "§7Waffe lädt nach in §e" + remainingSecs + "s§7…");
-               }
+                   int remainingSecs = (REPLENISH_COOLDOWN_TICKS - count) / 20;
+                   Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.gungame_reloading", remainingSecs));
+                }
             }
          } else {
             replenishCooldowns.remove(uuid);
@@ -352,7 +359,7 @@ public final class GunGameManager {
          return com.oneshotonekill.equipment.EquipmentManager.INSTANCE.createSword();
       }
       ItemStack sword = new ItemStack(Items.GOLDEN_SWORD);
-      sword.set(DataComponents.CUSTOM_NAME, Component.literal("👑 Meisterdolch").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
+      sword.set(DataComponents.CUSTOM_NAME, Component.translatable("equipment.oneshotonekill.master_dagger").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
       sword.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
       sword.set(DataComponents.ATTRIBUTE_MODIFIERS, com.oneshotonekill.equipment.EquipmentManager.createWeaponModifiers());
       sword.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);

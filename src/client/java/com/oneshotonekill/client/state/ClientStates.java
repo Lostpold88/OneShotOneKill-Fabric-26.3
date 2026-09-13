@@ -11,6 +11,7 @@ import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
@@ -1499,6 +1500,9 @@ public final class ClientStates {
         private int accentColor = 0;
         private boolean matchPaused = false;
 
+        private Component titleComponent = Component.empty();
+        private Component subtitleComponent = Component.empty();
+
         private MatchBannerState() {
         }
 
@@ -1522,6 +1526,14 @@ public final class ClientStates {
             return subtitle;
         }
 
+        public Component getTitleComponent() {
+            return titleComponent;
+        }
+
+        public Component getSubtitleComponent() {
+            return subtitleComponent;
+        }
+
         public int getAccentColor() {
             return accentColor;
         }
@@ -1533,22 +1545,40 @@ public final class ClientStates {
 
         public void handle(MatchNotificationPayload payload) {
             this.eventType = payload.getEvent();
-            this.title = payload.getTitle();
-            this.subtitle = payload.getSubtitle();
             this.totalTicks = Math.max(1, payload.getDurationTicks());
             this.remainingTicks = this.totalTicks;
             this.accentColor = payload.getAccentColor();
 
-            if ("PAUSE".equalsIgnoreCase(payload.getEvent())) {
+            if ("RESUME".equalsIgnoreCase(payload.getEvent())) {
+                this.titleComponent = Component.translatable("notification.oneshotonekill.resume.title");
+                this.subtitleComponent = Component.translatable("notification.oneshotonekill.resume.subtitle");
+                this.matchPaused = false;
+                MinimapState.INSTANCE.setMatchRunning(true);
+            } else if ("PAUSE".equalsIgnoreCase(payload.getEvent())) {
+                this.titleComponent = Component.translatable("notification.oneshotonekill.pause.title");
+                this.subtitleComponent = Component.translatable("notification.oneshotonekill.pause.subtitle");
                 this.matchPaused = true;
                 MinimapState.INSTANCE.setMatchRunning(false);
             } else if ("STOP".equalsIgnoreCase(payload.getEvent())) {
+                this.titleComponent = Component.translatable("notification.oneshotonekill.stop.title");
+                this.subtitleComponent = Component.translatable("notification.oneshotonekill.stop.subtitle");
                 this.matchPaused = false;
                 MinimapState.INSTANCE.setMatchRunning(false);
-            } else if ("RESUME".equalsIgnoreCase(payload.getEvent())) {
-                this.matchPaused = false;
-                MinimapState.INSTANCE.setMatchRunning(true);
+            } else if ("ARENA_SWITCH".equalsIgnoreCase(payload.getEvent())) {
+                this.titleComponent = Component.translatable("notification.oneshotonekill.arena_switch.title");
+                this.subtitleComponent = Component.translatable("notification.oneshotonekill.arena_switch.subtitle", payload.getSubtitle());
+            } else if ("ARENA_RESET".equalsIgnoreCase(payload.getEvent())) {
+                this.titleComponent = Component.translatable("notification.oneshotonekill.arena_reset.title");
+                this.subtitleComponent = Component.translatable("notification.oneshotonekill.arena_reset.subtitle", payload.getSubtitle());
+            } else if ("FROST_TRAP".equalsIgnoreCase(payload.getEvent())) {
+                this.titleComponent = Component.translatable("notification.oneshotonekill.frost_trap.title");
+                this.subtitleComponent = Component.translatable("notification.oneshotonekill.frost_trap.subtitle", payload.getSubtitle());
+            } else {
+                this.titleComponent = Component.literal(payload.getTitle());
+                this.subtitleComponent = Component.literal(payload.getSubtitle());
             }
+            this.title = this.titleComponent.getString();
+            this.subtitle = this.subtitleComponent.getString();
         }
 
         public void tick() {

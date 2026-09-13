@@ -13,6 +13,7 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
+import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -204,7 +205,7 @@ public final class CombatHudLayers {
             }
 
             if (consecutiveHits >= 9) {
-                graphics.centeredText(font, "💀 FATAL HIT BEREIT 💀", centerX, y + 7, OsokWidgets.COLOR_CRIMSON);
+                graphics.centeredText(font, Component.translatable("hud.oneshotonekill.minigun.fatal_ready").getString(), centerX, y + 7, OsokWidgets.COLOR_CRIMSON);
             }
         }
 
@@ -216,7 +217,7 @@ public final class CombatHudLayers {
             int y = centerY + 50;
 
             if (expiring) {
-                graphics.centeredText(font, "⚠ ENERGIE ERSCHÖPFT ⚠", centerX, y, OsokWidgets.COLOR_CRIMSON);
+                graphics.centeredText(font, Component.translatable("hud.oneshotonekill.minigun.depleted").getString(), centerX, y, OsokWidgets.COLOR_CRIMSON);
                 return;
             }
 
@@ -640,8 +641,9 @@ public final class CombatHudLayers {
             graphics.fill(x - 2, markerY - 1, x, markerY + 2, railColor);
 
             String value = live ? String.format(Locale.ROOT, "%.1f M", distance) : "--.- M";
-            int textX = x - font.width("DISTANZ") - 8;
-            graphics.text(font, "DISTANZ", textX, top, live ? COLOR_RED_BRIGHT : COLOR_RED_DIM);
+            String distLabel = Component.translatable("hud.oneshotonekill.grappler.distance").getString();
+            int textX = x - font.width(distLabel) - 8;
+            graphics.text(font, distLabel, textX, top, live ? COLOR_RED_BRIGHT : COLOR_RED_DIM);
             graphics.text(font, value, x - font.width(value) - 8, bottom - 8,
                     live ? COLOR_WHITE : COLOR_RED_DIM);
         }
@@ -667,7 +669,8 @@ public final class CombatHudLayers {
 
             String value = active
                     ? String.format(Locale.ROOT, "%d%%", Math.round(tension * 100.0F)) : "---%";
-            graphics.text(font, "ZUGKRAFT", x + 8, top,
+            String tensionLabel = Component.translatable("hud.oneshotonekill.grappler.tension").getString();
+            graphics.text(font, tensionLabel, x + 8, top,
                     active ? COLOR_RED_BRIGHT : COLOR_RED_DIM);
             graphics.text(font, value, x + 8, bottom - 8,
                     active ? COLOR_WHITE : COLOR_RED_DIM);
@@ -1081,8 +1084,8 @@ public final class CombatHudLayers {
             }
 
             String headline = alarm.isIncoming()
-                    ? (endangered ? "⚠ DEFCON-1 · ORBITALER ANGRIFF · IN DECKUNG ⚠" : "⚠ ORBITALER ANGRIFF ERFASST ⚠")
-                    : "💥 EINSCHLAG ERFOLGT";
+                    ? (endangered ? Component.translatable("hud.oneshotonekill.airstrike.danger").getString() : Component.translatable("hud.oneshotonekill.airstrike.incoming").getString())
+                    : Component.translatable("hud.oneshotonekill.airstrike.impact").getString();
             graphics.centeredText(font, headline, centerX, top + 7, blinkOn ? ALARM_RED : 0xFFFFFFFF);
 
             if (!alarm.isIncoming()) {
@@ -1091,8 +1094,8 @@ public final class CombatHudLayers {
 
             int distance = (int) Math.round(alarm.distanceToTarget());
             String detail = endangered
-                    ? "⚠ IM WIRKUNGSKREIS (" + distance + "m) · SOFORT EVAKUIEREN"
-                    : "EINSCHLAG IN " + distance + "m DISTANZ";
+                    ? Component.translatable("hud.oneshotonekill.airstrike.in_radius", distance).getString()
+                    : Component.translatable("hud.oneshotonekill.airstrike.impact_distance", distance).getString();
             graphics.centeredText(font, detail, centerX, top + 18, endangered ? ALARM_RED : SAFE_CYAN);
             drawCountdownBar(graphics, centerX, top + 29, alarm, accent);
         }
@@ -2149,7 +2152,7 @@ public final class CombatHudLayers {
             if (state.isTargetEliminated()) {
                 graphics.fill(x + 10, y + 18, right - 10, y + 32, 0xDD990011);
                 graphics.fill(x + 10, y + 31, right - 10, y + 32, 0xFFFF1E2B);
-                graphics.centeredText(font, "☠ ZIEL ELIMINIERT", centerX, y + 20, 0xFFFFFFFF);
+                graphics.centeredText(font, Component.translatable("hud.oneshotonekill.bomber.target_eliminated").getString(), centerX, y + 20, 0xFFFFFFFF);
             }
 
             // Fußzeile mit sauber getrennten Spalten
@@ -2177,7 +2180,7 @@ public final class CombatHudLayers {
             // Bombenabwurf-Meldung bei Klinken einer Bombe
             if (state.getBombDropFlashTicks() > 0 && !state.isTargetEliminated()) {
                 graphics.fill(x + 2, y + 18, right - 2, y + 30, 0xEEFF1E2B);
-                graphics.centeredText(font, "⚡ BOMBENABWURF ERFOLGT ⚡", centerX, y + 20, 0xFFFFFFFF);
+                graphics.centeredText(font, Component.translatable("hud.oneshotonekill.bomber.bombs_dropped").getString(), centerX, y + 20, 0xFFFFFFFF);
             }
         }
 

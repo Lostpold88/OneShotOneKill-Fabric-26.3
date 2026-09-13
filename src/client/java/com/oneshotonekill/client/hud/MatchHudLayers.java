@@ -175,13 +175,13 @@ public final class MatchHudLayers {
 
             // Segment-Pips und Text im unteren Balken
             String pips = switch (second) {
-               case 3 -> "[ ■ ■ ■ ] SYSTEM INITIALISIERUNG";
-               case 2 -> "[ ■ ■ □ ] WAFFEN SCHARF";
-               default -> "[ ■ □ □ ] ZIELERFASSUNG AKTIV";
+               case 3 -> Component.translatable("hud.oneshotonekill.match.init").getString();
+               case 2 -> Component.translatable("hud.oneshotonekill.match.armed").getString();
+               default -> Component.translatable("hud.oneshotonekill.match.lock_on").getString();
             };
             graphics.text(font, pips, 14, height - barH + 9, accent);
 
-            String bottomMsg = "[ BEWEGUNG GESPERRT · WAFFEN-SCHARFMACHUNG ]";
+            String bottomMsg = Component.translatable("hud.oneshotonekill.match.movement_locked").getString();
             graphics.centeredText(font, Component.literal(bottomMsg), width / 2, height - barH + 9, 0xFFE2E8F0);
 
             String timerTag = "T-MINUS 00:0" + second;
@@ -398,16 +398,18 @@ public final class MatchHudLayers {
          int cyanGlitch = (bannerAlpha / 2) << 24 | 0x0000F0FF;
          int redGlitch = (bannerAlpha / 2) << 24 | 0x00FF2244;
 
+         String startTitle = Component.translatable("hud.oneshotonekill.match.start").getString();
          if (goProgress > 0.4F) {
-            graphics.centeredText(font, Component.literal("⚔ MATCH START ⚔"), centreX - 3, centreY - 14, cyanGlitch);
-            graphics.centeredText(font, Component.literal("⚔ MATCH START ⚔"), centreX + 3, centreY - 14, redGlitch);
+            graphics.centeredText(font, Component.literal(startTitle), centreX - 3, centreY - 14, cyanGlitch);
+            graphics.centeredText(font, Component.literal(startTitle), centreX + 3, centreY - 14, redGlitch);
          }
 
-         graphics.centeredText(font, Component.literal("⚔ MATCH START ⚔"), centreX + 1, centreY - 13, 0xDD000000);
-         graphics.centeredText(font, Component.literal("⚔ MATCH START ⚔"), centreX, centreY - 14, goldText);
+         graphics.centeredText(font, Component.literal(startTitle), centreX + 1, centreY - 13, 0xDD000000);
+         graphics.centeredText(font, Component.literal(startTitle), centreX, centreY - 14, goldText);
 
-         graphics.centeredText(font, Component.literal("/// FEUER FREI! ///"), centreX + 1, centreY + 5, 0xDD000000);
-         graphics.centeredText(font, Component.literal("/// FEUER FREI! ///"), centreX, centreY + 4, whiteText);
+         String fireTitle = Component.translatable("hud.oneshotonekill.match.fire_at_will").getString();
+         graphics.centeredText(font, Component.literal(fireTitle), centreX + 1, centreY + 5, 0xDD000000);
+         graphics.centeredText(font, Component.literal(fireTitle), centreX, centreY + 4, whiteText);
       }
 
       private static int withAlpha(int colour, int alpha) {
@@ -467,7 +469,7 @@ public final class MatchHudLayers {
 
          // 1. Persistente HUD-Pausenleiste oben
          if (state.isMatchPaused() && client.gui.screen() == null) {
-            String pauseChip = "⏸ MATCH PAUSIERT // WAFFEN INAKTIV";
+            String pauseChip = Component.translatable("hud.oneshotonekill.match.paused_chip").getString();
             int chipWidth = font.width(pauseChip) + 18;
             int chipX = screenWidth / 2 - chipWidth / 2;
             OsokWidgets.statusBadge(graphics, font, chipX, 8, pauseChip, OsokWidgets.COLOR_GOLD, true);
@@ -548,12 +550,12 @@ public final class MatchHudLayers {
          int titleColor = (accent & 0x00FFFFFF) | (alphaInt << 24);
          int subColor = (OsokWidgets.COLOR_TEXT_WHITE & 0x00FFFFFF) | ((int) (alphaFactor * 220) << 24);
 
-         graphics.centeredText(font, Component.literal(state.getTitle()), centreX + 1, bannerY + 11, (int) (alphaFactor * 180) << 24);
-         graphics.centeredText(font, Component.literal(state.getTitle()), centreX, bannerY + 10, titleColor);
+         graphics.centeredText(font, state.getTitleComponent(), centreX + 1, bannerY + 11, (int) (alphaFactor * 180) << 24);
+         graphics.centeredText(font, state.getTitleComponent(), centreX, bannerY + 10, titleColor);
 
          if (!state.getSubtitle().isEmpty()) {
-            graphics.centeredText(font, Component.literal(state.getSubtitle()), centreX + 1, bannerY + 27, (int) (alphaFactor * 150) << 24);
-            graphics.centeredText(font, Component.literal(state.getSubtitle()), centreX, bannerY + 26, subColor);
+            graphics.centeredText(font, state.getSubtitleComponent(), centreX + 1, bannerY + 27, (int) (alphaFactor * 150) << 24);
+            graphics.centeredText(font, state.getSubtitleComponent(), centreX, bannerY + 26, subColor);
          }
       }
    }
@@ -604,7 +606,7 @@ public final class MatchHudLayers {
          graphics.fill(badgeX + 2, badgeY + 2, badgeX + 5, badgeY + BADGE_HEIGHT - 2, accent);
 
          // Stufe & Name
-         String tierTitle = "⚡ STUFE " + state.getCurrentTier() + "/" + state.getTotalTiers();
+         String tierTitle = "⚡ " + Component.translatable("hud.oneshotonekill.match.tier", state.getCurrentTier()).getString() + "/" + state.getTotalTiers();
          graphics.text(font, tierTitle, badgeX + 10, badgeY + 6, accent);
          graphics.text(font, state.getTierName(), badgeX + 10, badgeY + 17, 0xFFFFFFFF);
 
@@ -659,8 +661,8 @@ public final class MatchHudLayers {
          graphics.fill(left + 2, bannerY + 2, left + 5, bottom - 2, (accent & 0x00FFFFFF) | (alphaInt << 24));
          graphics.fill(right - 5, bannerY + 2, right - 2, bottom - 2, (accent & 0x00FFFFFF) | (alphaInt << 24));
 
-         String title = "▲ AUFGESTIEGEN: STUFE " + state.getCurrentTier() + " ▲";
-         String subtitle = "Waffe freigeschaltet: " + state.getTierName();
+         String title = Component.translatable("hud.oneshotonekill.match.tier_banner_title", state.getCurrentTier()).getString();
+         String subtitle = Component.translatable("hud.oneshotonekill.match.tier_banner_sub", state.getTierName()).getString();
 
          graphics.centeredText(font, Component.literal(title), centreX + 1, bannerY + 9, (int) (alphaFactor * 160) << 24);
          graphics.centeredText(font, Component.literal(title), centreX, bannerY + 8, (accent & 0x00FFFFFF) | (alphaInt << 24));

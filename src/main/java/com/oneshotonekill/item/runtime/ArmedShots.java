@@ -22,6 +22,7 @@ import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
+import net.minecraft.network.chat.Component;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -109,9 +110,10 @@ public final class ArmedShots {
          player.level().sendParticles(HOT_DUST,
             player.getX(), player.getY() + 1.0, player.getZ(), 12, 0.25, 0.45, 0.25, 0.06);
       }
-      Feedback.actionBar(player, type == ShotType.EXPLOSIVE
-         ? "§c💣 NÄCHSTER SCHUSS: TNT-SPRENGKOPF"
-         : "§e⚡ NÄCHSTER SCHUSS: KETTENBLITZ");
+      Component msg = type == ShotType.EXPLOSIVE
+         ? Component.translatable("actionbar.oneshotonekill.next_shot_explosive")
+         : Component.translatable("actionbar.oneshotonekill.next_shot_lightning");
+      Feedback.actionBar(player, msg);
       StatusAbilities.Broadcaster.INSTANCE.refresh(player);
       return true;
    }

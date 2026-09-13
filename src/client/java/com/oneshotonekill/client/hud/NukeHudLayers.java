@@ -363,7 +363,9 @@ public final class NukeHudLayers {
          graphics.verticalLine(right - 1, panelY, bottom - 1, 0x88FFD700);
 
          // 2. MVP Hero Showcase Header
-         String headline = victory.isDraw() ? "✦ MATCH UNENTSCHIEDEN ✦" : "👑 MATCH CHAMPION: " + victory.winner() + " 👑";
+         String headline = victory.isDraw()
+            ? Component.translatable("hud.oneshotonekill.victory.draw").getString()
+            : Component.translatable("hud.oneshotonekill.victory.header", victory.winner()).getString();
          graphics.pose().pushMatrix();
          graphics.pose().translate(centreX, panelY + 14.0F);
          graphics.pose().scale(1.3F, 1.3F);
@@ -377,11 +379,11 @@ public final class NukeHudLayers {
          int shown = 0;
 
          // Spalten-Header
-         graphics.text(font, "#  SPIELER", left + 14, y, OsokWidgets.COLOR_TEXT_MUTED);
-         right(graphics, font, "KILLS", right - COL_KILLS, y, OsokWidgets.COLOR_TEXT_MUTED);
-         right(graphics, font, "TODE", right - COL_DEATHS, y, OsokWidgets.COLOR_TEXT_MUTED);
-         right(graphics, font, "K/D", right - COL_RATIO, y, OsokWidgets.COLOR_TEXT_MUTED);
-         right(graphics, font, "SERIE", right - COL_STREAK, y, OsokWidgets.COLOR_TEXT_MUTED);
+         graphics.text(font, Component.translatable("hud.oneshotonekill.victory.col_player").getString(), left + 14, y, OsokWidgets.COLOR_TEXT_MUTED);
+         right(graphics, font, Component.translatable("hud.oneshotonekill.victory.col_kills").getString(), right - COL_KILLS, y, OsokWidgets.COLOR_TEXT_MUTED);
+         right(graphics, font, Component.translatable("hud.oneshotonekill.victory.col_deaths").getString(), right - COL_DEATHS, y, OsokWidgets.COLOR_TEXT_MUTED);
+         right(graphics, font, Component.translatable("hud.oneshotonekill.victory.col_ratio").getString(), right - COL_RATIO, y, OsokWidgets.COLOR_TEXT_MUTED);
+         right(graphics, font, Component.translatable("hud.oneshotonekill.victory.col_streak").getString(), right - COL_STREAK, y, OsokWidgets.COLOR_TEXT_MUTED);
          y += ROW_HEIGHT;
          graphics.fill(left + 14, y - 3, right - 14, y - 2, 0x33FFD700);
 
@@ -449,13 +451,13 @@ public final class NukeHudLayers {
 
       private static List<Line> buildStats(NukeVictoryPayload victory) {
          List<Line> lines = new ArrayList<>();
-         lines.add(new Line("Spieldauer", duration(victory.matchSeconds()), OsokWidgets.COLOR_TEXT_WHITE));
-         lines.add(new Line("Kills gesamt", String.valueOf(victory.totalKills()), OsokWidgets.COLOR_EMERALD));
-         lines.add(new Line("Kills / Min", String.format(Locale.ROOT, "%.1f", victory.killsPerMinute()), OsokWidgets.COLOR_TEXT_WHITE));
+         lines.add(new Line(Component.translatable("hud.oneshotonekill.victory.duration").getString(), duration(victory.matchSeconds()), OsokWidgets.COLOR_TEXT_WHITE));
+         lines.add(new Line(Component.translatable("hud.oneshotonekill.victory.total_kills").getString(), String.valueOf(victory.totalKills()), OsokWidgets.COLOR_EMERALD));
+         lines.add(new Line(Component.translatable("hud.oneshotonekill.victory.kpm").getString(), String.format(Locale.ROOT, "%.1f", victory.killsPerMinute()), OsokWidgets.COLOR_TEXT_WHITE));
          if (!victory.mvp().isEmpty()) {
-            lines.add(new Line("Längste Serie", victory.mvp() + " (★" + victory.mvpStreak() + ")", OsokWidgets.COLOR_GOLD));
+            lines.add(new Line(Component.translatable("hud.oneshotonekill.victory.longest_streak").getString(), victory.mvp() + " (★" + victory.mvpStreak() + ")", OsokWidgets.COLOR_GOLD));
          } else {
-            lines.add(new Line("Tode gesamt", String.valueOf(victory.totalDeaths()), OsokWidgets.COLOR_CRIMSON));
+            lines.add(new Line(Component.translatable("hud.oneshotonekill.victory.total_deaths").getString(), String.valueOf(victory.totalDeaths()), OsokWidgets.COLOR_CRIMSON));
          }
          return lines;
       }
