@@ -51,6 +51,7 @@ public final class KillFeed {
          this.translationKey = translationKey;
       }
 
+      @SuppressWarnings("unused")
       public String getTranslationKey() {
          return translationKey;
       }
@@ -59,6 +60,7 @@ public final class KillFeed {
          return Component.translatable(translationKey);
       }
 
+      @SuppressWarnings("unused")
       public String getLabel() {
          return getComponent().getString();
       }
@@ -166,10 +168,6 @@ public final class KillFeed {
 
    private static Component name(ServerPlayer player, ChatFormatting colour) {
       return Component.literal(player.getGameProfile().name()).withStyle(colour, ChatFormatting.BOLD);
-   }
-
-   private static Component text(String literal) {
-      return Component.literal(literal).withStyle(TEXT);
    }
 
    private static void broadcast(MinecraftServer server, Component message) {

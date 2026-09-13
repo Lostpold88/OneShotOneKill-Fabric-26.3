@@ -131,7 +131,7 @@ public final class GunGameManager {
       public int getTierIndex() { return tierIndex; }
       public String getTranslationKey() { return translationKey; }
       public String getDisplayName() {
-         return Component.translatable(translationKey).getString();
+         return Component.translatableWithFallback(translationKey, fallbackName).getString();
       }
       public int getRequiredKills() { return requiredKills; }
       public ChatFormatting getColor() { return color; }
