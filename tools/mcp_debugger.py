@@ -9,7 +9,6 @@ Automated Workflows:
 - clear-all-bp: Queries all active breakpoints in the session and removes them in a single batch operation.
 """
 
-import os
 import sys
 import json
 import time
@@ -54,7 +53,7 @@ class DebuggerBatchClient:
             notif_headers["Mcp-Session-Id"] = self.session_id
         notif_req = urllib.request.Request(self.endpoint, data=notif_data, headers=notif_headers, method="POST")
         try:
-            with urllib.request.urlopen(notif_req) as resp:
+            with urllib.request.urlopen(notif_req):
                 pass
         except Exception:
             pass

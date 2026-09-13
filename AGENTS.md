@@ -20,7 +20,7 @@
 >      - **Code-Intelligence & Analyse (`intellij-index`):** `ide_symbol_info`, `ide_file_structure`, `ide_find_symbol`, `ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_project_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_search_text`.
 >      - **Build & Testing (`intellij-index`):** `ide_build_project`, `ide_list_tests`, `ide_run_tests`.
 >      - **Dateisystem-Synchronisation:** `ide_sync_files` nach jeder externen Dateiänderung aufrufen.
->      - **Client-Start & Runtime-Debugging (`jetbrains-debugger`):** `start_debug_session(configuration_name: "Minecraft Client")`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `pause_execution`, `step_over`, `step_into`, `step_out`, `run_to_line`, `get_stack_trace`, `select_stack_frame`, `list_threads`, `get_variables`, `set_variable`, `stop_debug_session`.
+>      - **Client-Start & Runtime-Debugging (`jetbrains-debugger`):** `list_run_configurations`, `execute_run_configuration`, `list_debug_sessions`, `start_debug_session(configuration_name: "Minecraft Client")`, `stop_debug_session`, `set_breakpoint`, `remove_breakpoint`, `list_breakpoints`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `pause_execution`, `step_over`, `step_into`, `step_out`, `run_to_line`, `get_stack_trace`, `select_stack_frame`, `list_threads`, `get_variables`, `set_variable`, `get_source_context`.
 >    - ⛔ **STRIKT VERBOTEN:** 
 >      - Verwende **NIEMALS** CLI-Bytecode-Tools wie `javap`, `disassemble` oder Disassembler-Skripte! Alle Typen, Methoden, Parameter und Klassenstrukturen werden ausschließlich semantisch über `intellij-index` (`ide_find_class`, `ide_find_definition`, `ide_symbol_info`, `ide_type_hierarchy` etc.) analysiert.
 >      - Verwende **NIEMALS** reine Textsuch-Tools (`grep`, Textsuche) oder Vermutungen, wenn semantische IDE-Index-Tools zur Verfügung stehen.
@@ -32,8 +32,10 @@
 
 - **IntelliJ IDEA & MCP (`intellij-index`)** sind das **einzige und primäre Werkzeug** für Code-Intelligence, Navigation, Klassenstrukturen, Methodensignaturen, File-Creation, Import-Optimierung, Reformatting, Refactoring und Build (`ide_build_project`). Sämtliche Aktionen werden **ausnahmslos und immer direkt über die MCP-Tools** aufgerufen, wie in [`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md) definiert.
 - **JetBrains Debugger MCP (`jetbrains-debugger`)** ist das primäre Werkzeug für interaktives Runtime-Debugging, Haltepunkte, Variableninspektion und Run-Konfigurationen (`execute_run_configuration(name: "BUILD", mode: "run")`). Standard-Aktionen werden **immer direkt über die Debugger-MCP-Tools** aufgerufen, wie in [`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md) definiert.
-- **Automatisierte Batch-Skripte in [`tools/`](tools/):** Für komplexe Mehrschritt- oder Schleifen-Operationen, die nicht in einem einzelnen MCP-Tool-Aufruf möglich sind, stehen spezialisierte Automatisierungs-Skripte bereit:
-  - [`python tools/mcp_index.py scan-project`](tools/mcp_index.py): Sequentieller Diagnose-Scan über alle Java-Dateien im Projekt in einem Durchlauf.
+- **Automatisierte Batch-Skripte in [`tools/`](tools/):** Für komplexe Mehrschritt- oder Schleifen-Operationen stehen spezialisierte Automatisierungs-Skripte bereit:
+  - [`python tools/mcp_index.py scan-project`](tools/mcp_index.py): High-Performance Batch-Diagnosescan über alle Java-Dateien im Projekt mittels nativer MCP-Batch-API (`files: [...]` in Chunks bis zu 100 Dateien, Statusauswertung via `fileAnalyses`, Flags: `--severity [all|errors|warnings]`, `--batch-size`, `--max-problems`, `--json`).
+  - [`python tools/mcp_index.py sync`](tools/mcp_index.py): VFS-Synchronisation mit Auswertung von `refreshedRoots` und `deletedPaths` (optional `--paths`).
+  - [`python tools/mcp_index.py status`](tools/mcp_index.py): Schnelle Abfrage von IDE-Indexierungsstatus und Dumb-Mode (`isDumbMode`, `isIndexing`).
   - [`python tools/mcp_debugger.py clear-all-bp`](tools/mcp_debugger.py): Batch-Abfrage und restloses Löschen aller aktiven Breakpoints in einem Schritt.
 - **Fabric-API, Access Widener und Mixins** sind vollwertige Werkzeuge und dürfen jederzeit frei und gezielt nach Zweckmäßigkeit genutzt werden.
 - Externe Bibliotheken (Minecraft, Fabric API, Fabric Loader, Sponge Mixin, MixinExtras, Brigadier, Netty, Java SDK etc.) werden direkt über die **IntelliJ IDEA MCP-Engine** (`scope: "project_and_libraries"`) semantisch analysiert.
@@ -59,7 +61,7 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 > 
 > 1. **Code-Intelligence & Navigation:**
 >    - `ide_find_class`: Klassen nach Namen / CamelCase suchen.
->    - `ide_find_definition`: Zur Deklaration / Definition springen.
+>    - `ide_find_definition`: Zur Deklaration / Definition springen (liefert & akzeptiert persistente `symbolId`).
 >    - `ide_find_references`: Semantische Verwendungsstellen projektweit finden.
 >    - `ide_find_symbol`: Beliebige Code-Symbole (Methoden, Felder, Klassen) finden.
 >    - `ide_find_implementations`: Implementierungen von Interfaces & abstrakten Methoden finden.
@@ -67,9 +69,9 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 >    - `ide_type_hierarchy`: Vollständige Vererbungshierarchie (Super- und Subtypen).
 >    - `ide_call_hierarchy`: Aufrufhierarchie (`callers` / `callees`) analysieren.
 >    - `ide_file_structure`: Strukturbaum / Outline einer Datei mit Zeilenangaben.
->    - `ide_symbol_info`: Voll aufgelöste Typen, Signaturen & JavaDoc-Dokumentation.
+>    - `ide_symbol_info`: Voll aufgelöste Typen, Signaturen & JavaDoc-Dokumentation (liefert & akzeptiert persistente `symbolId`).
 >    - `ide_search_text`: Textsuche / Regex über den IntelliJ-Index.
->    - `ide_diagnostics`: Compiler-, Syntaxfehler und Quick-Fixes einer Datei.
+>    - `ide_diagnostics`: Compiler-, Syntaxfehler und Quick-Fixes für Einzeldatei (`file`) oder Datei-Batch (`files` bis zu 100 Dateien, `maxProblems`, `fileAnalyses`).
 >    - `ide_project_diagnostics`: Projektweiter Batch-Diagnose-Scan aller Dateien.
 >
 > 2. **Code-Modifikation & Refactoring:**
@@ -97,7 +99,7 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 >    - `ide_close_project` / `ide_reload_project`: Projekte schließen oder neu laden.
 >    - `ide_link_build_system` / `ide_import_modules`: Build-System / Module integrieren.
 >    - `ide_install_plugin` / `ide_restart`: IDE-Plugins installieren / IDE neustarten.
->    - `ide_sync_files`: Virtuelles Dateisystem mit externen Änderungen synchronisieren.
+>    - `ide_sync_files`: Virtuelles Dateisystem mit externen Änderungen synchronisieren (unterstützt relative & absolute Pfade, flache Refreshes für gelöschte Dateien, liefert `refreshedRoots` und `deletedPaths`).
 >    - `ide_index_status`: Indexierungsstatus & Smart-/Dumb-Mode abfragen.
 >
 > 4. **Build & Tests:**
@@ -120,6 +122,41 @@ Die Anbindung an den Debugger erfolgt über das **jetbrains-debugger MCP** (`htt
 > - **[`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md):** Umfassender Leitfaden, Debugging-Muster, Pausen-Handling und Best Practices.
 > - **[`jetbrains-debugger/references/tool-reference.md`](jetbrains-debugger/references/tool-reference.md):** Vollständige Referenz aller Debugger-Werkzeuge (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `pause_execution`, `step_over`, `step_into`, `step_out`, `run_to_line`, etc.).
 > - **Batch-Automatisierung:** Für das restlose Bereinigen aller Breakpoints steht [`tools/mcp_debugger.py`](tools/mcp_debugger.py) mit `python tools/mcp_debugger.py clear-all-bp` zur Verfügung.
+>
+> ### Vollständige Übersicht aller aktiven MCP-Tools (`jetbrains-debugger`):
+>
+> 1. **Session & Configuration Management:**
+>    - `list_run_configurations`: Alle verfügbaren Run/Debug-Konfigurationen im Projekt auflisten.
+>    - `execute_run_configuration`: Run-Konfiguration im Debug- oder Run-Modus ausführen.
+>    - `start_debug_session`: Neue Debug-Session für eine Konfiguration starten.
+>    - `stop_debug_session`: Laufende Debug-Session beenden / terminieren.
+>    - `list_debug_sessions`: Alle aktiven Debug-Sessions auflisten.
+>
+> 2. **Breakpoints:**
+>    - `set_breakpoint`: Zeilen-Breakpoint mit optionaler Bedingung (`condition`), Log-Message oder Suspend-Policy setzen.
+>    - `remove_breakpoint`: Breakpoint anhand der ID entfernen.
+>    - `list_breakpoints`: Alle Breakpoints im Projekt auflisten.
+>
+> 3. **Execution Control & Stepping:**
+>    - `resume_execution`: Programmausführung nach Pause fortsetzen.
+>    - `pause_execution`: Laufende Programmausführung anhalten.
+>    - `wait_for_pause`: Blockierend auf den nächsten Breakpoint oder Step warten (liefert Session-Status).
+>    - `step_over`: Nächste Zeile ausführen (Funktionsaufrufe überspringen).
+>    - `step_into`: In den Funktionsaufruf auf aktueller Zeile hineinspringen.
+>    - `step_out`: Ausführung bis zum Verlassen der aktuellen Funktion fortsetzen.
+>    - `run_to_line`: Ausführung bis zu einer bestimmten Zielzeile laufen lassen.
+>
+> 4. **Inspektion (Stack, Variablen, Threads & Source):**
+>    - `get_debug_session_status`: Primäres Inspektions-Tool – bündelt Stack, Variablen, Source und Lokation in einem Aufruf.
+>    - `get_variables`: Variablen im aktuellen Stack-Frame auflisten.
+>    - `set_variable`: Variablenwert zur Laufzeit manipulieren.
+>    - `get_stack_trace`: Vollständigen Aufruf-Stack abrufen.
+>    - `select_stack_frame`: Stack-Frame für Variablen- und Expressionskontext auswählen.
+>    - `list_threads`: Alle Threads der JVM auflisten.
+>    - `get_source_context`: Quellcode-Ausschnitt um eine Zeile / Lokation herum abrufen.
+>
+> 5. **Expression Evaluation:**
+>    - `evaluate_expression`: Beliebige Ausdrücke, Methodenaufrufe und Berechnungen im Kontext des aktuellen Frames auswerten.
 >
 > **Kernregeln für Debugging:**
 > 1. **Client-Start via IntelliJ Debugger MCP:** Den Minecraft Client immer über `start_debug_session(configuration_name: "Minecraft Client")` (oder `execute_run_configuration(name: "Minecraft Client", mode: "debug")`) starten, damit die JVM-Instanz dauerhaft im Debugger eingeklinkt ist.
