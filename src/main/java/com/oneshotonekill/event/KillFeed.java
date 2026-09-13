@@ -51,18 +51,8 @@ public final class KillFeed {
          this.translationKey = translationKey;
       }
 
-      @SuppressWarnings("unused")
-      public String getTranslationKey() {
-         return translationKey;
-      }
-
       public Component getComponent() {
          return Component.translatable(translationKey);
-      }
-
-      @SuppressWarnings("unused")
-      public String getLabel() {
-         return getComponent().getString();
       }
    }
 
