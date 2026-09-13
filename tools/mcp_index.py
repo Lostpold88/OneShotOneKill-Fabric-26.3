@@ -30,6 +30,7 @@ def call_index_mcp(
     tool_name: str,
     arguments: Optional[dict] = None,
     project_path: str = DEFAULT_PROJECT_PATH,
+    timeout: float = 60.0,
 ) -> dict:
     """Sends a JSON-RPC tool call to the IntelliJ Index MCP server."""
     if arguments is None:
@@ -54,7 +55,7 @@ def call_index_mcp(
 
     req = urllib.request.Request(ENDPOINT, data=data, headers=headers, method="POST")
     try:
-        with urllib.request.urlopen(req) as resp:
+        with urllib.request.urlopen(req, timeout=timeout) as resp:
             body = resp.read().decode("utf-8")
             res = json.loads(body)
             if "result" in res:
@@ -82,16 +83,16 @@ def call_index_mcp(
 def scan_project(
     src_dir: str = "E:/OneShotOneKill/MOD/src",
     project_path: str = DEFAULT_PROJECT_PATH,
-    batch_size: int = 50,
+    batch_size: int = 25,
     severity: str = "all",
     max_problems: int = 500,
     verbose: bool = True,
 ) -> dict[str, Any]:
     """
     Performs high-speed batch diagnostic scanning across all Java files using
-    the updated ide_diagnostics tool with native 'files' batching (up to 100 files per call).
+    the updated ide_diagnostics tool with native 'files' batching (optimal batch size: 20-30 files).
     """
-    batch_size = max(1, min(batch_size, 100))
+    batch_size = max(1, min(batch_size, 50))
     java_files: list[str] = []
 
     for root, _, files in os.walk(src_dir):
@@ -261,7 +262,7 @@ def main():
     scan_p = subparsers.add_parser("scan-project", help="Batch scan all Java files in project using native 'files' API")
     scan_p.add_argument("--src", default="E:/OneShotOneKill/MOD/src", help="Source directory to scan")
     scan_p.add_argument("--project-path", default=DEFAULT_PROJECT_PATH, help="Project root path")
-    scan_p.add_argument("--batch-size", type=int, default=50, help="Batch size per MCP request (default: 50, max: 100)")
+    scan_p.add_argument("--batch-size", type=int, default=25, help="Batch size per MCP request (default: 25, max: 50)")
     scan_p.add_argument("--severity", choices=["all", "errors", "warnings"], default="all", help="Severity filter")
     scan_p.add_argument("--max-problems", type=int, default=500, help="Max problems returned per batch (default: 500)")
     scan_p.add_argument("--json", action="store_true", help="Print result as raw JSON")
