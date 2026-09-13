@@ -33,7 +33,7 @@
 - **IntelliJ IDEA & MCP (`intellij-index`)** sind das **einzige und primäre Werkzeug** für Code-Intelligence, Navigation, Klassenstrukturen, Methodensignaturen, File-Creation, Import-Optimierung, Reformatting, Refactoring und Build (`ide_build_project`). Sämtliche Aktionen werden **ausnahmslos und immer direkt über die MCP-Tools** aufgerufen, wie in [`ide-index-mcp/SKILL.md`](ide-index-mcp/SKILL.md) definiert.
 - **JetBrains Debugger MCP (`jetbrains-debugger`)** ist das primäre Werkzeug für interaktives Runtime-Debugging, Haltepunkte, Variableninspektion und Run-Konfigurationen (`execute_run_configuration(name: "BUILD", mode: "run")`). Standard-Aktionen werden **immer direkt über die Debugger-MCP-Tools** aufgerufen, wie in [`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md) definiert.
 - **Automatisierte Batch-Skripte in [`tools/`](tools/):** Für komplexe Mehrschritt- oder Schleifen-Operationen stehen spezialisierte Automatisierungs-Skripte bereit:
-  - [`python tools/mcp_index.py scan-project`](tools/mcp_index.py): High-Performance Batch-Diagnosescan über alle Java-Dateien im Projekt mittels nativer MCP-Batch-API (`files: [...]` in Chunks bis zu 100 Dateien, Statusauswertung via `fileAnalyses`, Flags: `--severity [all|errors|warnings]`, `--batch-size`, `--max-problems`, `--json`).
+  - [`python tools/mcp_index.py scan-project`](tools/mcp_index.py): High-Performance Batch-Diagnosescan über alle Java-Dateien im Projekt mittels nativer MCP-Batch-API (`files: [...]` in Batches von standardmäßig 25 Dateien [max. 50], Statusauswertung via `fileAnalyses`, Flags: `--severity [all|errors|warnings]`, `--batch-size`, `--max-problems`, `--json`). Prüft das gesamte Projekt (128 Klassen) in nur ca. 42 Sekunden.
   - [`python tools/mcp_index.py sync`](tools/mcp_index.py): VFS-Synchronisation mit Auswertung von `refreshedRoots` und `deletedPaths` (optional `--paths`).
   - [`python tools/mcp_index.py status`](tools/mcp_index.py): Schnelle Abfrage von IDE-Indexierungsstatus und Dumb-Mode (`isDumbMode`, `isIndexing`).
   - [`python tools/mcp_debugger.py clear-all-bp`](tools/mcp_debugger.py): Batch-Abfrage und restloses Löschen aller aktiven Breakpoints in einem Schritt.
@@ -71,7 +71,7 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 >    - `ide_file_structure`: Strukturbaum / Outline einer Datei mit Zeilenangaben.
 >    - `ide_symbol_info`: Voll aufgelöste Typen, Signaturen & JavaDoc-Dokumentation (liefert & akzeptiert persistente `symbolId`).
 >    - `ide_search_text`: Textsuche / Regex über den IntelliJ-Index.
->    - `ide_diagnostics`: Compiler-, Syntaxfehler und Quick-Fixes für Einzeldatei (`file`) oder Datei-Batch (`files` bis zu 100 Dateien, `maxProblems`, `fileAnalyses`).
+>    - `ide_diagnostics`: Compiler-, Syntaxfehler und Quick-Fixes für Einzeldatei (`file`) oder Datei-Batch (`files` bis zu 100 Dateien; empfohlen in Batches von 20–30 Dateien, um Daemon-Locks zu vermeiden, `maxProblems`, `fileAnalyses`).
 >    - `ide_project_diagnostics`: Projektweiter Batch-Diagnose-Scan aller Dateien.
 >
 > 2. **Code-Modifikation & Refactoring:**
