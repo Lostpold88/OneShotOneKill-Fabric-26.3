@@ -16,10 +16,11 @@
 >        - **Lokale Projektdateien (`src/...`, Konfigurationen, Assets):** Das interne KI-Dateilese-Tool (`view_file`) darf für schnelles und präzises Lesen lokaler Projektdateien verwendet werden.
 >        - **Externe Bibliotheken, Minecraft-Interna & JAR-Archive:** Müssen ausnahmslos über `ide_read_file` (aus `intellij-index`) gelesen werden.
 >      - **Code-Modifikation & Refactoring (`intellij-index`):** `ide_reformat_code`, `ide_optimize_imports`, `ide_convert_java_to_kotlin`, `ide_edit_member`, `ide_insert_member`, `ide_replace_member`, `ide_change_signature`, `ide_structural_search_replace`, `ide_replace_text_in_file`, `ide_refactor_rename`, `ide_refactor_safe_delete`, `ide_move_file`.
->      - **Dateien, VFS & Workspace (`intellij-index`):** `ide_create_file` (direkt im VFS anlegen, sofort indiziert), `ide_open_file`, `ide_open_project`, `ide_reload_project`, `ide_get_active_file`.
+>      - **Dateien, VFS & Workspace (`intellij-index`):** `ide_create_file` (direkt im VFS anlegen, sofort indiziert), `ide_create_module`, `ide_find_file`, `ide_open_file`, `ide_get_active_file`, `ide_open_project`, `ide_open_workspace`, `ide_close_project`, `ide_reload_project`, `ide_link_build_system`, `ide_import_modules`, `ide_install_plugin`, `ide_restart`.
 >      - **Code-Intelligence & Analyse (`intellij-index`):** `ide_symbol_info`, `ide_file_structure`, `ide_find_symbol`, `ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_project_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_search_text`.
 >      - **Build & Testing (`intellij-index`):** `ide_build_project`, `ide_list_tests`, `ide_run_tests`.
->      - **Dateisystem-Synchronisation:** `ide_sync_files` nach jeder externen Dateiänderung aufrufen.
+>      - **Index & Dateisystem-Synchronisation (`intellij-index`):** `ide_index_status` (Pre-Flight Check für Smart-/Dumb-Mode), `ide_sync_files` nach jeder externen Dateiänderung aufrufen.
+>      - **Lifecycle-Management (`intellij-index`):** `ide_project_status`, `ide_enroll_all_projects`, `ide_release_all_projects`, `ide_release_project`, `ide_get_project_modes`, `ide_set_project_mode`, `ide_set_all_project_modes`, `ide_set_power_save_mode`, `ide_lifecycle_log`, `ide_set_lifecycle_log_file`.
 >      - **Client-Start & Runtime-Debugging (`jetbrains-debugger`):** `list_run_configurations`, `execute_run_configuration`, `list_debug_sessions`, `start_debug_session(configuration_name: "Minecraft Client")`, `stop_debug_session`, `set_breakpoint`, `remove_breakpoint`, `list_breakpoints`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `pause_execution`, `step_over`, `step_into`, `step_out`, `run_to_line`, `get_stack_trace`, `select_stack_frame`, `list_threads`, `get_variables`, `set_variable`, `get_source_context`.
 >    - ⛔ **STRIKT VERBOTEN:** 
 >      - Verwende **NIEMALS** CLI-Bytecode-Tools wie `javap`, `disassemble` oder Disassembler-Skripte! Alle Typen, Methoden, Parameter und Klassenstrukturen werden ausschließlich semantisch über `intellij-index` (`ide_find_class`, `ide_find_definition`, `ide_symbol_info`, `ide_type_hierarchy` etc.) analysiert.
@@ -60,38 +61,38 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 > ### Vollständige Übersicht aller aktiven MCP-Tools (`intellij-index`):
 > 
 > 1. **Code-Intelligence & Navigation:**
->    - `ide_find_class`: Klassen nach Namen / CamelCase suchen.
->    - `ide_find_definition`: Zur Deklaration / Definition springen (liefert & akzeptiert persistente `symbolId` sowie verschachteltes `target`).
->    - `ide_find_references`: Semantische Verwendungsstellen projektweit finden.
->    - `ide_find_symbol`: Beliebige Code-Symbole (Methoden, Felder, Klassen) finden.
->    - `ide_find_implementations`: Implementierungen von Interfaces & abstrakten Methoden finden.
+>    - `ide_find_class`: Klassen nach Namen / CamelCase suchen (`scope`: `project_files`, `project_and_libraries`, `project_production_files`, `project_test_files`).
+>    - `ide_find_definition`: Zur Deklaration / Definition springen (liefert & akzeptiert persistente `symbolId`, verschachteltes `target` [mit `symbolId`, `position` (`file`, `line`, `column`) oder `qualifiedName`+`language`], oder Top-Level `file`+`line`+`column` bzw. `language`+`symbol`).
+>    - `ide_find_references`: Semantische Verwendungsstellen projektweit finden (`scope`, Pfad-Filterung via `paths`-Globs wie `["src/**", "!**/*Test.java"]`).
+>    - `ide_find_symbol`: Beliebige Code-Symbole (Methoden, Felder, Klassen) finden (`scope`).
+>    - `ide_find_implementations`: Implementierungen von Interfaces & abstrakten Methoden finden (`scope`).
 >    - `ide_find_super_methods`: Basis-/Interface-Methoden ermitteln, die überschrieben werden.
->    - `ide_type_hierarchy`: Vollständige Vererbungshierarchie (Super- und Subtypen).
->    - `ide_call_hierarchy`: Aufrufhierarchie (`callers` / `callees`) analysieren.
->    - `ide_file_structure`: Strukturbaum / Outline einer Datei mit Zeilenangaben.
->    - `ide_symbol_info`: Voll aufgelöste Typen, Signaturen & JavaDoc-Dokumentation (liefert & akzeptiert persistente `symbolId` sowie verschachteltes `target`).
->    - `ide_search_text`: Textsuche / Regex über den IntelliJ-Index.
->    - `ide_diagnostics`: Compiler-, Syntaxfehler und Quick-Fixes für Einzeldatei (`file`) oder Datei-Batch (`files` bis zu 100 Dateien; empfohlen in Batches von 20–30 Dateien, um Daemon-Locks zu vermeiden, `maxProblems`, `fileAnalyses`).
->    - `ide_project_diagnostics`: Projektweiter Batch-Diagnose-Scan aller Dateien.
+>    - `ide_type_hierarchy`: Vollständige Vererbungshierarchie (Super- und Subtypen, `scope`).
+>    - `ide_call_hierarchy`: Aufrufhierarchie (`direction`: `callers` / `callees`, `scope`).
+>    - `ide_file_structure`: Strukturbaum / Outline einer Datei mit Zeilenangaben & Member-Hierarchie.
+>    - `ide_symbol_info`: Voll aufgelöste Typen, Signaturen & JavaDoc-Dokumentation ohne Dateilesen (liefert & akzeptiert persistente `symbolId` sowie verschachteltes `target`).
+>    - `ide_search_text`: Textsuche / Regex über den IntelliJ-Index (`regex: true` für Regex, `paths`-Globs zur Pfad-Einschränkung, `scope`).
+>    - `ide_diagnostics`: Compiler-, Syntaxfehler und Quick-Fixes für Einzeldatei (`file`) oder Datei-Batch (`files` bis zu 100 Dateien; empfohlen in Batches von 20–30 Dateien, um Daemon-Locks zu vermeiden, `severity`: `all`|`errors`|`warnings`, `maxProblems`, `includeBuildErrors`, `includeTestResults`, `startLine`/`endLine`, liefert `fileAnalyses`).
+>    - `ide_project_diagnostics`: Projektweiter Batch-Diagnose-Scan aller Dateien inkl. ungeöffneter Dateien mit Fail-Closed Coverage (`complete`-Flag, `paths`, `analysisId`-Polling, `waitSeconds`, `maxFiles`, `maxProblems`).
 >
 > 2. **Code-Modifikation & Refactoring:**
->    - `ide_refactor_rename`: Sicheres Umbenennen inkl. Getter/Setter, Overrides & Verwendungen.
->    - `ide_refactor_safe_delete`: Sicheres Löschen mit automatischer Verwendungsprüfung.
->    - `ide_move_file`: Datei verschieben mit automatischer Package- und Import-Aktualisierung.
->    - `ide_reformat_code`: Code nach Projekt-Style (.editorconfig / IDE) formatieren.
->    - `ide_optimize_imports`: Unbenutzte Imports entfernen und sortieren.
+>    - `ide_refactor_rename`: Sicheres Umbenennen inkl. Getter/Setter, Overrides & Verwendungen (`newName`, `searchInComments`, `searchInStrings`).
+>    - `ide_refactor_safe_delete`: Sicheres Löschen mit automatischer Verwendungsprüfung (Java/Kotlin, `searchInComments`, `searchInNonJavaFiles`).
+>    - `ide_move_file`: Datei verschieben mit automatischer Package- und Import-Aktualisierung (`targetDirectory`).
+>    - `ide_reformat_code`: Code nach Projekt-Style (.editorconfig / IDE) formatieren (`file`, optional `startLine`/`endLine`).
+>    - `ide_optimize_imports`: Unbenutzte Imports entfernen und sortieren (`file`).
 >    - `ide_change_signature`: Methodensignaturen projektweit sicher anpassen.
 >    - `ide_edit_member`: Vollständiges Member (Signatur + Body) ersetzen.
 >    - `ide_insert_member`: Neues Member (Methode/Feld) strukturiert an Position einfügen.
 >    - `ide_replace_member`: Methoden-Body oder Feld-Initializer ersetzen (Signatur bleibt erhalten).
 >    - `ide_replace_text_in_file`: Textersetzung über das IDE-Dokumentenmodell (sofort indexiert).
->    - `ide_structural_search_replace`: Structural Search and Replace (SSR).
+>    - `ide_structural_search_replace`: Structural Search and Replace (SSR) mit Pfad-Filterung (`paths`).
 >    - `ide_convert_java_to_kotlin`: Java-Klassen via IntelliJ J2K zu Kotlin konvertieren.
 >
 > 3. **Dateien, VFS & Workspace:**
 >    - `ide_create_file`: Neue Quellcodedatei direkt im VFS anlegen (sofort indexiert).
 >    - `ide_create_module`: Neues Modul anlegen.
->    - `ide_find_file`: Dateien im Projekt nach Namen suchen.
+>    - `ide_find_file`: Dateien im Projekt nach Namen suchen (`scope`).
 >    - `ide_read_file`: Quellcode aus externen JARs / Bibliotheken und Abhängigkeiten lesen (für lokale Projektdateien steht das interne Lesetool `view_file` zur Verfügung).
 >    - `ide_open_file`: Datei an genauer Zeile/Spalte im Editor öffnen.
 >    - `ide_get_active_file`: Aktuell im Editor fokussierte Datei abfragen.
@@ -100,15 +101,24 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 >    - `ide_link_build_system` / `ide_import_modules`: Build-System / Module integrieren.
 >    - `ide_install_plugin` / `ide_restart`: IDE-Plugins installieren / IDE neustarten.
 >    - `ide_sync_files`: Virtuelles Dateisystem mit externen Änderungen synchronisieren (unterstützt relative & absolute Pfade, flache Refreshes für gelöschte Dateien, liefert `refreshedRoots` und `deletedPaths`).
->    - `ide_index_status`: Indexierungsstatus & Smart-/Dumb-Mode abfragen.
+>    - `ide_index_status`: Indexierungsstatus & Smart-/Dumb-Mode abfragen (`isDumbMode`, `isIndexing`, `indexingProgress`).
 >
 > 4. **Build & Tests:**
->    - `ide_build_project`: Projekt mit IDE-Build-System bauen und Fehler strukturiert erfassen.
+>    - `ide_build_project`: Projekt mit IDE-Build-System bauen und Fehler strukturiert erfassen (unterstützt asynchrones Polling via `buildId` & `waitSeconds`, `rebuild`, `includeRawOutput`, `timeoutSeconds`).
 >    - `ide_list_tests`: Alle Unit-/Integrationstests im Projekt auflisten.
->    - `ide_run_tests`: Tests über den IDE-Test-Runner ausführen und auswerten.
+>    - `ide_run_tests`: Tests über den IDE-Test-Runner ausführen und auswerten (`testClasses`, `testMethods`).
 >
 > 5. **Lifecycle Management:**
->    - `ide_project_status`, `ide_enroll_all_projects`, `ide_release_all_projects`, `ide_release_project`, `ide_get_project_modes`, `ide_set_project_mode`, `ide_set_all_project_modes`, `ide_set_power_save_mode`, `ide_lifecycle_log`, `ide_set_lifecycle_log_file`.
+>    - `ide_project_status`: Projektstatus und Modi aller offenen/verwalteten Projekte anzeigen (Modi: `active`, `background`, `dormant`, `closed`; standardmäßig aktiviert).
+>    - `ide_enroll_all_projects`: Alle offenen Projekte im Lifecycle-Manager registrieren.
+>    - `ide_release_all_projects`: Alle verwalteten Projekte freigeben.
+>    - `ide_release_project`: Einzelnes Projekt aus dem Lifecycle-Manager freigeben.
+>    - `ide_get_project_modes`: Aktuelle Modi abfragen.
+>    - `ide_set_project_mode`: Modus für ein einzelnes Projekt explizit setzen.
+>    - `ide_set_all_project_modes`: Modus für alle Projekte global setzen.
+>    - `ide_set_power_save_mode`: Power Save Mode gezielt umschalten.
+>    - `ide_lifecycle_log`: Lifecycle-Ereignisprotokoll abrufen.
+>    - `ide_set_lifecycle_log_file`: Protokolldatei für Lifecycle-Events konfigurieren.
 
 ---
 
@@ -126,37 +136,37 @@ Die Anbindung an den Debugger erfolgt über das **jetbrains-debugger MCP** (`htt
 > ### Vollständige Übersicht aller aktiven MCP-Tools (`jetbrains-debugger`):
 >
 > 1. **Session & Configuration Management:**
->    - `list_run_configurations`: Alle verfügbaren Run/Debug-Konfigurationen im Projekt auflisten.
+>    - `list_run_configurations`: Alle verfügbaren Run/Debug-Konfigurationen im Projekt auflisten (inkl. `can_debug`-Flag).
 >    - `execute_run_configuration`: Run-Konfiguration im Debug- oder Run-Modus ausführen.
->    - `start_debug_session`: Neue Debug-Session für eine Konfiguration starten.
->    - `stop_debug_session`: Laufende Debug-Session beenden / terminieren.
+>    - `start_debug_session`: Neue Debug-Session für eine Konfiguration starten (z. B. `configuration_name: "Minecraft Client"`).
+>    - `stop_debug_session`: Laufende Debug-Session beenden / terminieren (`session_id`).
 >    - `list_debug_sessions`: Alle aktiven Debug-Sessions auflisten.
 >
 > 2. **Breakpoints:**
->    - `set_breakpoint`: Zeilen-Breakpoint mit optionaler Bedingung (`condition`), Log-Message oder Suspend-Policy setzen.
->    - `remove_breakpoint`: Breakpoint anhand der ID entfernen.
+>    - `set_breakpoint`: Zeilen-Breakpoint mit absolutem Pfad (`file`), 1-basierter Zeile (`line`), optionaler Bedingung (`condition`), Log-Message (`log_message`) oder Suspend-Policy (`suspend_policy`: `"all"`, `"thread"`, `"none"`) setzen.
+>    - `remove_breakpoint`: Breakpoint anhand der ID entfernen (`breakpoint_id`).
 >    - `list_breakpoints`: Alle Breakpoints im Projekt auflisten.
 >
 > 3. **Execution Control & Stepping:**
 >    - `resume_execution`: Programmausführung nach Pause fortsetzen.
 >    - `pause_execution`: Laufende Programmausführung anhalten.
->    - `wait_for_pause`: Blockierend auf den nächsten Breakpoint oder Step warten (liefert Session-Status).
+>    - `wait_for_pause`: Blockierend auf den nächsten Breakpoint oder Step warten (liefert vollen Session-Status inkl. Stack, Variablen & Source; konfigurierbares `timeout`, z. B. 60s).
 >    - `step_over`: Nächste Zeile ausführen (Funktionsaufrufe überspringen).
 >    - `step_into`: In den Funktionsaufruf auf aktueller Zeile hineinspringen.
 >    - `step_out`: Ausführung bis zum Verlassen der aktuellen Funktion fortsetzen.
->    - `run_to_line`: Ausführung bis zu einer bestimmten Zielzeile laufen lassen.
+>    - `run_to_line`: Ausführung bis zu einer bestimmten Zielzeile laufen lassen (`file`: absolut, `line`: 1-basiert).
 >
 > 4. **Inspektion (Stack, Variablen, Threads & Source):**
->    - `get_debug_session_status`: Primäres Inspektions-Tool – bündelt Stack, Variablen, Source und Lokation in einem Aufruf.
->    - `get_variables`: Variablen im aktuellen Stack-Frame auflisten.
->    - `set_variable`: Variablenwert zur Laufzeit manipulieren.
+>    - `get_debug_session_status`: Primäres Inspektions-Tool – bündelt Stack, Variablen, Source und Lokation in einem einzigen Aufruf ohne Wartezeit.
+>    - `get_variables`: Variablen im aktuellen oder per `frame_index` ausgewählten Stack-Frame auflisten.
+>    - `set_variable`: Variablenwert zur Laufzeit manipulieren (`name`, `value`).
 >    - `get_stack_trace`: Vollständigen Aufruf-Stack abrufen.
->    - `select_stack_frame`: Stack-Frame für Variablen- und Expressionskontext auswählen.
+>    - `select_stack_frame`: Stack-Frame per `frame_index` für Variablen- und Expressionskontext auswählen.
 >    - `list_threads`: Alle Threads der JVM auflisten.
->    - `get_source_context`: Quellcode-Ausschnitt um eine Zeile / Lokation herum abrufen.
+>    - `get_source_context`: Quellcode-Ausschnitt um eine Zeile / Lokation herum abrufen (`file`: absolut oder in JARs via `!/`, `line`, `lines_before`, `lines_after`).
 >
 > 5. **Expression Evaluation:**
->    - `evaluate_expression`: Beliebige Ausdrücke, Methodenaufrufe und Berechnungen im Kontext des aktuellen Frames auswerten.
+>    - `evaluate_expression`: Beliebige Ausdrücke, Methodenaufrufe und Berechnungen im Kontext des aktuellen Frames auswerten (Sicherheitsregeln beachten: In eingeschränkten Modi keine Template-Strings wie `${...}`).
 >
 > **Kernregeln für Debugging:**
 > 1. **Client-Start via IntelliJ Debugger MCP:** Den Minecraft Client immer über `start_debug_session(configuration_name: "Minecraft Client")` (oder `execute_run_configuration(name: "Minecraft Client", mode: "debug")`) starten, damit die JVM-Instanz dauerhaft im Debugger eingeklinkt ist.
