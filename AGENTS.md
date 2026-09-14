@@ -61,7 +61,7 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 > 
 > 1. **Code-Intelligence & Navigation:**
 >    - `ide_find_class`: Klassen nach Namen / CamelCase suchen.
->    - `ide_find_definition`: Zur Deklaration / Definition springen (liefert & akzeptiert persistente `symbolId`).
+>    - `ide_find_definition`: Zur Deklaration / Definition springen (liefert & akzeptiert persistente `symbolId` sowie verschachteltes `target`).
 >    - `ide_find_references`: Semantische Verwendungsstellen projektweit finden.
 >    - `ide_find_symbol`: Beliebige Code-Symbole (Methoden, Felder, Klassen) finden.
 >    - `ide_find_implementations`: Implementierungen von Interfaces & abstrakten Methoden finden.
@@ -69,7 +69,7 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 >    - `ide_type_hierarchy`: Vollständige Vererbungshierarchie (Super- und Subtypen).
 >    - `ide_call_hierarchy`: Aufrufhierarchie (`callers` / `callees`) analysieren.
 >    - `ide_file_structure`: Strukturbaum / Outline einer Datei mit Zeilenangaben.
->    - `ide_symbol_info`: Voll aufgelöste Typen, Signaturen & JavaDoc-Dokumentation (liefert & akzeptiert persistente `symbolId`).
+>    - `ide_symbol_info`: Voll aufgelöste Typen, Signaturen & JavaDoc-Dokumentation (liefert & akzeptiert persistente `symbolId` sowie verschachteltes `target`).
 >    - `ide_search_text`: Textsuche / Regex über den IntelliJ-Index.
 >    - `ide_diagnostics`: Compiler-, Syntaxfehler und Quick-Fixes für Einzeldatei (`file`) oder Datei-Batch (`files` bis zu 100 Dateien; empfohlen in Batches von 20–30 Dateien, um Daemon-Locks zu vermeiden, `maxProblems`, `fileAnalyses`).
 >    - `ide_project_diagnostics`: Projektweiter Batch-Diagnose-Scan aller Dateien.
