@@ -41,7 +41,7 @@
 - **Fabric-API, Access Widener und Mixins** sind vollwertige Werkzeuge und dürfen jederzeit frei und gezielt nach Zweckmäßigkeit genutzt werden.
 - Externe Bibliotheken (Minecraft, Fabric API, Fabric Loader, Sponge Mixin, MixinExtras, Brigadier, Netty, Java SDK etc.) werden direkt über die **IntelliJ IDEA MCP-Engine** (`scope: "project_and_libraries"`) semantisch analysiert.
 - Nach externen Datei- oder Strukturänderungen durch Agenten wird das Dateisystem mit der IDE synchronisiert (`ide_sync_files`).
-- Zielplattform: **Java 25, Minecraft 26.2, Fabric Loader 0.19.5, Fabric API 0.160.0+26.2, Fabric Loom 1.17-SNAPSHOT, Gradle 9.7.1**. Alle Versionen stehen in [`gradle.properties`](gradle.properties).
+- Zielplattform: **Java 25, Minecraft 26.3, Fabric Loader 0.19.5, Fabric API 0.160.5+26.3, Fabric Loom 1.17-SNAPSHOT, Gradle 9.7.1**. Alle Versionen stehen in [`gradle.properties`](gradle.properties).
 - Mod-ID `oneshotonekill`, Package `com.oneshotonekill`.
 - **Build und Deployment:** Werden **ausnahmslos über MCP-Tools** ausgeführt:
   - `ide_build_project` (aus `intellij-index`) für schnelle strukturierte Compiler-Prüfungen & Fehlerrückmeldungen.
@@ -211,7 +211,7 @@ Fabric-API-Events, Access Widener und Mixins sind vollwertige Werkzeuge und kön
 
 ---
 
-## Minecraft 26.2 Besonderheiten
+## Minecraft 26.3 Besonderheiten
 
 - `ResourceLocation` wurde durch `net.minecraft.resources.Identifier` ersetzt.
 - `Minecraft.screen` / `setScreen` wurde zu `Minecraft.gui.screen()` / `gui.setScreen()`.

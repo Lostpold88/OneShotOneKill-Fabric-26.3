@@ -1,7 +1,7 @@
 package com.oneshotonekill.client.mixin.effect;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
-import com.mojang.blaze3d.buffers.GpuBufferSlice;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBufferSlice;
 import com.mojang.blaze3d.framegraph.FrameGraphBuilder;
 import com.mojang.blaze3d.systems.RenderSystem;
 import com.oneshotonekill.client.effect.TimeDistortionEffects;

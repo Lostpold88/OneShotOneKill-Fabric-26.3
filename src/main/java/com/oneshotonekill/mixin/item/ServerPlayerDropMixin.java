@@ -4,6 +4,7 @@ import com.oneshotonekill.event.ItemProtectionEvents;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.world.entity.item.ItemEntity;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.util.Prediction;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
@@ -26,10 +27,10 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 public abstract class ServerPlayerDropMixin {
    @SuppressWarnings({"ConstantConditions", "DataFlowIssue"})
    @Inject(
-      method = "drop(Lnet/minecraft/world/item/ItemStack;ZZ)Lnet/minecraft/world/entity/item/ItemEntity;",
+      method = "drop(Lnet/minecraft/world/item/ItemStack;ZLnet/minecraft/util/Prediction;)Lnet/minecraft/world/entity/item/ItemEntity;",
       at = @At("HEAD"),
       cancellable = true)
-   private void osok$keepProtectedItems(ItemStack itemStack, boolean randomly, boolean thrownFromHand,
+   private void osok$keepProtectedItems(ItemStack itemStack, boolean thrownFromHand, Prediction prediction,
                                         CallbackInfoReturnable<ItemEntity> cir) {
       if (thrownFromHand && ItemProtectionEvents.interceptDrop((ServerPlayer) (Object) this, itemStack)) {
          cir.setReturnValue(null);

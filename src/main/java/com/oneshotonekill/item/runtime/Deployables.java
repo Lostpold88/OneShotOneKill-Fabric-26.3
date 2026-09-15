@@ -26,6 +26,7 @@ import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.Prediction;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.server.MinecraftServer;
@@ -496,7 +497,7 @@ public final class Deployables {
       Vec3 anchor = player.position();
       player.setDeltaMovement(Vec3.ZERO);
       player.fallDistance = 0.0;
-      player.hurtMarked = true;
+      player.syncVelocity = true;
       Frozen state = new Frozen(anchor, TRAP_FREEZE_TICKS);
 
       state.ring = Hologram.spawnEffect(level, anchor.add(0.0, 0.08, 0.0), iceRingStack(ICE_BRIGHT), 2.0F);
@@ -531,7 +532,7 @@ public final class Deployables {
       // Wer in die Falle läuft, läuft schnell. Der Restschwung muss einmal ausdrücklich zum
       // Client, sonst rutscht der noch ein Stück weiter und wird dafür zurückgeholt.
       player.setDeltaMovement(Vec3.ZERO);
-      player.hurtMarked = true;
+      player.syncVelocity = true;
       player.fallDistance = 0.0;
       StatusAbilities.Broadcaster.INSTANCE.refresh(player);
 
@@ -617,14 +618,14 @@ public final class Deployables {
     * der Spieler wirklich weggerutscht ist.</p>
     * <p>
     * <p>Genau so hält es der Countdown beim Match-Start in {@code MatchManager.Countdown}.
-    * {@code hurtMarked} setzt dabei nur die Korrektur, nicht jeder Tick: Es schickt die
+    * {@code syncVelocity} setzt dabei nur die Korrektur, nicht jeder Tick: Es schickt die
     * genullte Geschwindigkeit zum Client und räumt dessen Restschwung mit aus.</p>
     */
    private static void holdAtAnchor(ServerPlayer player, Vec3 anchor) {
       player.setDeltaMovement(Vec3.ZERO);
       player.fallDistance = 0.0;
       if (player.position().distanceToSqr(anchor) > FREEZE_DRIFT_TOLERANCE * FREEZE_DRIFT_TOLERANCE) {
-         player.hurtMarked = true;
+         player.syncVelocity = true;
          player.teleportTo(player.level(), anchor.x, anchor.y, anchor.z,
             Set.of(), player.getYRot(), player.getXRot(), false);
       }
@@ -788,7 +789,7 @@ public final class Deployables {
          // Es sind noch weitere Ladungen scharf -> Zünder bleibt scharf, abgenommenes C4 wird als unplatziertes Item zurückgegeben
          ItemStack recoveredC4 = new ItemStack(ModItems.C4);
          if (!owner.getInventory().add(recoveredC4)) {
-            owner.drop(recoveredC4, false);
+            owner.drop(recoveredC4, false, Prediction.SERVER_ONLY);
          }
          owner.containerMenu.broadcastChanges();
       }
@@ -1110,7 +1111,7 @@ public final class Deployables {
 
       Vec3 push = aim.subtract(turret.pivot()).normalize().scale(TURRET_KNOCKBACK);
       target.setDeltaMovement(target.getDeltaMovement().add(push.x, 0.1, push.z));
-      target.hurtMarked = true;
+      target.syncVelocity = true;
 
       if (account.hits >= TURRET_HITS_TO_KILL) {
          turretHits.remove(target.getUUID());

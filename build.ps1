@@ -138,7 +138,7 @@ $ServerModsDir = $DeployProperties['server_mods_dir']
 $ClientModsDir = $DeployProperties['client_mods_dir']
 $ModId         = $GradleProperties['mod_id'] ?? 'oneshotonekill'
 $ModVersion    = $GradleProperties['version'] ?? '2.0.0'
-$McVersion     = $GradleProperties['minecraft_version'] ?? '26.2'
+$McVersion     = $GradleProperties['minecraft_version'] ?? '26.3'
 $LoaderVersion = $GradleProperties['loader_version'] ?? '0.19.5'
 
 Show-Banner -ModId $ModId -Version $ModVersion -McVersion $McVersion -LoaderVersion $LoaderVersion

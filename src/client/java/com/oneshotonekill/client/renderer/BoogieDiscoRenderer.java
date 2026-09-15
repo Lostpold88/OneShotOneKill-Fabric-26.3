@@ -145,7 +145,7 @@ public final class BoogieDiscoRenderer {
             if (!DISCO_BALL_RENDER_STATE.isEmpty()) {
                 poseStack.pushPose();
                 poseStack.translate(frame.relBallX, frame.relBallY, frame.relBallZ);
-                poseStack.mulPose(Axis.YP.rotation(frame.seconds * 2.2F));
+                poseStack.rotate(Axis.YP.rotation(frame.seconds * 2.2F));
                 float ballScale = 1.65F * scale;
                 poseStack.scale(ballScale, ballScale, ballScale);
                 DISCO_BALL_RENDER_STATE.submit(

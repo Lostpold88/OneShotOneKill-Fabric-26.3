@@ -23,6 +23,7 @@ import net.minecraft.client.renderer.item.properties.conditional.ConditionalItem
 import net.minecraft.client.resources.model.ModelBaker;
 import net.minecraft.client.resources.model.ResolvableModel;
 import net.minecraft.client.resources.model.ResolvedModel;
+import net.minecraft.client.resources.model.geometry.ItemQuads;
 import net.minecraft.client.resources.model.geometry.QuadCollection;
 import net.minecraft.client.resources.model.sprite.TextureSlots;
 import net.minecraft.resources.Identifier;
@@ -84,7 +85,7 @@ public final class OsokClientModels {
          layer.setExtents(this.extents);
          layer.setLocalTransform(spun(angle));
          this.properties.applyToLayer(layer, displayContext);
-         layer.prepareQuadList().addAll(this.quads.getAll());
+         layer.setQuads(ItemQuads.split(this.quads.getAll()));
    
          if (angle != 0.0F) {
             // Ohne diese Kennzeichnung hielte Vanilla das Bild für unverändert und zeigte es eingefroren.
@@ -218,7 +219,7 @@ public final class OsokClientModels {
          layer.setExtents(part.extents);
          layer.setLocalTransform(transform);
          part.properties.applyToLayer(layer, context);
-         layer.prepareQuadList().addAll(part.quads.getAll());
+         layer.setQuads(ItemQuads.split(part.quads.getAll()));
       }
 
       private record Part(QuadCollection quads, ModelRenderProperties properties,
@@ -419,7 +420,7 @@ public final class OsokClientModels {
          if (tint != null) {
             layer.tintLayers().add(tint.intValue());
          }
-         layer.prepareQuadList().addAll(part.quads.getAll());
+         layer.setQuads(ItemQuads.split(part.quads.getAll()));
       }
 
       private static float surge(double seconds) {

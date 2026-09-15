@@ -1,6 +1,6 @@
-# OneShotOneKill — Fabric 26.2
+# OneShotOneKill — Fabric 26.3
 
-PvP-Minigame für Minecraft: Ein Treffer genügt. Umschaltbare Arenen, Killstreaks, Kopfgeld, Spielmodi (Klassisch & Waffenspiel), modernes CS:GO-Tab-Scoreboard und **20 Spezial-Items** — entwickelt für **Fabric 26.2**, ohne eine einzige Fremdbibliothek über Fabric API hinaus.
+PvP-Minigame für Minecraft: Ein Treffer genügt. Umschaltbare Arenen, Killstreaks, Kopfgeld, Spielmodi (Klassisch & Waffenspiel), modernes CS:GO-Tab-Scoreboard und **20 Spezial-Items** — entwickelt für **Fabric 26.3**, ohne eine einzige Fremdbibliothek über Fabric API hinaus.
 
 ---
 
@@ -8,15 +8,15 @@ PvP-Minigame für Minecraft: Ein Treffer genügt. Umschaltbare Arenen, Killstrea
 
 | Komponente | Version / Wert |
 | :--- | :--- |
-| **Minecraft** | 26.2 |
+| **Minecraft** | 26.3 |
 | **Fabric Loader** | 0.19.5 |
-| **Fabric API** | 0.160.0+26.2 |
+| **Fabric API** | 0.160.5+26.3 |
 | **Fabric Loom** | 1.17-SNAPSHOT |
 | **Mod-Version** | 2.0.0 |
 | **Java** | 25 |
 | **Gradle** | 9.7.1 |
 | **Abhängigkeiten** | keine über Fabric API hinaus |
-| **Mixins** | 40 (14 gemeinsam, 26 nur Client) |
+| **Mixins** | 40 (14 gemeinsam, 27 nur Client) |
 | **Access Widener** | 2 Einträge |
 | **Spezial-Items** | 20 einzigartige Ausrüstungsgegenstände |
 | **Arenen** | 4 eingebaute Karten mit physischer Randkollision |
@@ -152,9 +152,9 @@ Im Verwaltungsmenü (`C`) einzeln einstellbar:
 
 ---
 
-## Portierung & Architektur (Fabric 26.2)
+## Portierung & Architektur (Fabric 26.3)
 
-Das Minigame wurde ohne externe Fremdbibliotheken auf Basis von **Fabric 26.2** und **Java 25** aufgebaut:
+Das Minigame wurde ohne externe Fremdbibliotheken auf Basis von **Fabric 26.3** und **Java 25** aufgebaut:
 
 * **Fabric API:**
   * Lebenszyklus & Takt: `ServerLifecycleEvents`, `ServerTickEvents`, `ClientTickEvents`.
@@ -163,7 +163,7 @@ Das Minigame wurde ohne externe Fremdbibliotheken auf Basis von **Fabric 26.2** 
   * HUD & Rendering: `HudElementRegistry`, `LevelExtractionEvents`, `LevelRenderEvents` mit `RenderStateDataKey`.
 * **40 Mixins:**
   * 14 gemeinsame Mixins (`src/main/resources/oneshotonekill.mixins.json`): Schadensprüfungen, Wurfschutz, physikalische Arenagrenzkollisionen, Kletter-Logik, Projektil-Handling.
-  * 26 Client-Mixins (`src/client/resources/oneshotonekill.client.mixins.json`): FOV-Steuerung, dynamischer Kameraabstand & -shake, Zeitverzerrer-PostPass-Shader, Lichtberechnung, OpenAL-Tonhöhenskalierung und 3D-Modell-Rendering.
+  * 27 Client-Mixins (`src/client/resources/oneshotonekill.client.mixins.json`): FOV-Steuerung, dynamischer Kameraabstand & -shake, Zeitverzerrer-PostPass-Shader, Lichtberechnung, OpenAL-Tonhöhenskalierung und 3D-Modell-Rendering.
 * **Access Widener:**
   * Gezielte Freigabe für Minecraft-HUD-Overlays (`extractPortalOverlay`, `extractConfusionOverlay`).
 

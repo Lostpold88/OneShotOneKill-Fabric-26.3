@@ -532,7 +532,7 @@ public final class MatchManager {
          if (worlds.arenaOf(player) != arena) {
             continue;
          }
-         player.setInvulnerable(false);
+         player.setPermanentlyInvulnerable(false);
          if (player.gameMode() != GameType.SURVIVAL) {
             player.setGameMode(GameType.SURVIVAL);
          }

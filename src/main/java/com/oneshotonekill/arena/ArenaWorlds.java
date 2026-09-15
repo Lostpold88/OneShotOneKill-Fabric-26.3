@@ -485,7 +485,7 @@ public final class ArenaWorlds {
          }
          player.teleportTo(safe.x, safe.y, safe.z);
          player.setDeltaMovement(Vec3.ZERO);
-         player.hurtMarked = true;
+         player.syncVelocity = true;
          player.fallDistance = 0.0f;
          safeSpots.put(player.getUUID(), safe);
          warn(player, "§c⛔ ARENA-GRENZE §7· hier geht es nicht weiter");

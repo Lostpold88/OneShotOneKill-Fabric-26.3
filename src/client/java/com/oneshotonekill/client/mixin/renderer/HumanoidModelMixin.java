@@ -10,6 +10,7 @@ import net.minecraft.client.renderer.entity.state.AvatarRenderState;
 import net.minecraft.client.renderer.entity.state.HumanoidRenderState;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Entity;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.HumanoidArm;
 import net.minecraft.world.entity.LivingEntity;
 import org.jspecify.annotations.Nullable;
@@ -145,13 +146,17 @@ public abstract class HumanoidModelMixin {
         float stroke = com.oneshotonekill.client.movement.ClientClimbing.INSTANCE.stroke(entity, partialTick);
         HumanoidModel<?> model = (HumanoidModel<?>) (Object) this;
 
-        boolean rightArmCombat = (avatar.attackTime > 0 && avatar.attackArm == HumanoidArm.RIGHT)
+        HumanoidArm swingingArm = (avatar.swingAnimation > 0 && avatar.currentSwing != null)
+                ? (avatar.currentSwing.hand() == InteractionHand.MAIN_HAND ? avatar.mainArm : avatar.mainArm.getOpposite())
+                : null;
+
+        boolean rightArmCombat = (swingingArm == HumanoidArm.RIGHT)
                 || avatar.rightArmPose == HumanoidModel.ArmPose.BOW_AND_ARROW
                 || avatar.rightArmPose == HumanoidModel.ArmPose.CROSSBOW_CHARGE
                 || avatar.rightArmPose == HumanoidModel.ArmPose.CROSSBOW_HOLD
                 || avatar.rightArmPose == HumanoidModel.ArmPose.BLOCK;
 
-        boolean leftArmCombat = (avatar.attackTime > 0 && avatar.attackArm == HumanoidArm.LEFT)
+        boolean leftArmCombat = (swingingArm == HumanoidArm.LEFT)
                 || avatar.leftArmPose == HumanoidModel.ArmPose.BOW_AND_ARROW
                 || avatar.leftArmPose == HumanoidModel.ArmPose.CROSSBOW_CHARGE
                 || avatar.leftArmPose == HumanoidModel.ArmPose.CROSSBOW_HOLD

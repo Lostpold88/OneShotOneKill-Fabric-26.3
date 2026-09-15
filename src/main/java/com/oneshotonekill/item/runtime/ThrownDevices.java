@@ -499,7 +499,7 @@ public final class ThrownDevices {
          }
          Vec3 push = away.normalize().scale(TELEPORT_PUSH).add(0.0, 0.45, 0.0);
          other.setDeltaMovement(other.getDeltaMovement().add(push));
-         other.hurtMarked = true;
+         other.syncVelocity = true;
       }
       Feedback.actionBar(thrower, "§d🌀 TELEPORT-GRANATE");
    }
@@ -773,7 +773,7 @@ public final class ThrownDevices {
          double collapseBoost = field.ticksLeft < SINGULARITY_COLLAPSE_TICKS ? 1.35 : 1.0;
          Vec3 pull = toCenter.normalize().scale(strength * 0.19 * collapseBoost).add(orbit);
          victim.setDeltaMovement(victim.getDeltaMovement().add(pull));
-         victim.hurtMarked = true;
+         victim.syncVelocity = true;
 
          // Wer gezogen wird, spürt es auch: ein kurzer, dauernd erneuerter Ruck verzerrt ihm
          // das Bild, und zwar umso stärker, je näher er dem Kern kommt.

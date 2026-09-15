@@ -2630,7 +2630,7 @@ public final class CombatHudLayers {
         @Override
         protected void renderToTexture(BomberCameraPipRenderState state, PoseStack poseStack, SubmitNodeCollector submitNodeCollector) {
             Minecraft.getInstance().gameRenderer.lighting().setupFor(Lighting.Entry.ENTITY_IN_UI);
-            poseStack.mulPose(state.rotation());
+            poseStack.rotate(state.rotation());
 
             // 1. Gelände: der Versatz zwischen Scan-Ursprung und Kamera gilt für den ganzen Block
             //    und wandert einmal in den PoseStack statt in jeden Eintrag.

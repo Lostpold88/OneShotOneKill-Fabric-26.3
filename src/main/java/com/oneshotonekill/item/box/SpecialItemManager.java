@@ -24,6 +24,7 @@ import com.oneshotonekill.shared.Feedback;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.util.Mth;
+import net.minecraft.util.Prediction;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
@@ -552,7 +553,7 @@ public final class SpecialItemManager {
             break;
          }
          if (!killer.getInventory().add(item.createStack())) {
-            killer.drop(item.createStack(), false);
+            killer.drop(item.createStack(), false, Prediction.SERVER_ONLY);
          }
          given++;
       }

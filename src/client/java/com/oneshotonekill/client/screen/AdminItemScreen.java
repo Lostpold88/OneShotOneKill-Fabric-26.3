@@ -21,7 +21,7 @@ import net.minecraft.network.chat.Component;
 import net.minecraft.util.Util;
 import net.minecraft.world.item.ItemStack;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
-import org.lwjgl.glfw.GLFW;
+import com.mojang.blaze3d.platform.InputConstants;
 
 /**
  * Modernes Admin-Arsenal: Kategorisierte Schnellausgabe aller Spezialitems und Fähigkeiten
@@ -165,14 +165,14 @@ public final class AdminItemScreen extends Screen {
    @Override
    public boolean keyPressed(KeyEvent event) {
       if (searchFocused) {
-         if (event.key() == GLFW.GLFW_KEY_BACKSPACE) {
+         if (event.key() == InputConstants.KEY_BACKSPACE) {
             if (!searchQuery.isEmpty()) {
                searchQuery = searchQuery.substring(0, searchQuery.length() - 1);
                scroll.set(0.0F);
                updateContentLength();
             }
             return true;
-         } else if (event.key() == GLFW.GLFW_KEY_ESCAPE || event.key() == GLFW.GLFW_KEY_ENTER) {
+         } else if (event.key() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_RETURN) {
             searchFocused = false;
             return true;
          }

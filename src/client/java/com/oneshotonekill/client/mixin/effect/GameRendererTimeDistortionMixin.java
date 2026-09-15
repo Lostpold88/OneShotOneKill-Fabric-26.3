@@ -39,7 +39,7 @@ public abstract class GameRendererTimeDistortionMixin {
 
     @Inject(method = "render", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/renderer/fog/FogRenderer;endFrame()V"))
-    private void osok$applyTimeDistortion(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo ci) {
+    private void osok$applyTimeDistortion(CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) {
             return;
