@@ -1,5 +1,6 @@
 package com.oneshotonekill.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.NativeImage;
 import com.mojang.blaze3d.platform.cursor.CursorType;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
@@ -142,11 +143,11 @@ public final class AirstrikeTargetScreen extends Screen {
 
    @Override
    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-      if (event.button() == 1) {
+      if (event.button() == InputConstants.MOUSE_BUTTON_RIGHT) {
          onClose();
          return true;
       }
-      if (event.button() == 0 && isOverMap(event.x(), event.y())) {
+      if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && isOverMap(event.x(), event.y())) {
          double x = worldXAt(event.x());
          double z = worldZAt(event.y());
          if (arena.isInArenaColumn(x, z)) {

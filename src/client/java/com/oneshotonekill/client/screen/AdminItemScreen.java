@@ -538,7 +538,7 @@ public final class AdminItemScreen extends Screen {
 
    @Override
    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-      if (event.button() == 0) {
+      if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
          if (scroll.beginDrag(event.x(), event.y(), cardLeft + CARD_WIDTH - SCROLLBAR_INSET,
             listTop, listHeight, contentLength)) {
             return true;
@@ -576,7 +576,7 @@ public final class AdminItemScreen extends Screen {
 
    @Override
    public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
-      if (event.button() == 0 && scroll.isDragging()) {
+      if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && scroll.isDragging()) {
          scroll.drag(event.y(), listTop, listHeight, contentLength);
          return true;
       }
@@ -585,7 +585,7 @@ public final class AdminItemScreen extends Screen {
 
    @Override
    public boolean mouseReleased(MouseButtonEvent event) {
-      if (event.button() == 0) {
+      if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
          scroll.endDrag();
       }
       return super.mouseReleased(event);

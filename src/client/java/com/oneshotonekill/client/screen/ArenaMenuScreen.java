@@ -1,5 +1,6 @@
 package com.oneshotonekill.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
@@ -979,7 +980,7 @@ public final class ArenaMenuScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             // Der Scrollbalken hat Vorrang: Er liegt rechts außerhalb des Inhalts und würde sonst
             // von einem darunterliegenden Hotspot verdeckt.
             if (scroll.beginDrag(event.x(), event.y(), scrollbarTrackX(), contentTop,
@@ -1019,7 +1020,7 @@ public final class ArenaMenuScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             activeSlider = null;
             lastSliderValue = Double.NaN;
             scroll.endDrag();
@@ -1029,7 +1030,7 @@ public final class ArenaMenuScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
-        if (event.button() != 0) {
+        if (event.button() != InputConstants.MOUSE_BUTTON_LEFT) {
             return super.mouseDragged(event, deltaX, deltaY);
         }
         if (scroll.isDragging()) {
