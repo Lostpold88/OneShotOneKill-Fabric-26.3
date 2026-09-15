@@ -94,7 +94,7 @@ public abstract class ServerGamePacketListenerMixin {
 
     @SuppressWarnings("resource")
     @WrapOperation(
-            method = "handleMovePlayer",
+            method = "handlePlayerPositionChange",
             at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;move(Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)V")
     )
     private void osok$wrapClimbingMovement(ServerPlayer player, MoverType type, Vec3 delta, Operation<Void> original) {
