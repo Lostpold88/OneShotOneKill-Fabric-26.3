@@ -15,7 +15,7 @@
 >      - **Dateien Lesen & Quellcode-Inspektion:**
 >        - **Lokale Projektdateien (`src/...`, Konfigurationen, Assets):** Das interne KI-Dateilese-Tool (`view_file`) darf für schnelles und präzises Lesen lokaler Projektdateien verwendet werden.
 >        - **Externe Bibliotheken, Minecraft-Interna & JAR-Archive:** Müssen ausnahmslos über `ide_read_file` (aus `intellij-index`) gelesen werden.
->      - **Code-Modifikation & Refactoring (`intellij-index`):** `ide_reformat_code`, `ide_optimize_imports`, `ide_convert_java_to_kotlin`, `ide_edit_member`, `ide_insert_member`, `ide_replace_member`, `ide_change_signature`, `ide_structural_search_replace`, `ide_replace_text_in_file`, `ide_refactor_rename` (unterstützt `dryRun: true` Preview), `ide_refactor_safe_delete` (unterstützt `dryRun: true` Preview), `ide_move_file`.
+>      - **Code-Modifikation & Refactoring (`intellij-index`):** `ide_reformat_code`, `ide_optimize_imports`, `ide_convert_java_to_kotlin`, `ide_edit_member` (unterstützt `target`/`symbolId`, liefert `updatedSymbol`), `ide_insert_member`, `ide_replace_member` (unterstützt `target`/`symbolId`, liefert `updatedSymbol`), `ide_change_signature` (unterstützt `dryRun: true` Preview & `target` für Java/Kotlin JVM), `ide_structural_search_replace`, `ide_replace_text_in_file`, `ide_refactor_rename` (unterstützt `dryRun: true` Preview), `ide_refactor_safe_delete` (unterstützt `dryRun: true` Preview), `ide_move_file`.
 >      - **Dateien, VFS & Workspace (`intellij-index`):** `ide_create_file` (direkt im VFS anlegen, sofort indiziert), `ide_create_module`, `ide_find_file`, `ide_open_file`, `ide_get_active_file`, `ide_open_project`, `ide_open_workspace`, `ide_close_project`, `ide_reload_project`, `ide_link_build_system`, `ide_import_modules`, `ide_install_plugin`, `ide_restart`.
 >      - **Code-Intelligence & Analyse (`intellij-index`):** `ide_symbol_info`, `ide_file_structure`, `ide_find_symbol`, `ide_find_class`, `ide_find_definition`, `ide_find_references`, `ide_diagnostics`, `ide_project_diagnostics`, `ide_type_hierarchy`, `ide_call_hierarchy`, `ide_find_implementations`, `ide_find_super_methods`, `ide_search_text`.
 >      - **Build & Testing (`intellij-index`):** `ide_build_project`, `ide_list_tests`, `ide_run_tests`.
@@ -66,7 +66,7 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 >    - `ide_find_references`: Semantische Verwendungsstellen projektweit finden (`scope`, Pfad-Filterung via `paths`-Globs wie `["src/**", "!**/*Test.java"]`).
 >    - `ide_find_symbol`: Beliebige Code-Symbole (Methoden, Felder, Klassen) finden (`scope`).
 >    - `ide_find_implementations`: Implementierungen von Interfaces & abstrakten Methoden finden (`scope`).
->    - `ide_find_super_methods`: Basis-/Interface-Methoden ermitteln, die überschrieben werden.
+>    - `ide_find_super_methods`: Basis-/Interface-Methoden ermitteln, die überschrieben werden (liefert & akzeptiert persistente `symbolId` sowie verschachteltes `target`, liefert `symbolId` auch für Basisdeklarationen inkl. externer Bibliotheken/JARs).
 >    - `ide_type_hierarchy`: Vollständige Vererbungshierarchie (Super- und Subtypen, `scope`).
 >    - `ide_call_hierarchy`: Aufrufhierarchie (`direction`: `callers` / `callees`, `scope`).
 >    - `ide_file_structure`: Strukturbaum / Outline einer Datei mit Zeilenangaben & Member-Hierarchie.
@@ -81,10 +81,10 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 >    - `ide_move_file`: Datei verschieben mit automatischer Package- und Import-Aktualisierung (`targetDirectory`).
 >    - `ide_reformat_code`: Code nach Projekt-Style (.editorconfig / IDE) formatieren (`file`, optional `startLine`/`endLine`).
 >    - `ide_optimize_imports`: Unbenutzte Imports entfernen und sortieren (`file`).
->    - `ide_change_signature`: Methodensignaturen projektweit sicher anpassen.
->    - `ide_edit_member`: Vollständiges Member (Signatur + Body) ersetzen.
+>    - `ide_change_signature`: Methodensignaturen projektweit sicher anpassen für Java-Methoden und Kotlin JVM-Funktionen. Unterstützt non-mutating Dry-Run-Vorschauen (`dryRun: true` zur risikofreien Vorabprüfung von `canApply`, `plannedChange`, `affectedFiles`, `changesCount` und Blockern/Warnungen vor Ausführung), verschachteltes `target` (`symbolId`, `position` oder `qualifiedName`+`language`), legacy Top-Level Selektoren, `newVisibility` (`public`, `protected`, `private`, `package-private`), `generateDelegate` und Rückgabe von `updatedSymbol`.
+>    - `ide_edit_member`: Vollständiges Member (Signatur + Body) ersetzen. Unterstützt verschachteltes `target` (`symbolId`, `position` oder `qualifiedName`+`language`), Top-Level `symbolId` und liefert `updatedSymbol`.
 >    - `ide_insert_member`: Neues Member (Methode/Feld) strukturiert an Position einfügen.
->    - `ide_replace_member`: Methoden-Body oder Feld-Initializer ersetzen (Signatur bleibt erhalten).
+>    - `ide_replace_member`: Methoden-Body oder Feld-Initializer ersetzen (Signatur bleibt erhalten). Unterstützt verschachteltes `target` (`symbolId`, `position` oder `qualifiedName`+`language`), Top-Level `symbolId` und liefert `updatedSymbol`.
 >    - `ide_replace_text_in_file`: Textersetzung über das IDE-Dokumentenmodell (sofort indexiert).
 >    - `ide_structural_search_replace`: Structural Search and Replace (SSR) mit Pfad-Filterung (`paths`).
 >    - `ide_convert_java_to_kotlin`: Java-Klassen via IntelliJ J2K zu Kotlin konvertieren.
