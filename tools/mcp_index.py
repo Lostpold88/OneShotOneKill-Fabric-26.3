@@ -6,7 +6,8 @@ For standard single operations (find-class, find-def, find-refs, symbol-info, et
 call the MCP tools directly via Antigravity MCP tooling as instructed in SKILL.md.
 
 Automated Workflows:
-- scan-project: High-performance batch diagnostic scan over all source files using native 'files' batching.
+- scan-project: High-performance batch diagnostic scan over all source files using native 'files' batching
+                with automatic IDE editor tab opening (open_daemon highlighting) and active editor state restoration.
 - sync: Force sync IDE Virtual File System with disk changes (including refreshedRoots & deletedPaths).
 - status: Query IDE indexing status (dumb mode, progress).
 """
@@ -80,17 +81,70 @@ def call_index_mcp(
         return {"error": str(e), "isError": True}
 
 
+def get_active_editors(project_path: str = DEFAULT_PROJECT_PATH) -> list[dict[str, Any]]:
+    """Gets the currently active file(s) in IntelliJ IDEA editors."""
+    res = call_index_mcp("ide_get_active_file", {}, project_path=project_path)
+    structured = res.get("structured", {})
+    return structured.get("activeFiles", [])
+
+
+def open_editor_files(
+    files: list[str],
+    project_path: str = DEFAULT_PROJECT_PATH,
+    settle_delay: float = 0.8,
+    verbose: bool = False,
+) -> int:
+    """Opens a list of files in IntelliJ IDEA editor tabs and allows the daemon to settle."""
+    opened = 0
+    for f in files:
+        res = call_index_mcp("ide_open_file", {"file": f}, project_path=project_path)
+        if not res.get("isError"):
+            opened += 1
+    if settle_delay > 0 and opened > 0:
+        time.sleep(settle_delay)
+    return opened
+
+
+def restore_editor_state(
+    initial_active_files: list[dict[str, Any]],
+    project_path: str = DEFAULT_PROJECT_PATH,
+    verbose: bool = True,
+) -> None:
+    """Restores the previously active file(s) in IntelliJ IDEA."""
+    if not initial_active_files:
+        return
+    for item in initial_active_files:
+        f_path = item.get("file")
+        if not f_path:
+            continue
+        args: dict[str, Any] = {"file": f_path}
+        if "line" in item and item["line"] is not None:
+            args["line"] = item["line"]
+            if "column" in item and item["column"] is not None:
+                args["column"] = item["column"]
+        if verbose:
+            loc = f" (line {args.get('line', 1)}:{args.get('column', 1)})" if "line" in args else ""
+            print(f"[*] Restoring active editor: {f_path}{loc}")
+        call_index_mcp("ide_open_file", args, project_path=project_path)
+
+
 def scan_project(
     src_dir: str = "E:/OneShotOneKill/MOD/src",
     project_path: str = DEFAULT_PROJECT_PATH,
     batch_size: int = 25,
     severity: str = "all",
     max_problems: int = 500,
+    open_files: bool = True,
+    open_strategy: str = "batch",
+    daemon_delay: float = 0.8,
+    restore_active: bool = True,
     verbose: bool = True,
 ) -> dict[str, Any]:
     """
     Performs high-speed batch diagnostic scanning across all Java files using
     the updated ide_diagnostics tool with native 'files' batching (optimal batch size: 20-30 files).
+    Optionally opens files in IDE editor tabs before scanning to activate the full open_daemon
+    highlighting pass.
     """
     batch_size = max(1, min(batch_size, 50))
     java_files: list[str] = []
@@ -107,7 +161,8 @@ def scan_project(
 
     if verbose:
         print(f"[*] Found {total_files} Java source files in '{src_dir}'.")
-        print(f"[*] Starting batch diagnostic scan (batch size: {batch_size}, severity: {severity})...\n")
+        strat_info = f", open_strategy: '{open_strategy}', daemon_delay: {daemon_delay}s" if open_files else ""
+        print(f"[*] Starting batch diagnostic scan (batch size: {batch_size}, severity: {severity}{strat_info})...\n")
 
     problems_by_file: dict[str, list[dict[str, Any]]] = {}
     file_analyses_summary: dict[str, int] = {
@@ -118,66 +173,86 @@ def scan_project(
         "not_analyzed": 0,
         "not_found": 0,
     }
+    analysis_modes_summary: dict[str, int] = {}
     unusual_file_states: dict[str, dict[str, Any]] = {}
     total_problems = 0
     batches_count = (total_files + batch_size - 1) // batch_size if total_files > 0 else 0
 
+    initial_active_files: list[dict[str, Any]] = []
+    if open_files and restore_active:
+        initial_active_files = get_active_editors(project_path=project_path)
+
     start_time = time.time()
 
-    for idx in range(0, total_files, batch_size):
-        batch = java_files[idx : idx + batch_size]
-        batch_num = (idx // batch_size) + 1
-        if verbose:
-            print(f"  -> Batch {batch_num}/{batches_count}: Scanning {len(batch)} files...", end="", flush=True)
-
-        b_start = time.time()
-        res = call_index_mcp(
-            "ide_diagnostics",
-            {
-                "files": batch,
-                "severity": severity,
-                "maxProblems": max_problems,
-            },
-            project_path=project_path,
-        )
-        b_duration = time.time() - b_start
-
-        if res.get("isError"):
+    try:
+        if open_files and open_strategy == "all":
             if verbose:
-                print(f" ERROR ({b_duration:.2f}s): {res.get('error')}")
-            for bf in batch:
-                unusual_file_states[bf] = {"state": "rpc_error", "error": res.get("error")}
-            continue
+                print(f"[*] Opening all {total_files} Java files in IDE editor tabs upfront...")
+            open_editor_files(java_files, project_path=project_path, settle_delay=daemon_delay, verbose=verbose)
 
-        structured = res.get("structured", {})
-        batch_problems = structured.get("problems", [])
-        file_analyses = structured.get("fileAnalyses", [])
+        for idx in range(0, total_files, batch_size):
+            batch = java_files[idx : idx + batch_size]
+            batch_num = (idx // batch_size) + 1
+            if verbose:
+                print(f"  -> Batch {batch_num}/{batches_count}: Scanning {len(batch)} files...", end="", flush=True)
 
-        # Process per-file states
-        for fa in file_analyses:
-            f_name = fa.get("file", "")
-            state = fa.get("state", "unknown")
-            file_analyses_summary[state] = file_analyses_summary.get(state, 0) + 1
-            if state != "analyzed":
-                unusual_file_states[f_name] = fa
+            if open_files and open_strategy == "batch":
+                open_editor_files(batch, project_path=project_path, settle_delay=daemon_delay, verbose=False)
 
-        # Map problems to files according to requested severity
-        filtered_batch_problems = []
-        for prob in batch_problems:
-            p_sev = prob.get("severity", "WARNING").upper()
-            if severity == "errors" and p_sev != "ERROR":
+            b_start = time.time()
+            res = call_index_mcp(
+                "ide_diagnostics",
+                {
+                    "files": batch,
+                    "severity": severity,
+                    "maxProblems": max_problems,
+                },
+                project_path=project_path,
+            )
+            b_duration = time.time() - b_start
+
+            if res.get("isError"):
+                if verbose:
+                    print(f" ERROR ({b_duration:.2f}s): {res.get('error')}")
+                for bf in batch:
+                    unusual_file_states[bf] = {"state": "rpc_error", "error": res.get("error")}
                 continue
-            if severity == "warnings" and p_sev not in ("WARNING", "ERROR"):
-                continue
-            filtered_batch_problems.append(prob)
-            p_file = prob.get("file", "")
-            problems_by_file.setdefault(p_file, []).append(prob)
-            total_problems += 1
 
-        if verbose:
-            prob_count = len(filtered_batch_problems)
-            status_tag = f"{prob_count} problem(s)" if prob_count > 0 else "clean"
-            print(f" OK in {b_duration:.2f}s ({status_tag})")
+            structured = res.get("structured", {})
+            batch_problems = structured.get("problems", [])
+            file_analyses = structured.get("fileAnalyses", [])
+
+            # Process per-file states and analysis modes
+            for fa in file_analyses:
+                f_name = fa.get("file", "")
+                state = fa.get("state", "unknown")
+                file_analyses_summary[state] = file_analyses_summary.get(state, 0) + 1
+                mode = fa.get("mode") or fa.get("analysisMode")
+                if mode:
+                    analysis_modes_summary[mode] = analysis_modes_summary.get(mode, 0) + 1
+                if state != "analyzed":
+                    unusual_file_states[f_name] = fa
+
+            # Map problems to files according to requested severity
+            filtered_batch_problems = []
+            for prob in batch_problems:
+                p_sev = prob.get("severity", "WARNING").upper()
+                if severity == "errors" and p_sev != "ERROR":
+                    continue
+                if severity == "warnings" and p_sev not in ("WARNING", "ERROR"):
+                    continue
+                filtered_batch_problems.append(prob)
+                p_file = prob.get("file", "")
+                problems_by_file.setdefault(p_file, []).append(prob)
+                total_problems += 1
+
+            if verbose:
+                prob_count = len(filtered_batch_problems)
+                status_tag = f"{prob_count} problem(s)" if prob_count > 0 else "clean"
+                print(f" OK in {b_duration:.2f}s ({status_tag})")
+    finally:
+        if open_files and restore_active and initial_active_files:
+            restore_editor_state(initial_active_files, project_path=project_path, verbose=verbose)
 
     elapsed = time.time() - start_time
     problematic_count = len(problems_by_file)
@@ -190,6 +265,7 @@ def scan_project(
         "totalProblems": total_problems,
         "scanDurationSeconds": round(elapsed, 2),
         "fileStates": file_analyses_summary,
+        "analysisModes": analysis_modes_summary,
         "unusualStates": unusual_file_states,
         "problemsByFile": problems_by_file,
     }
@@ -204,6 +280,8 @@ def scan_project(
         print(f"  Total Problems:      {total_problems}")
         print(f"  Duration:            {elapsed:.2f}s")
         print(f"  File Statuses:       {file_analyses_summary}")
+        if analysis_modes_summary:
+            print(f"  Analysis Modes:      {analysis_modes_summary}")
         if unusual_file_states:
             print(f"  [!] Files with unusual states: {len(unusual_file_states)}")
             for uf, data in list(unusual_file_states.items())[:5]:
@@ -272,6 +350,11 @@ def main():
     scan_p.add_argument("--batch-size", type=int, default=25, help="Batch size per MCP request (default: 25, max: 50)")
     scan_p.add_argument("--severity", choices=["all", "errors", "warnings"], default="all", help="Severity filter")
     scan_p.add_argument("--max-problems", type=int, default=500, help="Max problems returned per batch (default: 500)")
+    scan_p.add_argument("--open-files", dest="open_files", action="store_true", default=True, help="Open files in editor before scanning (default: True)")
+    scan_p.add_argument("--no-open-files", dest="open_files", action="store_false", help="Do not open files in editor before scanning")
+    scan_p.add_argument("--open-strategy", choices=["batch", "all"], default="batch", help="Strategy for opening files: 'batch' (per-batch window, default) or 'all' (all upfront)")
+    scan_p.add_argument("--daemon-delay", type=float, default=0.8, help="Seconds to wait after opening files for daemon to settle (default: 0.8s)")
+    scan_p.add_argument("--no-restore", dest="restore_active", action="store_false", default=True, help="Do not restore initial active editor tab after scanning")
     scan_p.add_argument("--json", action="store_true", help="Print result as raw JSON")
 
     # sync
@@ -294,6 +377,10 @@ def main():
             batch_size=args.batch_size,
             severity=args.severity,
             max_problems=args.max_problems,
+            open_files=args.open_files,
+            open_strategy=args.open_strategy,
+            daemon_delay=args.daemon_delay,
+            restore_active=args.restore_active,
             verbose=not args.json,
         )
         if args.json:
