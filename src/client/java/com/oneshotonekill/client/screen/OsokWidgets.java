@@ -22,7 +22,7 @@ import org.joml.Vector3fc;
  * Cyber-Tactical / Esports Dark-Theme UI-Bausteine mit Glassmorphismus,
  * dynamischen Glow-Kanten, Micro-Interaktionen und flüssigen Hover-Zuständen.</p>
  */
-@SuppressWarnings({"MathClampMigration", "UnnecessaryLocalVariable", "unused"})
+@SuppressWarnings({"MathClampMigration", "UnnecessaryLocalVariable", "unused", "DuplicatedCode"})
 public final class OsokWidgets {
    // Farbpaletten-Konstanten für einheitliches Design
    /** Kühler, durchscheinender Schleier – die Unschärfe dahinter soll sichtbar bleiben. */

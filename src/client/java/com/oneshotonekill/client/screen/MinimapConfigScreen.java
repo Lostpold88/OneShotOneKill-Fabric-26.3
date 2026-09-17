@@ -110,7 +110,7 @@ public final class MinimapConfigScreen extends Screen {
 
     @Override
     public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             int cx = getMapCenterX();
             int cy = getMapCenterY();
             double dist = Math.hypot(event.x() - cx, event.y() - cy);
@@ -213,7 +213,7 @@ public final class MinimapConfigScreen extends Screen {
 
     @Override
     public boolean mouseReleased(MouseButtonEvent event) {
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             isDraggingMap = false;
             isDraggingRadiusSlider = false;
             MinimapConfig.INSTANCE.save();
@@ -223,7 +223,7 @@ public final class MinimapConfigScreen extends Screen {
 
     @Override
     public boolean mouseDragged(MouseButtonEvent event, double deltaX, double deltaY) {
-        if (event.button() == 0) {
+        if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
             if (isDraggingMap) {
                 updatePositionFromMouse(event.x(), event.y());
                 return true;

@@ -6,7 +6,6 @@ import com.mojang.blaze3d.resource.CrossFrameResourcePool;
 import com.mojang.blaze3d.resource.ResourceHandle;
 import com.oneshotonekill.client.effect.TimeDistortionEffects;
 import com.oneshotonekill.client.sound.TimeDistortionSoundController;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelTargetBundle;
@@ -39,7 +38,7 @@ public abstract class GameRendererTimeDistortionMixin {
 
     @Inject(method = "render", at = @At(value = "INVOKE",
             target = "Lnet/minecraft/client/renderer/fog/FogRenderer;endFrame()V"))
-    private void osok$applyTimeDistortion(DeltaTracker deltaTracker, boolean advanceGameTime, CallbackInfo ci) {
+    private void osok$applyTimeDistortion(CallbackInfo ci) {
         Minecraft client = Minecraft.getInstance();
         if (client.level == null) {
             return;

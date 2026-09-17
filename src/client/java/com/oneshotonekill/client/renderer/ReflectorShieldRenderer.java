@@ -124,33 +124,18 @@ public final class ReflectorShieldRenderer {
 
    private static void sphere(Matrix4fc pose, VertexConsumer buffer, float time, float strength,
                               Vec3 view, float radius, float phase) {
-      for (int latitude = 0; latitude < LATITUDE_SEGMENTS; latitude++) {
-         double lat0 = -Math.PI * 0.5 + latitude * Math.PI / LATITUDE_SEGMENTS;
-         double lat1 = -Math.PI * 0.5 + (latitude + 1) * Math.PI / LATITUDE_SEGMENTS;
-         for (int longitude = 0; longitude < LONGITUDE_SEGMENTS; longitude++) {
-            double lon0 = longitude * Math.PI * 2.0 / LONGITUDE_SEGMENTS;
-            double lon1 = (longitude + 1) * Math.PI * 2.0 / LONGITUDE_SEGMENTS;
-
-            SurfaceVertex a = surface(lat0, lon0, radius, time, phase, strength, view);
-            SurfaceVertex b = surface(lat1, lon0, radius, time, phase, strength, view);
-            SurfaceVertex c = surface(lat1, lon1, radius, time, phase, strength, view);
-            SurfaceVertex d = surface(lat0, lon1, radius, time, phase, strength, view);
-            quad(pose, buffer, a, b, c, d);
-            // Zweite Wicklung: Auch aus der Kugel heraus (Egoansicht) bleibt die Schale sichtbar.
-            quad(pose, buffer, d, c, b, a);
-         }
-      }
+      ShieldSphereHelper.renderSphere(pose, buffer, LATITUDE_SEGMENTS, LONGITUDE_SEGMENTS,
+         time, strength, view, radius, phase, ReflectorShieldRenderer::surface);
    }
 
-   private static SurfaceVertex surface(double latitude, double longitude, float radius, float time,
-                                        float phase, float strength, Vec3 view) {
-      double cosLat = Math.cos(latitude);
-      float nx = (float) (cosLat * Math.cos(longitude));
-      float ny = (float) Math.sin(latitude);
-      float nz = (float) (cosLat * Math.sin(longitude));
+   private static ShieldSphereHelper.SurfaceVertex surface(double latitude, double longitude, float radius, float time,
+                                                           float phase, float strength, Vec3 view) {
+      ShieldSphereHelper.NormalAndFacing nf = ShieldSphereHelper.normalAndFacing(latitude, longitude, view);
+      float nx = nf.nx();
+      float ny = nf.ny();
+      float nz = nf.nz();
 
-      double facing = Math.abs(nx * view.x + ny * view.y + nz * view.z);
-      double rim = Math.pow(1.0 - facing, 2.4);
+      double rim = Math.pow(1.0 - nf.facing(), 2.4);
       double current = Math.sin(longitude * 3.0 + latitude * 5.0 - time * 0.22 + phase);
       double secondCurrent = Math.sin(longitude * -5.0 + latitude * 2.0 + time * 0.13 + phase);
       double energy = Math.pow(Math.max(0.0, current * 0.65 + secondCurrent * 0.35), 5.0);
@@ -159,26 +144,10 @@ public final class ReflectorShieldRenderer {
       float red = (float) (0.08 + energy * 0.34);
       float green = (float) (0.58 + energy * 0.34);
       float blue = 1.0F;
-      return new SurfaceVertex(nx * radius * wave, ny * radius * wave, nz * radius * wave,
+      return new ShieldSphereHelper.SurfaceVertex(nx * radius * wave, ny * radius * wave, nz * radius * wave,
          red, green, blue, alpha);
    }
 
-   private static void quad(Matrix4fc pose, VertexConsumer buffer, SurfaceVertex a, SurfaceVertex b,
-                            SurfaceVertex c, SurfaceVertex d) {
-      vertex(pose, buffer, a);
-      vertex(pose, buffer, b);
-      vertex(pose, buffer, c);
-      vertex(pose, buffer, d);
-   }
-
-   private static void vertex(Matrix4fc pose, VertexConsumer buffer, SurfaceVertex vertex) {
-      buffer.addVertex(pose, vertex.x, vertex.y, vertex.z)
-         .setColor(vertex.red, vertex.green, vertex.blue, vertex.alpha);
-   }
-
    private record ShieldFrame(float x, float y, float z, float time, float intensity) {
-   }
-
-   private record SurfaceVertex(float x, float y, float z, float red, float green, float blue, float alpha) {
    }
 }

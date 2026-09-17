@@ -337,7 +337,7 @@ public final class RailgunSystem {
       // Rückstoß: mit voller Ladung schiebt es den Schützen spürbar zurück.
       Vec3 push = shooter.getLookAngle().normalize().scale(-RECOIL * charge);
       shooter.setDeltaMovement(shooter.getDeltaMovement().add(push.x, push.y * 0.4 + 0.08, push.z));
-      shooter.hurtMarked = true;
+      shooter.syncVelocity = true;
       shakeFor(shooter, charge);
    }
 

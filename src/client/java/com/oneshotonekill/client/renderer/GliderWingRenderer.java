@@ -257,9 +257,9 @@ public final class GliderWingRenderer {
          poseStack.translate(frame.x, frame.y + SHOULDER, frame.z);
          // Minecraft misst den Körperwinkel im Uhrzeigersinn von Süden; im Renderraum ist das
          // eine Drehung um die Hochachse mit umgekehrtem Vorzeichen.
-         poseStack.mulPose(new Quaternionf().rotationY((float) Math.toRadians(-frame.bodyRot)));
-         poseStack.mulPose(new Quaternionf().rotationX((float) Math.toRadians(-frame.pitch)));
-         poseStack.mulPose(new Quaternionf().rotationZ((float) Math.toRadians(frame.bank)));
+         poseStack.rotate(new Quaternionf().rotationY((float) Math.toRadians(-frame.bodyRot)));
+         poseStack.rotate(new Quaternionf().rotationX((float) Math.toRadians(-frame.pitch)));
+         poseStack.rotate(new Quaternionf().rotationZ((float) Math.toRadians(frame.bank)));
 
          context.submitNodeCollector().submitCustomGeometry(poseStack, RenderTypes.debugQuads(),
             (pose, buffer) -> {

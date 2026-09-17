@@ -451,7 +451,7 @@ public final class StatusAbilities {
       // Ein Start aus voller Fahrt darf nicht bremsen, deshalb das Maximum.
       double speed = Math.max(player.getDeltaMovement().length(), GLIDE_LAUNCH_SPEED);
       player.setDeltaMovement(heading.scale(speed));
-      player.hurtMarked = true;
+      player.syncVelocity = true;
       player.fallDistance = 0.0;
       player.setNoGravity(true);
 
@@ -658,7 +658,7 @@ public final class StatusAbilities {
          Vec3 outside = center.add(normal.scale(MAGNET_RADIUS + 0.08));
          arrow.setPos(outside.x, outside.y, outside.z);
          arrow.setDeltaMovement(reflected);
-         arrow.hurtMarked = true;
+         arrow.syncVelocity = true;
 
          // Nur der tatsächliche Kontaktpunkt blitzt kurz rot/blau auf. Keine dauernden Sterne
          // oder Partikelringe mehr um den Spieler.
@@ -746,7 +746,7 @@ public final class StatusAbilities {
 
          Vec3 motion = fly(player, player.getDeltaMovement());
          player.setDeltaMovement(motion);
-         player.hurtMarked = true;
+         player.syncVelocity = true;
 
          if (player.level() instanceof ServerLevel level && glide.ticksLeft % 2 == 0) {
             // Die Kondensfahne bleibt hinter dem Spieler stehen, statt ihn zu umwehen. Sie

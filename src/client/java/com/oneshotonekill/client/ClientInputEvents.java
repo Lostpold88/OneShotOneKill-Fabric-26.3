@@ -259,7 +259,7 @@ public final class ClientInputEvents {
         if (recoil > 0.001F) {
             float kick = (float) Math.sin(recoil * Math.PI * 0.5F);
             poseStack.translate(0.0F, kick * 0.022F, kick * 0.085F);
-            poseStack.mulPose(com.mojang.math.Axis.XP.rotationDegrees(-kick * 8.5F));
+            poseStack.rotate(com.mojang.math.Axis.XP.rotationDegrees(-kick * 8.5F));
         }
 
         // 2. Seilzug-Spannung & Mikrovibration

@@ -1,5 +1,6 @@
 package com.oneshotonekill.client.screen;
 
+import com.mojang.blaze3d.platform.InputConstants;
 import com.mojang.blaze3d.platform.cursor.CursorTypes;
 import com.oneshotonekill.network.OsokPayloads.*;
 import java.util.List;
@@ -174,7 +175,7 @@ public final class BomberTargetScreen extends Screen {
 
    @Override
    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
-      if (event.button() == 0 && hovered >= 0 && hovered < targets.size()) {
+      if (event.button() == InputConstants.MOUSE_BUTTON_LEFT && hovered >= 0 && hovered < targets.size()) {
          // Nur einmal auslösen: ein zweiter Klick vor dem Schließen wäre ein zweiter Bomber
          // für ein Item, das der Server nur einmal einzieht.
          if (!launched) {

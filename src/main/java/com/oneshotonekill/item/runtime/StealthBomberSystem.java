@@ -622,7 +622,7 @@ public final class StealthBomberSystem {
          Vec3 push = victim.position().subtract(centre);
          Vec3 impulse = (push.lengthSqr() < 0.01 ? new Vec3(0.0, 1.0, 0.0) : push.normalize()).scale(0.7);
          victim.setDeltaMovement(victim.getDeltaMovement().add(impulse.x, 0.45, impulse.z));
-         victim.hurtMarked = true;
+         victim.syncVelocity = true;
 
          BombAccount account = bombHits.computeIfAbsent(victim.getUUID(), ignored -> new BombAccount());
          account.hits++;

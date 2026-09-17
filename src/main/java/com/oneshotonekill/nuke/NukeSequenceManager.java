@@ -210,9 +210,9 @@ public final class NukeSequenceManager {
       OneShotOneKill.clearAbilities(server);
 
       for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-         player.setInvulnerable(true);
+         player.setPermanentlyInvulnerable(true);
          player.setDeltaMovement(Vec3.ZERO);
-         player.hurtMarked = true;
+         player.syncVelocity = true;
          player.getFoodData().setFoodLevel(20);
          // Die Ansage: genau hier, im ersten Tick der Sequenz. Der ganze Ablauf haengt daran –
          // bei 12,031 Sekunden schlaegt es in der Aufnahme ein, und NukePhase.DETONATION liegt
@@ -536,7 +536,7 @@ public final class NukeSequenceManager {
          return;
       }
       killed.add(player.getUUID());
-      player.setInvulnerable(false);
+      player.setPermanentlyInvulnerable(false);
       player.hurtServer(level, ModDamageTypes.nukeBlast(level), LETHAL_DAMAGE);
       // Falls nichts den Tod meldet – etwa weil eine andere Mod ihn abfängt –, bleibt der
       // Spieler trotzdem nicht am Leben stehen.
@@ -552,7 +552,7 @@ public final class NukeSequenceManager {
     */
    public void becomeSpectator(ServerPlayer player) {
       player.setHealth(player.getMaxHealth());
-      player.setInvulnerable(true);
+      player.setPermanentlyInvulnerable(true);
       player.setRemainingFireTicks(0);
       if (player.gameMode() != GameType.SPECTATOR) {
          player.setGameMode(GameType.SPECTATOR);
@@ -785,7 +785,7 @@ public final class NukeSequenceManager {
          return;
       }
       for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-         player.setInvulnerable(false);
+         player.setPermanentlyInvulnerable(false);
          if (wasVaporised.contains(player.getUUID()) && player.gameMode() == GameType.SPECTATOR) {
             player.setGameMode(GameType.SURVIVAL);
          }

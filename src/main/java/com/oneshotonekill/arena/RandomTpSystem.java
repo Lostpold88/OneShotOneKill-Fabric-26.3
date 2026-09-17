@@ -307,7 +307,7 @@ public final class RandomTpSystem {
            player.setHealth(player.getMaxHealth());
            player.setDeltaMovement(Vec3.ZERO);
            player.hurtTime = 0;
-           player.invulnerableTime = 0;
+           player.setInvulnerableTime(0);
            player.fallDistance = 0.0f;
        }
    }

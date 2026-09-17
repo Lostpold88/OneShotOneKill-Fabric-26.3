@@ -36,7 +36,7 @@ public final class EquipmentManager {
       // Die Nuke macht Zuschauer dauerhaft unverwundbar. Nach Abbruch oder Reconnect kann
       // dieses Entity-Flag einen neuen Matchstart überleben; Matchausrüstung bedeutet immer,
       // dass der Spieler wieder regulär am Kampf teilnimmt.
-      player.setInvulnerable(false);
+      player.setPermanentlyInvulnerable(false);
       player.removeAllEffects();
       player.setTicksFrozen(0);
       removeLegacyArrows(player);

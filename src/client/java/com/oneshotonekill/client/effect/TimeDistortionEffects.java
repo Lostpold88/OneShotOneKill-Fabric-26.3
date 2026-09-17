@@ -1,6 +1,6 @@
 package com.oneshotonekill.client.effect;
 
-import com.mojang.blaze3d.buffers.GpuBuffer;
+import com.mojang.renderpearl.api.buffers.GpuBuffer;
 import com.mojang.blaze3d.buffers.Std140Builder;
 import com.mojang.blaze3d.vertex.PoseStack;
 import com.mojang.math.Axis;
@@ -168,8 +168,8 @@ public final class TimeDistortionEffects {
       float sway = (float) Math.sin(seconds * Math.PI * 0.82 + 0.7);
       float field = this.active ? 1.45F : 1.0F;
       poseStack.translate(sway * 0.0045F * field, hover * 0.010F * field, 0.0F);
-      poseStack.mulPose(Axis.ZP.rotationDegrees(sway * 1.35F * field));
-      poseStack.mulPose(Axis.YP.rotationDegrees(hover * 0.75F * field));
+      poseStack.rotate(Axis.ZP.rotationDegrees(sway * 1.35F * field));
+      poseStack.rotate(Axis.YP.rotationDegrees(hover * 0.75F * field));
 
       long elapsed = Util.getMillis() - this.useStartedAt;
       if (elapsed < 0L || elapsed > USE_MOTION_MILLIS) {
@@ -179,8 +179,8 @@ public final class TimeDistortionEffects {
       float pull = (float) Math.sin(progress * Math.PI);
       float snap = (float) Math.sin(Math.clamp((progress - 0.43F) / 0.57F, 0.0F, 1.0F) * Math.PI);
       poseStack.translate(0.0F, pull * 0.018F, -pull * 0.095F + snap * 0.052F);
-      poseStack.mulPose(Axis.XP.rotationDegrees(-pull * 7.0F + snap * 10.0F));
-      poseStack.mulPose(Axis.ZP.rotationDegrees(snap * -5.5F));
+      poseStack.rotate(Axis.XP.rotationDegrees(-pull * 7.0F + snap * 10.0F));
+      poseStack.rotate(Axis.ZP.rotationDegrees(snap * -5.5F));
    }
 
    /**

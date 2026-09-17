@@ -3,7 +3,7 @@
 	"id": "oneshotonekill",
 	"version": "${version}",
 	"name": "One Shot One Kill",
-	"description": "Arena-Minigame-Mod für Minecraft 26.2 auf Fabric.",
+	"description": "Arena-Minigame-Mod für Minecraft 26.3 auf Fabric.",
 	"authors": [
 		"Leopold"
 	],
@@ -31,7 +31,7 @@
 	"accessWidener": "oneshotonekill.accesswidener",
 	"depends": {
 		"fabricloader": ">=0.19.3",
-		"minecraft": "~26.2",
+		"minecraft": "~26.3",
 		"java": ">=25",
 		"fabric-api": "*"
 	}

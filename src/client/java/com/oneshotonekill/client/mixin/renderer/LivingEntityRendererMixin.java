@@ -79,12 +79,12 @@ public abstract class LivingEntityRendererMixin {
       RenderPose pull = GrapplePullState.INSTANCE.pose(living, partialTick);
       if (pull != null) {
          // Dasselbe Vorzeichen wie Vanillas Fluglage: -90 Grad legt die Figur nach vorn.
-         poseStack.mulPose(Axis.XP.rotationDegrees(-pull.elevation() * pull.blend()));
+         poseStack.rotate(Axis.XP.rotationDegrees(-pull.elevation() * pull.blend()));
          // Dynamisches Banking (Roll-Neigung) in Kurvenlage bei Querzug
          float deltaYaw = Mth.wrapDegrees(pull.yaw() - bodyRot);
          float roll = Math.clamp(deltaYaw * 0.28F, -18.0F, 18.0F) * pull.blend();
          if (Math.abs(roll) > 0.01F) {
-            poseStack.mulPose(Axis.ZP.rotationDegrees(roll));
+            poseStack.rotate(Axis.ZP.rotationDegrees(roll));
          }
       }
    }
@@ -114,14 +114,14 @@ public abstract class LivingEntityRendererMixin {
 
          // Drehpunkt auf Körperschwerpunkt (Hüfte Y ~ 0.95F)
          poseStack.translate(0.0F, jumpY + 0.95F, 0.0F);
-         poseStack.mulPose(Axis.XP.rotationDegrees(pitch));
+         poseStack.rotate(Axis.XP.rotationDegrees(pitch));
          poseStack.translate(0.0F, -0.95F, 0.0F);
       }
 
       float spinProgress = BoogieDanceAnimation.spinProgress(seconds);
       if (spinProgress >= 0.0F && spinProgress <= 1.0F) {
          float spinYaw = BoogieDanceAnimation.spinYaw(spinProgress) * weight;
-         poseStack.mulPose(Axis.YP.rotationDegrees(spinYaw));
+         poseStack.rotate(Axis.YP.rotationDegrees(spinYaw));
       }
    }
 

@@ -194,7 +194,7 @@ public final class GunGameManager {
    public void giveTierEquipment(ServerPlayer player) {
       // Siehe EquipmentManager: Ein neuer Waffenspiel-Spawn darf kein von einer alten
       // Endsequenz übrig gebliebenes dauerhaftes Unverwundbar-Flag behalten.
-      player.setInvulnerable(false);
+      player.setPermanentlyInvulnerable(false);
       player.removeAllEffects();
       player.setTicksFrozen(0);
       player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);

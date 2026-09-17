@@ -1,10 +1,11 @@
 #version 330
+#extension GL_ARB_separate_shader_objects : require
 
 uniform sampler2D InSampler;
 uniform sampler2D InDepthSampler;
 uniform sampler2D HistorySampler;
 
-in vec2 texCoord;
+layout(location = 0) in vec2 texCoord;
 
 layout(std140) uniform SamplerInfo {
     vec2 OutSize;
@@ -37,7 +38,7 @@ layout(std140) uniform TemporalConfig {
     float RimGain;
 };
 
-out vec4 fragColor;
+layout(location = 0) out vec4 fragColor;
 
 const vec2 UV_LO = vec2(0.0015);
 const vec2 UV_HI = vec2(0.9985);

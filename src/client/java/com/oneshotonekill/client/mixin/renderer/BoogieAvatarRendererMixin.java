@@ -24,7 +24,8 @@ public abstract class BoogieAvatarRendererMixin {
         state.rightHandItemState.clear();
         state.leftArmPose = HumanoidModel.ArmPose.EMPTY;
         state.rightArmPose = HumanoidModel.ArmPose.EMPTY;
-        state.attackTime = 0;
+        state.swingAnimation = 0;
+        state.currentSwing = null;
         state.isCrouching = false;
         state.isFallFlying = false;
         state.swimAmount = 0;

@@ -454,7 +454,7 @@ public final class GrapplingHookSystem {
         }
 
         owner.setDeltaMovement(movement);
-        owner.hurtMarked = true;
+        owner.syncVelocity = true;
         owner.resetFallDistance();
         owner.connection.resetFlyingTicks();
 
@@ -477,7 +477,7 @@ public final class GrapplingHookSystem {
     private void launchPastAnchor(ServerPlayer owner) {
         Vec3 movement = owner.getDeltaMovement();
         owner.setDeltaMovement(movement.x, Math.max(movement.y, RELEASE_LIFT), movement.z);
-        owner.hurtMarked = true;
+        owner.syncVelocity = true;
         owner.resetFallDistance();
         grantFallImmunity(owner, 100L);
         owner.level().playSound(null, owner.getX(), owner.getY(), owner.getZ(),
