@@ -6,7 +6,6 @@ import com.mojang.blaze3d.resource.CrossFrameResourcePool;
 import com.mojang.blaze3d.resource.ResourceHandle;
 import com.oneshotonekill.client.effect.TimeDistortionEffects;
 import com.oneshotonekill.client.sound.TimeDistortionSoundController;
-import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.renderer.GameRenderer;
 import net.minecraft.client.renderer.LevelTargetBundle;

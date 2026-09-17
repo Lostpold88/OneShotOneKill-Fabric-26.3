@@ -141,31 +141,18 @@ public final class MagnetShieldRenderer {
 
    private static void sphere(Matrix4fc pose, VertexConsumer buffer, float time, float strength,
                               Vec3 view, float radius, float phase) {
-      for (int latitude = 0; latitude < LATITUDE_SEGMENTS; latitude++) {
-         double lat0 = -Math.PI * 0.5 + latitude * Math.PI / LATITUDE_SEGMENTS;
-         double lat1 = -Math.PI * 0.5 + (latitude + 1) * Math.PI / LATITUDE_SEGMENTS;
-         for (int longitude = 0; longitude < LONGITUDE_SEGMENTS; longitude++) {
-            double lon0 = longitude * Math.PI * 2.0 / LONGITUDE_SEGMENTS;
-            double lon1 = (longitude + 1) * Math.PI * 2.0 / LONGITUDE_SEGMENTS;
-            SurfaceVertex a = surface(lat0, lon0, radius, time, phase, strength, view);
-            SurfaceVertex b = surface(lat1, lon0, radius, time, phase, strength, view);
-            SurfaceVertex c = surface(lat1, lon1, radius, time, phase, strength, view);
-            SurfaceVertex d = surface(lat0, lon1, radius, time, phase, strength, view);
-            quad(pose, buffer, a, b, c, d);
-            quad(pose, buffer, d, c, b, a);
-         }
-      }
+      ShieldSphereHelper.renderSphere(pose, buffer, LATITUDE_SEGMENTS, LONGITUDE_SEGMENTS,
+         time, strength, view, radius, phase, MagnetShieldRenderer::surface);
    }
 
-   private static SurfaceVertex surface(double latitude, double longitude, float radius, float time,
-                                        float phase, float strength, Vec3 view) {
-      double cosLat = Math.cos(latitude);
-      float nx = (float) (cosLat * Math.cos(longitude));
-      float ny = (float) Math.sin(latitude);
-      float nz = (float) (cosLat * Math.sin(longitude));
+   private static ShieldSphereHelper.SurfaceVertex surface(double latitude, double longitude, float radius, float time,
+                                                           float phase, float strength, Vec3 view) {
+      ShieldSphereHelper.NormalAndFacing nf = ShieldSphereHelper.normalAndFacing(latitude, longitude, view);
+      float nx = nf.nx();
+      float ny = nf.ny();
+      float nz = nf.nz();
 
-      double facing = Math.abs(nx * view.x + ny * view.y + nz * view.z);
-      double rim = Math.pow(1.0 - facing, 2.25);
+      double rim = Math.pow(1.0 - nf.facing(), 2.25);
       double poleAngle = time * 0.012 + phase * 0.08;
       double pole = nx * Math.cos(poleAngle) + nz * Math.sin(poleAngle);
       double polarity = (pole + 1.0) * 0.5;
@@ -181,7 +168,7 @@ public final class MagnetShieldRenderer {
       float green = (float) (0.12 + magneticEquator * 0.40 + streams * 0.34);
       float blue = (float) (0.10 + (1.0 - polarity) * 0.88
          + poleCap * (1.0 - polarity) * 0.08);
-      return new SurfaceVertex(nx * radius * wave, ny * radius * wave, nz * radius * wave,
+      return new ShieldSphereHelper.SurfaceVertex(nx * radius * wave, ny * radius * wave, nz * radius * wave,
          red, green, blue, alpha);
    }
 
@@ -246,22 +233,6 @@ public final class MagnetShieldRenderer {
          .setColor(red, green, blue, alpha);
    }
 
-   private static void quad(Matrix4fc pose, VertexConsumer buffer, SurfaceVertex a, SurfaceVertex b,
-                            SurfaceVertex c, SurfaceVertex d) {
-      vertex(pose, buffer, a);
-      vertex(pose, buffer, b);
-      vertex(pose, buffer, c);
-      vertex(pose, buffer, d);
-   }
-
-   private static void vertex(Matrix4fc pose, VertexConsumer buffer, SurfaceVertex vertex) {
-      buffer.addVertex(pose, vertex.x, vertex.y, vertex.z)
-         .setColor(vertex.red, vertex.green, vertex.blue, vertex.alpha);
-   }
-
    private record MagnetFrame(float x, float y, float z, float time, float intensity) {
-   }
-
-   private record SurfaceVertex(float x, float y, float z, float red, float green, float blue, float alpha) {
    }
 }

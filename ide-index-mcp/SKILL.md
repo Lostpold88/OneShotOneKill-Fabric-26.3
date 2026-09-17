@@ -107,6 +107,12 @@ When working in a git worktree (e.g., `/project/.claude/worktrees/agent-xyz` or 
 7. **Use built-in search scope intentionally**: `ide_find_references`, `ide_find_implementations`, `ide_type_hierarchy`, `ide_call_hierarchy`, `ide_find_class`, `ide_find_file`, and `ide_find_symbol` accept `scope`. Use `project_files` for the default project-only view, `project_and_libraries` when dependency code matters, `project_production_files` to stay out of tests, and `project_test_files` when you want test-only results.
 8. **Narrow by directory with `paths`**: `ide_search_text`, `ide_find_references`, and `ide_structural_search_replace` accept `paths`, an array of project-relative globs where a leading `!` excludes — e.g. `{"paths": ["src/main/kotlin/**/handlers/**", "!**/*Test.kt"]}`. Prefer one scoped call over a project-wide search you filter yourself: filtering client-side pays tokens for every discarded hit, and with pagination a whole page can be filtered away and look like an empty result. Composes with `scope` and `filePattern`.
 
+`ide_file_structure` keeps the legacy `structure` response by default and avoids returning a
+structured-node payload or allocating handles. Use `includeNodes=true` for structured declarations,
+and `includeSymbolIds=true` when exact handles are needed (it implies `includeNodes`). Handle
+allocation is opt-in and capped at 100 per response; lower it with `maxSymbolIds` (1–100). Large
+responses report `symbolIdsTruncated` and `symbolIdsOmitted`.
+
 ## Tool Selection by Task
 
 ### "I need to understand how X is used"
@@ -195,3 +201,12 @@ See [claude-code-hooks.md](https://github.com/hechtcarmel/jetbrains-index-mcp-pl
 ## Detailed Tool Parameters
 
 For complete parameter reference with types, defaults, and return formats, see [tools-reference.md](references/tools-reference.md).
+
+### Bounded hierarchy pages with legacy tree compatibility
+
+Without `maxNodes` or `cursor`, call/type hierarchies keep nested trees and legacy limits.
+Explicit pagination returns bounded breadth-first pages with traversal-local `nodeId`,
+`parentId`, and `depth`. Continuations are scoped to the project, tool, and server session.
+A continuation budget limit preserves the computed page and reports `truncationReason`;
+narrow the query when `hasMore=true` has no cursor. Cancellation and indexing transitions
+propagate through reflective handlers instead of completing an empty hierarchy.

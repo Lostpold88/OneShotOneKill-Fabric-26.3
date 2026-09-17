@@ -332,16 +332,27 @@ public final class AirstrikeTargetScreen extends Screen {
       }
    }
 
-   private void drawCircleOutline(GuiGraphicsExtractor graphics, int cx, int cy, int radius, int color) {
-      int points = 36;
+   private boolean isInsideMap(int x, int y) {
+      return x >= mapLeft && x < mapLeft + mapWidth && y >= mapTop && y < mapTop + mapHeight;
+   }
+
+   private void drawPointInBounds(GuiGraphicsExtractor graphics, int x, int y, int color) {
+      if (isInsideMap(x, y)) {
+         graphics.fill(x, y, x + 1, y + 1, color);
+      }
+   }
+
+   private void drawEllipseOutline(GuiGraphicsExtractor graphics, int cx, int cy, double rx, double ry, int points, int color) {
       for (int i = 0; i < points; i++) {
          double a = i * (Math.PI * 2.0 / points);
-         int px = cx + (int) Math.round(Math.cos(a) * radius);
-         int py = cy + (int) Math.round(Math.sin(a) * radius);
-         if (px >= mapLeft && px < mapLeft + mapWidth && py >= mapTop && py < mapTop + mapHeight) {
-            graphics.fill(px, py, px + 1, py + 1, color);
-         }
+         int px = cx + (int) Math.round(Math.cos(a) * rx);
+         int py = cy + (int) Math.round(Math.sin(a) * ry);
+         drawPointInBounds(graphics, px, py, color);
       }
+   }
+
+   private void drawCircleOutline(GuiGraphicsExtractor graphics, int cx, int cy, int radius, int color) {
+      drawEllipseOutline(graphics, cx, cy, radius, radius, 36, color);
    }
 
    /** Dual-Phosphor Radarsweep mit feinem Partikelschweif */
@@ -455,24 +466,9 @@ public final class AirstrikeTargetScreen extends Screen {
       int centerZ = toMapZ(worldZ);
 
       if (fill) {
-         for (int step = 0; step < BLAST_CIRCLE_POINTS; step++) {
-            double angle = step * (Math.PI * 2.0 / BLAST_CIRCLE_POINTS);
-            int x = centerX + (int) Math.round(Math.cos(angle) * (radiusX * 0.95));
-            int y = centerZ + (int) Math.round(Math.sin(angle) * (radiusZ * 0.95));
-            if (x >= mapLeft && x < mapLeft + mapWidth && y >= mapTop && y < mapTop + mapHeight) {
-               graphics.fill(x, y, x + 1, y + 1, BLAST_FILL);
-            }
-         }
+         drawEllipseOutline(graphics, centerX, centerZ, radiusX * 0.95, radiusZ * 0.95, BLAST_CIRCLE_POINTS, BLAST_FILL);
       }
-
-      for (int step = 0; step < BLAST_CIRCLE_POINTS; step++) {
-         double angle = step * (Math.PI * 2.0 / BLAST_CIRCLE_POINTS);
-         int x = centerX + (int) Math.round(Math.cos(angle) * radiusX);
-         int y = centerZ + (int) Math.round(Math.sin(angle) * radiusZ);
-         if (x >= mapLeft && x < mapLeft + mapWidth && y >= mapTop && y < mapTop + mapHeight) {
-            graphics.fill(x, y, x + 1, y + 1, color);
-         }
-      }
+      drawEllipseOutline(graphics, centerX, centerZ, radiusX, radiusZ, BLAST_CIRCLE_POINTS, color);
    }
 
    private void drawDottedLine(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color) {

@@ -161,14 +161,21 @@ def scan_project(
             if state != "analyzed":
                 unusual_file_states[f_name] = fa
 
-        # Map problems to files
+        # Map problems to files according to requested severity
+        filtered_batch_problems = []
         for prob in batch_problems:
+            p_sev = prob.get("severity", "WARNING").upper()
+            if severity == "errors" and p_sev != "ERROR":
+                continue
+            if severity == "warnings" and p_sev not in ("WARNING", "ERROR"):
+                continue
+            filtered_batch_problems.append(prob)
             p_file = prob.get("file", "")
             problems_by_file.setdefault(p_file, []).append(prob)
             total_problems += 1
 
         if verbose:
-            prob_count = len(batch_problems)
+            prob_count = len(filtered_batch_problems)
             status_tag = f"{prob_count} problem(s)" if prob_count > 0 else "clean"
             print(f" OK in {b_duration:.2f}s ({status_tag})")
 

@@ -142,48 +142,37 @@ public final class BoogieHudLayers {
         private static void renderSparklesAndNotes(GuiGraphicsExtractor graphics, Minecraft client,
                                                    int width, int height, float sec, float weight, float chrono) {
             for (int i = 0; i < SPARKLES.length; i++) {
-                float[] sp = SPARKLES[i];
-                float yFrac = (sp[1] - sec * sp[2]) % 1.0F;
-                if (yFrac < 0.0F) yFrac += 1.0F;
+                renderSingleSparkle(graphics, client, width, height, sec, weight, chrono, i, SPARKLES[i]);
+            }
+        }
 
-                float xFrac = sp[0] + (float) Math.sin(sec * 1.8F + sp[3]) * 0.025F;
-                int px = (int) (xFrac * width);
-                int py = (int) (yFrac * height);
+        private static void renderSingleSparkle(GuiGraphicsExtractor graphics, Minecraft client,
+                                                int width, int height, float sec, float weight, float chrono,
+                                                int i, float[] sp) {
+            float yFrac = (sp[1] - sec * sp[2]) % 1.0F;
+            if (yFrac < 0.0F) yFrac += 1.0F;
 
-                float tw = 0.5F + 0.5F * (float) Math.sin(sec * 7.5F + sp[3]);
-                int starAlpha = (int) (tw * 240.0F * weight);
-                if (starAlpha <= 15) continue;
+            float xFrac = sp[0] + (float) Math.sin(sec * 1.8F + sp[3]) * 0.025F;
+            int px = (int) (xFrac * width);
+            int py = (int) (yFrac * height);
 
-                int colorIdx = ((int) sp[3]) % 4;
-                int starColor;
-                if (chrono > 0.001F) {
-                    starColor = switch (colorIdx) {
-                        case 0 -> ARGB.color(starAlpha, 0, 245, 255);    // Chrono Cyan
-                        case 1 -> ARGB.color(starAlpha, 180, 70, 255);   // Temporal Violet
-                        case 2 -> ARGB.color(starAlpha, 255, 90, 220);   // Neon Magenta
-                        default -> ARGB.color(starAlpha, 255, 255, 255); // White Spark
-                    };
-                } else {
-                    starColor = switch (colorIdx) {
-                        case 0 -> ARGB.color(starAlpha, 255, 225, 90);   // Disco-Gold
-                        case 1 -> ARGB.color(starAlpha, 80, 240, 255);   // Electric-Cyan
-                        case 2 -> ARGB.color(starAlpha, 255, 100, 220);  // Hot-Pink
-                        default -> ARGB.color(starAlpha, 70, 255, 150);  // Mint-Green
-                    };
-                }
+            float tw = 0.5F + 0.5F * (float) Math.sin(sec * 7.5F + sp[3]);
+            int starAlpha = (int) (tw * 240.0F * weight);
+            if (starAlpha <= 15) return;
 
-                // Musiknoten für ausgewählte Partikel, Diamantsterne für alle übrigen
-                if (i == 4 || i == 11 || i == 16 || i == 22) {
-                    String note = (i == 11) ? "♫" : (i == 22 ? "♬" : "♪");
-                    graphics.text(client.font, note, px, py, starColor, true);
-                } else {
-                    graphics.fill(px - 1, py, px + 2, py + 1, starColor);
-                    graphics.fill(px, py - 1, px + 1, py + 2, starColor);
-                    if (tw > 0.72F) {
-                        int coreAlpha = starAlpha / 2;
-                        graphics.fill(px - 2, py, px + 3, py + 1, ARGB.color(coreAlpha, 255, 255, 255));
-                        graphics.fill(px, py - 2, px + 1, py + 3, ARGB.color(coreAlpha, 255, 255, 255));
-                    }
+            int starColor = getStarColor(((int) sp[3]) % 4, starAlpha, chrono);
+
+            // Musiknoten für ausgewählte Partikel, Diamantsterne für alle übrigen
+            if (i == 4 || i == 11 || i == 16 || i == 22) {
+                String note = (i == 11) ? "♫" : (i == 22 ? "♬" : "♪");
+                graphics.text(client.font, note, px, py, starColor, true);
+            } else {
+                graphics.fill(px - 1, py, px + 2, py + 1, starColor);
+                graphics.fill(px, py - 1, px + 1, py + 2, starColor);
+                if (tw > 0.72F) {
+                    int coreAlpha = starAlpha / 2;
+                    graphics.fill(px - 2, py, px + 3, py + 1, ARGB.color(coreAlpha, 255, 255, 255));
+                    graphics.fill(px, py - 2, px + 1, py + 3, ARGB.color(coreAlpha, 255, 255, 255));
                 }
             }
         }
@@ -197,6 +186,23 @@ public final class BoogieHudLayers {
             int ripAlpha2 = (int) (32 * chrono * weight);
             graphics.fill(0, ripY1, width, ripY1 + 2, ARGB.color(ripAlpha1, 0, 240, 255));
             graphics.fill(0, ripY2, width, ripY2 + 2, ARGB.color(ripAlpha2, 210, 50, 255));
+        }
+
+        private static int getStarColor(int colorIdx, int starAlpha, float chrono) {
+            if (chrono > 0.001F) {
+                return switch (colorIdx) {
+                    case 0 -> ARGB.color(starAlpha, 0, 245, 255);    // Chrono Cyan
+                    case 1 -> ARGB.color(starAlpha, 180, 70, 255);   // Temporal Violet
+                    case 2 -> ARGB.color(starAlpha, 255, 90, 220);   // Neon Magenta
+                    default -> ARGB.color(starAlpha, 255, 255, 255); // White Spark
+                };
+            }
+            return switch (colorIdx) {
+                case 0 -> ARGB.color(starAlpha, 255, 225, 90);   // Disco-Gold
+                case 1 -> ARGB.color(starAlpha, 80, 240, 255);   // Electric-Cyan
+                case 2 -> ARGB.color(starAlpha, 255, 100, 220);  // Hot-Pink
+                default -> ARGB.color(starAlpha, 70, 255, 150);  // Mint-Green
+            };
         }
     }
 }

@@ -17,7 +17,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 /**
  * Modernes AAA Cyber-Esports HUD-Intro für Match-Start & Countdown.
  */
-@SuppressWarnings({"DuplicateBranchesInSwitch", "NullableProblems", "UnnecessaryLocalVariable"})
+@SuppressWarnings({"DuplicateBranchesInSwitch", "NullableProblems", "UnnecessaryLocalVariable", "DuplicatedCode"})
 public final class MatchHudLayers {
    private MatchHudLayers() {}
 
