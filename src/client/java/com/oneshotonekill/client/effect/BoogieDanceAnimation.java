@@ -1,6 +1,7 @@
 package com.oneshotonekill.client.effect;
 
 import net.minecraft.client.model.HumanoidModel;
+import net.minecraft.client.model.geom.ModelPart;
 
 /** Seventies disco retargeted to Minecraft's six rigid limbs: diagonal points, hip swings,
  * crossed arms and alternating steps. The skin's sleeves, jacket and armour follow their parents.
@@ -120,27 +121,44 @@ public final class BoogieDanceAnimation {
         return a + (b - a) * st;
     }
 
+    private record PartTransform(float x, float y, float z, float xRot, float yRot, float zRot) {
+        static PartTransform capture(ModelPart part) {
+            return new PartTransform(part.x, part.y, part.z, part.xRot, part.yRot, part.zRot);
+        }
+
+        void apply(ModelPart part, float weight, float tx, float ty, float tz, float rx, float ry, float rz) {
+            part.x = net.minecraft.util.Mth.lerp(weight, this.x, tx);
+            part.y = net.minecraft.util.Mth.lerp(weight, this.y, ty);
+            part.z = net.minecraft.util.Mth.lerp(weight, this.z, tz);
+            part.xRot = net.minecraft.util.Mth.lerp(weight, this.xRot, rx);
+            part.yRot = net.minecraft.util.Mth.lerp(weight, this.yRot, ry);
+            part.zRot = net.minecraft.util.Mth.lerp(weight, this.zRot, rz);
+        }
+    }
+
+    private static void blendLimbRotations(
+        float[] rotations, float blend,
+        float rX, float rY, float rZ,
+        float lX, float lY, float lZ
+    ) {
+        rotations[0] = net.minecraft.util.Mth.lerp(blend, rotations[0], rX);
+        rotations[1] = net.minecraft.util.Mth.lerp(blend, rotations[1], rY);
+        rotations[2] = net.minecraft.util.Mth.lerp(blend, rotations[2], rZ);
+        rotations[3] = net.minecraft.util.Mth.lerp(blend, rotations[3], lX);
+        rotations[4] = net.minecraft.util.Mth.lerp(blend, rotations[4], lY);
+        rotations[5] = net.minecraft.util.Mth.lerp(blend, rotations[5], lZ);
+    }
+
     public static void pose(HumanoidModel<?> model, float seconds, float weight) {
         if (weight <= 0.0001F) return;
 
         // Ursprüngliche Vanilla-Pose zwischenspeichern (Gehen, Stehen, Blickrichtung)
-        float vHeadX = model.head.x, vHeadY = model.head.y, vHeadZ = model.head.z;
-        float vHeadXRot = model.head.xRot, vHeadYRot = model.head.yRot, vHeadZRot = model.head.zRot;
-
-        float vBodyX = model.body.x, vBodyY = model.body.y, vBodyZ = model.body.z;
-        float vBodyXRot = model.body.xRot, vBodyYRot = model.body.yRot, vBodyZRot = model.body.zRot;
-
-        float vRArmX = model.rightArm.x, vRArmY = model.rightArm.y, vRArmZ = model.rightArm.z;
-        float vRArmXRot = model.rightArm.xRot, vRArmYRot = model.rightArm.yRot, vRArmZRot = model.rightArm.zRot;
-
-        float vLArmX = model.leftArm.x, vLArmY = model.leftArm.y, vLArmZ = model.leftArm.z;
-        float vLArmXRot = model.leftArm.xRot, vLArmYRot = model.leftArm.yRot, vLArmZRot = model.leftArm.zRot;
-
-        float vRLegX = model.rightLeg.x, vRLegY = model.rightLeg.y, vRLegZ = model.rightLeg.z;
-        float vRLegXRot = model.rightLeg.xRot, vRLegYRot = model.rightLeg.yRot, vRLegZRot = model.rightLeg.zRot;
-
-        float vLLegX = model.leftLeg.x, vLLegY = model.leftLeg.y, vLLegZ = model.leftLeg.z;
-        float vLLegXRot = model.leftLeg.xRot, vLLegYRot = model.leftLeg.yRot, vLLegZRot = model.leftLeg.zRot;
+        PartTransform vHead = PartTransform.capture(model.head);
+        PartTransform vBody = PartTransform.capture(model.body);
+        PartTransform vRArm = PartTransform.capture(model.rightArm);
+        PartTransform vLArm = PartTransform.capture(model.leftArm);
+        PartTransform vRLeg = PartTransform.capture(model.rightLeg);
+        PartTransform vLLeg = PartTransform.capture(model.leftLeg);
 
         // Basis-Pivots laden für die Disco-Offset-Berechnung
         model.head.resetPose(); model.body.resetPose();
@@ -302,44 +320,24 @@ public final class BoogieDanceAnimation {
 
         float radians = (float) (Math.PI / 180);
         // Phase 1: Travolta Points
-        float dRArmXRot = (ARMS[first][0] + (ARMS[second][0] - ARMS[first][0]) * blend) * radians;
-        float dRArmYRot = (ARMS[first][1] + (ARMS[second][1] - ARMS[first][1]) * blend) * radians;
-        float dRArmZRot = (ARMS[first][2] + (ARMS[second][2] - ARMS[first][2]) * blend) * radians;
-
-        float dLArmXRot = (ARMS[first][3] + (ARMS[second][3] - ARMS[first][3]) * blend) * radians;
-        float dLArmYRot = (ARMS[first][4] + (ARMS[second][4] - ARMS[first][4]) * blend) * radians;
-        float dLArmZRot = (ARMS[first][5] + (ARMS[second][5] - ARMS[first][5]) * blend) * radians;
+        float[] dArmRots = new float[6];
+        for (int i = 0; i < 6; i++) {
+            dArmRots[i] = (ARMS[first][i] + (ARMS[second][i] - ARMS[first][i]) * blend) * radians;
+        }
 
         // Phase 3A: Flotte Pirouette (Arme elegant angezogen)
         if (spinBlend > 0.001F) {
-            float spinRArmX = -0.80F, spinRArmY = -0.30F, spinRArmZ = 0.45F;
-            float spinLArmX = -0.80F, spinLArmY = 0.30F, spinLArmZ = -0.45F;
-            dRArmXRot = net.minecraft.util.Mth.lerp(spinBlend, dRArmXRot, spinRArmX);
-            dRArmYRot = net.minecraft.util.Mth.lerp(spinBlend, dRArmYRot, spinRArmY);
-            dRArmZRot = net.minecraft.util.Mth.lerp(spinBlend, dRArmZRot, spinRArmZ);
-            dLArmXRot = net.minecraft.util.Mth.lerp(spinBlend, dLArmXRot, spinLArmX);
-            dLArmYRot = net.minecraft.util.Mth.lerp(spinBlend, dLArmYRot, spinLArmY);
-            dLArmZRot = net.minecraft.util.Mth.lerp(spinBlend, dLArmZRot, spinLArmZ);
+            blendLimbRotations(dArmRots, spinBlend, -0.80F, -0.30F, 0.45F, -0.80F, 0.30F, -0.45F);
         }
 
         // Phase 3B: The Hustle / Rolling Wheels
         if (hw > 0.001F) {
-            dRArmXRot = net.minecraft.util.Mth.lerp(hw, dRArmXRot, hRArmX);
-            dRArmYRot = net.minecraft.util.Mth.lerp(hw, dRArmYRot, hRArmY);
-            dRArmZRot = net.minecraft.util.Mth.lerp(hw, dRArmZRot, hRArmZ);
-            dLArmXRot = net.minecraft.util.Mth.lerp(hw, dLArmXRot, hLArmX);
-            dLArmYRot = net.minecraft.util.Mth.lerp(hw, dLArmYRot, hLArmY);
-            dLArmZRot = net.minecraft.util.Mth.lerp(hw, dLArmZRot, hLArmZ);
+            blendLimbRotations(dArmRots, hw, hRArmX, hRArmY, hRArmZ, hLArmX, hLArmY, hLArmZ);
         }
 
         // Phase 4: Grand Finale (Hands in the Air)
         if (fw > 0.001F) {
-            dRArmXRot = net.minecraft.util.Mth.lerp(fw, dRArmXRot, fRArmX);
-            dRArmYRot = net.minecraft.util.Mth.lerp(fw, dRArmYRot, fRArmY);
-            dRArmZRot = net.minecraft.util.Mth.lerp(fw, dRArmZRot, fRArmZ);
-            dLArmXRot = net.minecraft.util.Mth.lerp(fw, dLArmXRot, fLArmX);
-            dLArmYRot = net.minecraft.util.Mth.lerp(fw, dLArmYRot, fLArmY);
-            dLArmZRot = net.minecraft.util.Mth.lerp(fw, dLArmZRot, fLArmZ);
+            blendLimbRotations(dArmRots, fw, fRArmX, fRArmY, fRArmZ, fLArmX, fLArmY, fLArmZ);
             dHeadXRot = net.minecraft.util.Mth.lerp(fw, dHeadXRot, fHeadX);
         }
 
@@ -351,20 +349,17 @@ public final class BoogieDanceAnimation {
         float dLLegX = socket[0], dLLegY = socket[1], dLLegZ = socket[2] - stepOffset;
 
         float bounceBend = -bounce * 0.14F;
-        float dRLegXRot = (Math.max(0.0F, swing) * -0.48F + bounceBend) * discoGrooveFactor;
-        float dLLegXRot = (Math.max(0.0F, -swing) * -0.48F + bounceBend) * discoGrooveFactor;
-        float dRLegYRot = (dBodyYRot * 0.85F + (swing > 0.0F ? 0.08F : -0.04F)) * discoGrooveFactor;
-        float dLLegYRot = (dBodyYRot * 0.85F + (swing < 0.0F ? -0.08F : 0.04F)) * discoGrooveFactor;
-        float dRLegZRot = (0.08F - swing * 0.15F + Math.max(0.0F, swing) * 0.05F) * discoGrooveFactor;
-        float dLLegZRot = (-0.08F - swing * 0.15F - Math.max(0.0F, -swing) * 0.05F) * discoGrooveFactor;
+        float[] dLegRots = {
+            (Math.max(0.0F, swing) * -0.48F + bounceBend) * discoGrooveFactor,
+            (dBodyYRot * 0.85F + (swing > 0.0F ? 0.08F : -0.04F)) * discoGrooveFactor,
+            (0.08F - swing * 0.15F + Math.max(0.0F, swing) * 0.05F) * discoGrooveFactor,
+            (Math.max(0.0F, -swing) * -0.48F + bounceBend) * discoGrooveFactor,
+            (dBodyYRot * 0.85F + (swing < 0.0F ? -0.08F : 0.04F)) * discoGrooveFactor,
+            (-0.08F - swing * 0.15F - Math.max(0.0F, -swing) * 0.05F) * discoGrooveFactor
+        };
 
         if (spinBlend > 0.001F) {
-            dRLegXRot = net.minecraft.util.Mth.lerp(spinBlend, dRLegXRot, 0.0F);
-            dLLegXRot = net.minecraft.util.Mth.lerp(spinBlend, dLLegXRot, 0.0F);
-            dRLegYRot = net.minecraft.util.Mth.lerp(spinBlend, dRLegYRot, 0.0F);
-            dLLegYRot = net.minecraft.util.Mth.lerp(spinBlend, dLLegYRot, 0.0F);
-            dRLegZRot = net.minecraft.util.Mth.lerp(spinBlend, dRLegZRot, 0.0F);
-            dLLegZRot = net.minecraft.util.Mth.lerp(spinBlend, dLLegZRot, 0.0F);
+            blendLimbRotations(dLegRots, spinBlend, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F, 0.0F);
         }
 
         if (saltoBlend > 0.001F) {
@@ -372,64 +367,16 @@ public final class BoogieDanceAnimation {
             dHeadYRot = net.minecraft.util.Mth.lerp(saltoBlend, dHeadYRot, 0.0F);
             dHeadZRot = net.minecraft.util.Mth.lerp(saltoBlend, dHeadZRot, 0.0F);
 
-            dRArmXRot = net.minecraft.util.Mth.lerp(saltoBlend, dRArmXRot, sRArmXRot);
-            dRArmYRot = net.minecraft.util.Mth.lerp(saltoBlend, dRArmYRot, sRArmYRot);
-            dRArmZRot = net.minecraft.util.Mth.lerp(saltoBlend, dRArmZRot, sRArmZRot);
-
-            dLArmXRot = net.minecraft.util.Mth.lerp(saltoBlend, dLArmXRot, sLArmXRot);
-            dLArmYRot = net.minecraft.util.Mth.lerp(saltoBlend, dLArmYRot, sLArmYRot);
-            dLArmZRot = net.minecraft.util.Mth.lerp(saltoBlend, dLArmZRot, sLArmZRot);
-
-            dRLegXRot = net.minecraft.util.Mth.lerp(saltoBlend, dRLegXRot, sRLegXRot);
-            dRLegYRot = net.minecraft.util.Mth.lerp(saltoBlend, dRLegYRot, 0.0F);
-            dRLegZRot = net.minecraft.util.Mth.lerp(saltoBlend, dRLegZRot, sRLegZRot);
-
-            dLLegXRot = net.minecraft.util.Mth.lerp(saltoBlend, dLLegXRot, sLLegXRot);
-            dLLegYRot = net.minecraft.util.Mth.lerp(saltoBlend, dLLegYRot, 0.0F);
-            dLLegZRot = net.minecraft.util.Mth.lerp(saltoBlend, dLLegZRot, sLLegZRot);
+            blendLimbRotations(dArmRots, saltoBlend, sRArmXRot, sRArmYRot, sRArmZRot, sLArmXRot, sLArmYRot, sLArmZRot);
+            blendLimbRotations(dLegRots, saltoBlend, sRLegXRot, 0.0F, sRLegZRot, sLLegXRot, 0.0F, sLLegZRot);
         }
 
         // Kontinuierliche Interpolation zwischen Vanilla- und Disco-Pose
-        model.head.x = net.minecraft.util.Mth.lerp(weight, vHeadX, dHeadX);
-        model.head.y = net.minecraft.util.Mth.lerp(weight, vHeadY, dHeadY);
-        model.head.z = net.minecraft.util.Mth.lerp(weight, vHeadZ, dHeadZ);
-        model.head.xRot = net.minecraft.util.Mth.lerp(weight, vHeadXRot, dHeadXRot);
-        model.head.yRot = net.minecraft.util.Mth.lerp(weight, vHeadYRot, dHeadYRot);
-        model.head.zRot = net.minecraft.util.Mth.lerp(weight, vHeadZRot, dHeadZRot);
-
-        model.body.x = net.minecraft.util.Mth.lerp(weight, vBodyX, dBodyX);
-        model.body.y = net.minecraft.util.Mth.lerp(weight, vBodyY, dBodyY);
-        model.body.z = net.minecraft.util.Mth.lerp(weight, vBodyZ, dBodyZ);
-        model.body.xRot = net.minecraft.util.Mth.lerp(weight, vBodyXRot, dBodyXRot);
-        model.body.yRot = net.minecraft.util.Mth.lerp(weight, vBodyYRot, dBodyYRot);
-        model.body.zRot = net.minecraft.util.Mth.lerp(weight, vBodyZRot, dBodyZRot);
-
-        model.rightArm.x = net.minecraft.util.Mth.lerp(weight, vRArmX, dRArmX);
-        model.rightArm.y = net.minecraft.util.Mth.lerp(weight, vRArmY, dRArmY);
-        model.rightArm.z = net.minecraft.util.Mth.lerp(weight, vRArmZ, dRArmZ);
-        model.rightArm.xRot = net.minecraft.util.Mth.lerp(weight, vRArmXRot, dRArmXRot);
-        model.rightArm.yRot = net.minecraft.util.Mth.lerp(weight, vRArmYRot, dRArmYRot);
-        model.rightArm.zRot = net.minecraft.util.Mth.lerp(weight, vRArmZRot, dRArmZRot);
-
-        model.leftArm.x = net.minecraft.util.Mth.lerp(weight, vLArmX, dLArmX);
-        model.leftArm.y = net.minecraft.util.Mth.lerp(weight, vLArmY, dLArmY);
-        model.leftArm.z = net.minecraft.util.Mth.lerp(weight, vLArmZ, dLArmZ);
-        model.leftArm.xRot = net.minecraft.util.Mth.lerp(weight, vLArmXRot, dLArmXRot);
-        model.leftArm.yRot = net.minecraft.util.Mth.lerp(weight, vLArmYRot, dLArmYRot);
-        model.leftArm.zRot = net.minecraft.util.Mth.lerp(weight, vLArmZRot, dLArmZRot);
-
-        model.rightLeg.x = net.minecraft.util.Mth.lerp(weight, vRLegX, dRLegX);
-        model.rightLeg.y = net.minecraft.util.Mth.lerp(weight, vRLegY, dRLegY);
-        model.rightLeg.z = net.minecraft.util.Mth.lerp(weight, vRLegZ, dRLegZ);
-        model.rightLeg.xRot = net.minecraft.util.Mth.lerp(weight, vRLegXRot, dRLegXRot);
-        model.rightLeg.yRot = net.minecraft.util.Mth.lerp(weight, vRLegYRot, dRLegYRot);
-        model.rightLeg.zRot = net.minecraft.util.Mth.lerp(weight, vRLegZRot, dRLegZRot);
-
-        model.leftLeg.x = net.minecraft.util.Mth.lerp(weight, vLLegX, dLLegX);
-        model.leftLeg.y = net.minecraft.util.Mth.lerp(weight, vLLegY, dLLegY);
-        model.leftLeg.z = net.minecraft.util.Mth.lerp(weight, vLLegZ, dLLegZ);
-        model.leftLeg.xRot = net.minecraft.util.Mth.lerp(weight, vLLegXRot, dLLegXRot);
-        model.leftLeg.yRot = net.minecraft.util.Mth.lerp(weight, vLLegYRot, dLLegYRot);
-        model.leftLeg.zRot = net.minecraft.util.Mth.lerp(weight, vLLegZRot, dLLegZRot);
+        vHead.apply(model.head, weight, dHeadX, dHeadY, dHeadZ, dHeadXRot, dHeadYRot, dHeadZRot);
+        vBody.apply(model.body, weight, dBodyX, dBodyY, dBodyZ, dBodyXRot, dBodyYRot, dBodyZRot);
+        vRArm.apply(model.rightArm, weight, dRArmX, dRArmY, dRArmZ, dArmRots[0], dArmRots[1], dArmRots[2]);
+        vLArm.apply(model.leftArm, weight, dLArmX, dLArmY, dLArmZ, dArmRots[3], dArmRots[4], dArmRots[5]);
+        vRLeg.apply(model.rightLeg, weight, dRLegX, dRLegY, dRLegZ, dLegRots[0], dLegRots[1], dLegRots[2]);
+        vLLeg.apply(model.leftLeg, weight, dLLegX, dLLegY, dLLegZ, dLegRots[3], dLegRots[4], dLegRots[5]);
     }
 }
