@@ -41,7 +41,7 @@ import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
 /** Server-authoritative missile strikes with controlled arena damage and server-fed tactical radar. */
-@SuppressWarnings({"BooleanMethodIsAlwaysInverted", "ForLoopReplaceableByForEach", "NullableProblems", "resource"})
+@SuppressWarnings({"BooleanMethodIsAlwaysInverted", "NullableProblems", "resource"})
 public final class AirstrikeSystem {
    public static final AirstrikeSystem INSTANCE = new AirstrikeSystem();
 
@@ -298,7 +298,7 @@ public final class AirstrikeSystem {
          int worldZ = (int) Math.floor(minZ + (row + 0.5) / RADAR_CELLS * (maxZ - minZ));
          for (int column = 0; column < RADAR_CELLS; column++) {
             int worldX = (int) Math.floor(minX + (column + 0.5) / RADAR_CELLS * (maxX - minX));
-            ArenaShape shape = shapeAt(arena, worldX + 0.5, worldZ + 0.5);
+            ArenaShape shape = arena.shapeAt(worldX + 0.5, worldZ + 0.5);
             colors.add(shape == null ? RADAR_VOID_COLOR : radarSurfaceColor(level, pos, arena, shape, worldX, worldZ));
          }
       }
@@ -454,7 +454,7 @@ public final class AirstrikeSystem {
    }
 
    private double playableSurfaceY(ServerLevel level, Arena arena, double x, double z) {
-      ArenaShape shape = shapeAt(arena, x, z);
+      ArenaShape shape = arena.shapeAt(x, z);
       if (shape == null) {
          return arena.getLobby().y;
       }
@@ -478,18 +478,6 @@ public final class AirstrikeSystem {
    private int columnScanTop(Arena arena, ArenaShape shape) {
       int top = (int) Math.floor(shape.getMaxY()) + 6;
       return arena.getHasCeiling() ? Math.min(top, (int) Math.floor(arena.getCeilingY()) - 1) : top;
-   }
-
-   /** Wird pro Radarzelle und pro Kraterspalte aufgerufen – daher bewusst ohne Stream. */
-   private ArenaShape shapeAt(Arena arena, double x, double z) {
-      List<ArenaShape> regions = arena.getRegions();
-      for (int index = 0; index < regions.size(); index++) {
-         ArenaShape shape = regions.get(index);
-         if (shape.containsColumn(x, z)) {
-            return shape;
-         }
-      }
-      return null;
    }
 
    /** Server-authoritative terrain and enemy snapshot for the radar client. */

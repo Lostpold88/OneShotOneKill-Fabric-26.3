@@ -263,14 +263,7 @@ public final class StatusAbilities {
    }
 
    private static int mixColour(int from, int to, double share) {
-      double amount = Math.clamp(share, 0.0, 1.0);
-      int result = 0;
-      for (int shift = 0; shift <= 16; shift += 8) {
-         int low = (from >> shift) & 0xFF;
-         int high = (to >> shift) & 0xFF;
-         result |= (low + (int) Math.round((high - low) * amount)) << shift;
-      }
-      return result & 0xF8F8F8;
+      return Hologram.mixColor(from, to, share) & 0xF8F8F8;
    }
 
    /** Ein laufender Suchlaufring. */

@@ -27,7 +27,7 @@ import com.mojang.blaze3d.platform.InputConstants;
  * Modernes Admin-Arsenal: Kategorisierte Schnellausgabe aller Spezialitems und Fähigkeiten
  * mit Favoriten-System (⭐), Batch-Aktionen und Live-Suche.
  */
-@SuppressWarnings({"NullableProblems", "DuplicatedCode"})
+@SuppressWarnings("NullableProblems")
 public final class AdminItemScreen extends Screen {
    private static final int CARD_WIDTH = 580;
    private static final int CONTENT_HEIGHT = 270;
@@ -46,13 +46,13 @@ public final class AdminItemScreen extends Screen {
    private final List<Hotspot> hotspots = new ArrayList<>();
    private final OsokWidgets.ScrollMotion scroll = new OsokWidgets.ScrollMotion();
    private final long openedAt = Util.getMillis();
+
    private ItemCategory currentCategory = lastSelectedCategory;
    private String searchQuery = "";
    private boolean searchFocused = false;
 
    private long lastFrameMillis = Long.MIN_VALUE;
-   private float indicatorX = Float.NaN;
-   private float indicatorWidth;
+   private final OsokWidgets.TabIndicator tabIndicator = new OsokWidgets.TabIndicator();
    private long categoryChangedAt = Long.MIN_VALUE;
 
    private int cardLeft;
@@ -121,11 +121,12 @@ public final class AdminItemScreen extends Screen {
 
    @Override
    protected void init() {
-      listHeight = Math.clamp(height - CHROME_HEIGHT, MIN_CONTENT_HEIGHT, CONTENT_HEIGHT);
-      cardHeight = listHeight + CHROME_HEIGHT;
-      cardLeft = Math.max(4, width / 2 - CARD_WIDTH / 2);
-      cardTop = Math.max(4, height / 2 - cardHeight / 2);
-      listTop = cardTop + 84;
+      OsokWidgets.CardLayout layout = OsokWidgets.CardLayout.compute(width, height, CARD_WIDTH, CHROME_HEIGHT, MIN_CONTENT_HEIGHT, CONTENT_HEIGHT, 84);
+      listHeight = layout.contentHeight();
+      cardHeight = layout.cardHeight();
+      cardLeft = layout.cardLeft();
+      cardTop = layout.cardTop();
+      listTop = layout.contentTop();
 
       updateContentLength();
       scroll.clampNow(contentLength - listHeight);
@@ -205,9 +206,7 @@ public final class AdminItemScreen extends Screen {
 
    private float advanceClock() {
       long now = Util.getMillis();
-      float delta = lastFrameMillis == Long.MIN_VALUE
-         ? 1.0F / 60.0F
-         : Math.clamp((now - lastFrameMillis) / 1000.0F, 1.0F / 480.0F, 0.1F);
+      float delta = OsokWidgets.advanceClock(lastFrameMillis, now);
       lastFrameMillis = now;
       return delta;
    }
@@ -217,18 +216,7 @@ public final class AdminItemScreen extends Screen {
       float delta = advanceClock();
       scroll.advance(delta, contentLength - listHeight);
 
-      graphics.fill(0, 0, width, height, OsokWidgets.COLOR_SCRIM);
-
-      float entrance = entranceScale();
-      float centerX = cardLeft + CARD_WIDTH / 2.0F;
-      float centerY = cardTop + cardHeight / 2.0F;
-      graphics.pose().pushMatrix();
-      graphics.pose().translate(centerX, centerY);
-      graphics.pose().scale(entrance, entrance);
-      graphics.pose().translate(-centerX, -centerY);
-
-      OsokWidgets.glassCard(graphics, cardLeft, cardTop, cardLeft + CARD_WIDTH, cardTop + cardHeight, false, 0);
-
+      OsokWidgets.startGlassFrame(graphics, width, height, cardLeft, cardTop, CARD_WIDTH, cardHeight, entranceScale());
       hotspots.clear();
 
       graphics.text(font, "✦ OneShotOneKill", cardLeft + 16, cardTop + 14, OsokWidgets.COLOR_GOLD);
@@ -284,7 +272,7 @@ public final class AdminItemScreen extends Screen {
          OsokWidgets.playItemGiveSound();
       }));
 
-      graphics.pose().popMatrix();
+      OsokWidgets.endGlassFrame(graphics);
 
       if (hoveredItemForTooltip != null) {
          ItemCategory cat = getCategoryFor(hoveredItemForTooltip);
@@ -337,13 +325,7 @@ public final class AdminItemScreen extends Screen {
    }
 
    private float entranceScale() {
-      float progress = Math.clamp((Util.getMillis() - openedAt) / (float) ENTRANCE_MILLIS, 0.0F, 1.0F);
-      if (progress >= 1.0F) {
-         return 1.0F;
-      }
-      float back = progress - 1.0F;
-      float eased = 1.0F + back * back * (2.0F * back + 1.0F);
-      return 0.95F + 0.05F * eased;
+      return OsokWidgets.entranceScale(openedAt, ENTRANCE_MILLIS);
    }
 
    private SpecialItem drawItemList(GuiGraphicsExtractor graphics, int mouseX, int mouseY,
@@ -376,11 +358,7 @@ public final class AdminItemScreen extends Screen {
             int rowBg = rowHovered ? 0xFF222B3D : 0xFF141924;
             int rowBorder = rowHovered ? cat.accent : OsokWidgets.COLOR_CARD_BORDER;
 
-            graphics.fill(left, y, right, y + ROW_HEIGHT, rowBg);
-            graphics.horizontalLine(left, right - 1, y, rowBorder);
-            graphics.horizontalLine(left, right - 1, y + ROW_HEIGHT - 1, rowBorder);
-            graphics.verticalLine(left, y, y + ROW_HEIGHT - 1, rowBorder);
-            graphics.verticalLine(right - 1, y, y + ROW_HEIGHT - 1, rowBorder);
+            OsokWidgets.panel(graphics, left, y, right, y + ROW_HEIGHT, rowBg, rowBorder);
 
             // Akzent-Kante links (Gold wenn Favorit)
             graphics.fill(left + 2, y + 2, left + 5, y + ROW_HEIGHT - 2, isFav ? OsokWidgets.COLOR_GOLD : cat.accent);
@@ -471,12 +449,7 @@ public final class AdminItemScreen extends Screen {
    }
 
    private int tabSlideOffset() {
-      if (categoryChangedAt == Long.MIN_VALUE) {
-         return 0;
-      }
-      float progress = Math.clamp((Util.getMillis() - categoryChangedAt) / 180.0F, 0.0F, 1.0F);
-      float eased = 1.0F - (1.0F - progress) * (1.0F - progress);
-      return Math.round((1.0F - eased) * 12.0F);
+      return OsokWidgets.tabSlideOffset(categoryChangedAt, 180);
    }
 
    private void drawCategoryTabsAndSearch(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
@@ -505,16 +478,8 @@ public final class AdminItemScreen extends Screen {
          x += tabWidth + 3;
       }
 
-      if (Float.isNaN(indicatorX)) {
-         indicatorX = activeX;
-         indicatorWidth = activeWidth;
-      } else {
-         float rate = 1.0F - (float) Math.exp(-delta * 24.0F);
-         indicatorX += (activeX - indicatorX) * rate;
-         indicatorWidth += (activeWidth - indicatorWidth) * rate;
-      }
-      OsokWidgets.floatingTabIndicator(graphics, indicatorX, y + 18.0F, indicatorWidth, 2.0F,
-         currentCategory.accent);
+      tabIndicator.advance(activeX, activeWidth, delta);
+      tabIndicator.draw(graphics, y + 18.0F, 2.0F, currentCategory.accent);
 
       int searchWidth = 130;
       int searchX = cardLeft + CARD_WIDTH - 16 - searchWidth;

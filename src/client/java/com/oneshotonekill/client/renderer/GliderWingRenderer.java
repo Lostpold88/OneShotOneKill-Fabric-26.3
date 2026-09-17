@@ -493,6 +493,12 @@ public final class GliderWingRenderer {
                            float[] colour, float[] topColour, float alpha) {
       quad(pose, buffer, x0, y1, z0, x1, y1, z0, x1, y1, z1, x0, y1, z1, topColour, alpha);
       quad(pose, buffer, x0, y0, z1, x1, y0, z1, x1, y0, z0, x0, y0, z0, colour, alpha);
+      drawSides(pose, buffer, x0, y0, z0, x1, y1, z1, colour, alpha);
+   }
+
+   private static void drawSides(Matrix4fc pose, VertexConsumer buffer,
+                                 float x0, float y0, float z0, float x1, float y1, float z1,
+                                 float[] colour, float alpha) {
       quad(pose, buffer, x0, y0, z0, x1, y0, z0, x1, y1, z0, x0, y1, z0, colour, alpha);
       quad(pose, buffer, x1, y0, z1, x0, y0, z1, x0, y1, z1, x1, y1, z1, colour, alpha);
       quad(pose, buffer, x0, y0, z1, x0, y0, z0, x0, y1, z0, x0, y1, z1, colour, alpha);

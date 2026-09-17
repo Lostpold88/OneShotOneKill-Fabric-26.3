@@ -130,4 +130,13 @@ public enum Arena {
     public boolean isInArena(double x, double y, double z) {
         return regions.stream().anyMatch(region -> region.contains(x, y, z));
     }
+
+    public ArenaShape shapeAt(double x, double z) {
+        for (ArenaShape shape : regions) {
+            if (shape.containsColumn(x, z)) {
+                return shape;
+            }
+        }
+        return null;
+    }
 }

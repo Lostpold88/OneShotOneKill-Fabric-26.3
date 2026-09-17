@@ -502,8 +502,7 @@ public final class Deployables {
 
       state.ring = Hologram.spawnEffect(level, anchor.add(0.0, 0.08, 0.0), iceRingStack(ICE_BRIGHT), 2.0F);
       if (state.ring != null) {
-         Hologram.setPose(state.ring, new Vector3f(), new Quaternionf(),
-            new Vector3f(Hologram.HIDDEN_SCALE, Hologram.HIDDEN_SCALE, Hologram.HIDDEN_SCALE), 0);
+         Hologram.hide(state.ring);
       }
 
       for (int index = 0; index < CAGE_SHARDS; index++) {
@@ -517,8 +516,7 @@ public final class Deployables {
          if (display == null) {
             continue;
          }
-         Quaternionf aim = new Quaternionf().rotationTo(0.0F, 0.0F, -1.0F,
-            (float) direction.x, (float) direction.y, (float) direction.z);
+         Quaternionf aim = Hologram.aimRotation(direction);
          Hologram.setPose(display, new Vector3f(), aim,
             new Vector3f(Hologram.HIDDEN_SCALE, Hologram.HIDDEN_SCALE, Hologram.HIDDEN_SCALE), 0);
          state.shards.add(display);
@@ -591,13 +589,7 @@ public final class Deployables {
    /** Das Eis flimmert leicht, statt gleichmäßig zu stehen. */
    private static int blendIce(int age) {
       double wave = 0.5 + 0.5 * Math.sin(age * 0.22);
-      int result = 0;
-      for (int shift = 0; shift <= 16; shift += 8) {
-         int deep = (ICE_DEEP >> shift) & 0xFF;
-         int bright = (ICE_BRIGHT >> shift) & 0xFF;
-         result |= (deep + (int) Math.round((bright - deep) * wave)) << shift;
-      }
-      return result & 0xF8F8F8;
+      return Hologram.mixColor(ICE_DEEP, ICE_BRIGHT, wave) & 0xF8F8F8;
    }
 
    /*

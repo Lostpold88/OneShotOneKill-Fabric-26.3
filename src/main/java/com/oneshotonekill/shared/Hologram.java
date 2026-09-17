@@ -12,11 +12,15 @@ import java.util.function.Predicate;
 import net.minecraft.core.registries.BuiltInRegistries;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.util.Brightness;
+import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.EntitySpawnReason;
 import net.minecraft.world.entity.EntityTypes;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Vector3f;
@@ -223,6 +227,49 @@ public final class Hologram {
          rotation,
          new Vector3f(scale, scale, scale),
          new org.joml.Quaternionf()));
+   }
+
+   public static void hide(Display.ItemDisplay display) {
+      if (display == null) {
+         return;
+      }
+      setPose(display, new Vector3f(), new org.joml.Quaternionf(),
+         new Vector3f(HIDDEN_SCALE, HIDDEN_SCALE, HIDDEN_SCALE), 0);
+   }
+
+   public static org.joml.Quaternionf aimRotation(Vec3 direction) {
+      return new org.joml.Quaternionf().rotationTo(0.0F, 0.0F, -1.0F,
+         (float) direction.x, (float) direction.y, (float) direction.z);
+   }
+
+   public static int mixColor(int from, int to, double share) {
+      double amount = Math.clamp(share, 0.0, 1.0);
+      int result = 0;
+      for (int shift = 0; shift <= 16; shift += 8) {
+         int a = (from >> shift) & 0xFF;
+         int b = (to >> shift) & 0xFF;
+         result |= (a + (int) Math.round((b - a) * amount)) << shift;
+      }
+      return result;
+   }
+
+   public static int tint(Display.ItemDisplay display, Item shape, int currentColour, int targetColour) {
+      int stepped = targetColour & 0xF8F8F8;
+      if (currentColour == stepped) {
+         return currentColour;
+      }
+      ItemStack stack = new ItemStack(shape);
+      stack.set(DataComponents.DYED_COLOR, new DyedItemColor(stepped));
+      setItem(display, stack);
+      return stepped;
+   }
+
+   public static Vector3f randomRotationAxis(RandomSource random) {
+      Vector3f axis = new Vector3f(random.nextFloat() - 0.5F, random.nextFloat() - 0.5F, random.nextFloat() - 0.5F);
+      if (axis.lengthSquared() < 1.0E-4F) {
+         axis.set(0.0F, 1.0F, 0.0F);
+      }
+      return axis.normalize();
    }
 
    public static void move(Display.ItemDisplay display, Vec3 position) {

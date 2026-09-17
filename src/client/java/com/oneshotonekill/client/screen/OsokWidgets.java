@@ -786,4 +786,99 @@ public final class OsokWidgets {
          return new Projection(x, y, true, target.distanceTo(player.getEyePosition(partialTick)));
       }
    }
+
+   // =========================================================================
+   // Cyber Screen Frame & Animation Helpers
+   // =========================================================================
+
+   public record CardLayout(int cardLeft, int cardTop, int cardHeight, int contentTop, int contentHeight) {
+      public static CardLayout compute(int screenWidth, int screenHeight, int cardWidth, int chromeHeight,
+                                       int minContentHeight, int maxContentHeight, int contentTopOffset) {
+         int contentH = Math.clamp(screenHeight - chromeHeight, minContentHeight, maxContentHeight);
+         int cardH = contentH + chromeHeight;
+         int cardL = Math.max(4, screenWidth / 2 - cardWidth / 2);
+         int cardT = Math.max(4, screenHeight / 2 - cardH / 2);
+         int contentT = cardT + contentTopOffset;
+         return new CardLayout(cardL, cardT, cardH, contentT, contentH);
+      }
+
+      public int[] bounds() {
+         return new int[] { cardLeft, cardTop, cardHeight, contentTop, contentHeight };
+      }
+   }
+
+   public static float entranceScale(long openedAt, long durationMillis) {
+      float progress = Math.clamp((net.minecraft.util.Util.getMillis() - openedAt) / (float) durationMillis, 0.0F, 1.0F);
+      if (progress >= 1.0F) {
+         return 1.0F;
+      }
+      float back = progress - 1.0F;
+      float eased = 1.0F + back * back * (2.0F * back + 1.0F);
+      return 0.95F + 0.05F * eased;
+   }
+
+   public static float entranceScale(long openedAt, int durationMillis) {
+      return entranceScale(openedAt, (long) durationMillis);
+   }
+
+   public static int tabSlideOffset(long tabChangedAt, long durationMillis) {
+      if (tabChangedAt == Long.MIN_VALUE) {
+         return 0;
+      }
+      float progress = Math.clamp((net.minecraft.util.Util.getMillis() - tabChangedAt) / (float) durationMillis, 0.0F, 1.0F);
+      float eased = 1.0F - (1.0F - progress) * (1.0F - progress);
+      return Math.round((1.0F - eased) * 12.0F);
+   }
+
+   public static int tabSlideOffset(long tabChangedAt, int durationMillis) {
+      return tabSlideOffset(tabChangedAt, (long) durationMillis);
+   }
+
+   public static float advanceClock(long lastFrameMillis, long now) {
+      return lastFrameMillis == Long.MIN_VALUE
+         ? 1.0F / 60.0F
+         : Math.clamp((now - lastFrameMillis) / 1000.0F, 1.0F / 480.0F, 0.1F);
+   }
+
+   public static void applyEntranceTransform(GuiGraphicsExtractor graphics, int cardLeft, int cardTop,
+                                            int cardWidth, int cardHeight, float entrance) {
+      float centerX = cardLeft + cardWidth / 2.0F;
+      float centerY = cardTop + cardHeight / 2.0F;
+      graphics.pose().pushMatrix();
+      graphics.pose().translate(centerX, centerY);
+      graphics.pose().scale(entrance, entrance);
+      graphics.pose().translate(-centerX, -centerY);
+   }
+
+   public static void startGlassFrame(GuiGraphicsExtractor graphics, int width, int height,
+                                      int cardLeft, int cardTop, int cardWidth, int cardHeight,
+                                      float entranceScale) {
+      graphics.fill(0, 0, width, height, COLOR_SCRIM);
+      applyEntranceTransform(graphics, cardLeft, cardTop, cardWidth, cardHeight, entranceScale);
+      glassCard(graphics, cardLeft, cardTop, cardLeft + cardWidth, cardTop + cardHeight, false, 0);
+   }
+
+   public static void endGlassFrame(GuiGraphicsExtractor graphics) {
+      graphics.pose().popMatrix();
+   }
+
+   public static final class TabIndicator {
+      private float x = Float.NaN;
+      private float width = 0.0F;
+
+      public void advance(float targetX, float targetWidth, float delta) {
+         if (Float.isNaN(x)) {
+            x = targetX;
+            width = targetWidth;
+         } else {
+            float rate = 1.0F - (float) Math.exp(-delta * 24.0F);
+            x += (targetX - x) * rate;
+            width += (targetWidth - width) * rate;
+         }
+      }
+
+      public void draw(GuiGraphicsExtractor graphics, float y, float height, int color) {
+         OsokWidgets.floatingTabIndicator(graphics, x, y, width, height, color);
+      }
+   }
 }

@@ -20,7 +20,7 @@ import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 /**
  * Epische HUD-Ebenen für das OneShotOneKill Endgame (DEFCON-1 Countdown, Detonation & Championship Siegerehrung).
  */
-@SuppressWarnings({"NullableProblems", "unused", "DuplicatedCode"})
+@SuppressWarnings({"NullableProblems", "unused"})
 public final class NukeHudLayers {
    private NukeHudLayers() {}
 

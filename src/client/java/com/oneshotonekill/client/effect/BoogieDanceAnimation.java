@@ -120,7 +120,6 @@ public final class BoogieDanceAnimation {
         return a + (b - a) * st;
     }
 
-    @SuppressWarnings("DuplicatedCode")
     public static void pose(HumanoidModel<?> model, float seconds, float weight) {
         if (weight <= 0.0001F) return;
 

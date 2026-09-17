@@ -67,8 +67,7 @@ public final class ArenaMenuScreen extends Screen {
     private int contentHeight;
     private int contentLength;
     private long lastFrameMillis = Long.MIN_VALUE;
-    private float indicatorX = Float.NaN;
-    private float indicatorWidth;
+    private final OsokWidgets.TabIndicator tabIndicator = new OsokWidgets.TabIndicator();
     private long tabChangedAt = Long.MIN_VALUE;
     private double lastSliderValue = Double.NaN;
 
@@ -110,11 +109,12 @@ public final class ArenaMenuScreen extends Screen {
 
     @Override
     protected void init() {
-        contentHeight = Math.clamp(height - CHROME_HEIGHT, MIN_TAB_CONTENT_HEIGHT, TAB_CONTENT_HEIGHT);
-        cardHeight = contentHeight + CHROME_HEIGHT;
-        cardLeft = Math.max(4, width / 2 - CARD_WIDTH / 2);
-        cardTop = Math.max(4, height / 2 - cardHeight / 2);
-        contentTop = cardTop + 84;
+        int[] b = OsokWidgets.CardLayout.compute(width, height, CARD_WIDTH, CHROME_HEIGHT, MIN_TAB_CONTENT_HEIGHT, TAB_CONTENT_HEIGHT, 84).bounds();
+        cardLeft = b[0];
+        cardTop = b[1];
+        cardHeight = b[2];
+        contentTop = b[3];
+        contentHeight = b[4];
 
         scroll.clampNow(contentLength - contentHeight);
     }
@@ -161,9 +161,7 @@ public final class ArenaMenuScreen extends Screen {
      */
     private float advanceClock() {
         long now = Util.getMillis();
-        float delta = lastFrameMillis == Long.MIN_VALUE
-                ? 1.0F / 60.0F
-                : Math.clamp((now - lastFrameMillis) / 1000.0F, 1.0F / 480.0F, 0.1F);
+        float delta = OsokWidgets.advanceClock(lastFrameMillis, now);
         lastFrameMillis = now;
         return delta;
     }
@@ -172,47 +170,26 @@ public final class ArenaMenuScreen extends Screen {
      * Federnder Auftritt von 0,95 auf 1,0 mit leichtem Überschwingen.
      */
     private float entranceScale() {
-        float progress = Math.clamp((Util.getMillis() - openedAt) / (float) ENTRANCE_MILLIS, 0.0F, 1.0F);
-        if (progress >= 1.0F) {
-            return 1.0F;
-        }
-        float back = progress - 1.0F;
-        float eased = 1.0F + back * back * (2.0F * back + 1.0F);
-        return 0.95F + 0.05F * eased;
+        return OsokWidgets.entranceScale(openedAt, ENTRANCE_MILLIS);
     }
 
     /**
      * Versatz des Inhalts direkt nach einem Reiterwechsel.
      */
     private int tabSlideOffset() {
-        if (tabChangedAt == Long.MIN_VALUE) {
-            return 0;
-        }
-        float progress = Math.clamp((Util.getMillis() - tabChangedAt) / 180.0F, 0.0F, 1.0F);
-        float eased = 1.0F - (1.0F - progress) * (1.0F - progress);
-        return Math.round((1.0F - eased) * 12.0F);
+        return OsokWidgets.tabSlideOffset(tabChangedAt, 180);
     }
 
     @Override
     public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
-        float delta = advanceClock();
+        renderMenuContent(graphics, mouseX, mouseY, advanceClock());
+        super.extractRenderState(graphics, mouseX, mouseY, partial);
+        updateCursor(graphics, mouseX, mouseY);
+    }
+
+    private void renderMenuContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         scroll.advance(delta, contentLength - contentHeight);
-
-        graphics.fill(0, 0, width, height, OsokWidgets.COLOR_SCRIM);
-
-        // Auftritt: die Karte federt aus 95 % auf ihre volle Größe. Der Scissor-Rahmen wird von
-        // GuiGraphicsExtractor mit derselben Matrix umgerechnet, der Inhalt bleibt also sauber
-        // beschnitten. Nur Mauskoordinaten laufen ungewandelt weiter - für 150 ms belanglos.
-        float entrance = entranceScale();
-        float centerX = cardLeft + CARD_WIDTH / 2.0F;
-        float centerY = cardTop + cardHeight / 2.0F;
-        graphics.pose().pushMatrix();
-        graphics.pose().translate(centerX, centerY);
-        graphics.pose().scale(entrance, entrance);
-        graphics.pose().translate(-centerX, -centerY);
-
-        // Hauptkarte
-        OsokWidgets.glassCard(graphics, cardLeft, cardTop, cardLeft + CARD_WIDTH, cardTop + cardHeight, false, 0);
+        OsokWidgets.startGlassFrame(graphics, width, height, cardLeft, cardTop, CARD_WIDTH, cardHeight, entranceScale());
 
         hotspots.clear();
         sliders.clear();
@@ -228,10 +205,7 @@ public final class ArenaMenuScreen extends Screen {
         OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, footerY - 8, OsokWidgets.COLOR_CARD_BORDER);
         drawFooter(graphics, mouseX, mouseY, footerY);
 
-        graphics.pose().popMatrix();
-
-        super.extractRenderState(graphics, mouseX, mouseY, partial);
-        updateCursor(graphics, mouseX, mouseY);
+        OsokWidgets.endGlassFrame(graphics);
     }
 
     private void drawCurrentTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
@@ -288,16 +262,8 @@ public final class ArenaMenuScreen extends Screen {
         }
 
         // Der Unterstrich gleitet auf den gewählten Reiter, statt dorthin zu springen.
-        if (Float.isNaN(indicatorX)) {
-            indicatorX = activeX;
-            indicatorWidth = activeWidth;
-        } else {
-            float rate = 1.0F - (float) Math.exp(-delta * 24.0F);
-            indicatorX += (activeX - indicatorX) * rate;
-            indicatorWidth += (activeWidth - indicatorWidth) * rate;
-        }
-        OsokWidgets.floatingTabIndicator(graphics, indicatorX, y + 20.0F, indicatorWidth, 2.0F,
-                OsokWidgets.COLOR_GOLD);
+        tabIndicator.advance(activeX, activeWidth, delta);
+        tabIndicator.draw(graphics, y + 20.0F, 2.0F, OsokWidgets.COLOR_GOLD);
     }
 
     private void drawArenasTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
@@ -329,11 +295,7 @@ public final class ArenaMenuScreen extends Screen {
         int rowBg = isActive ? 0xFF241F16 : (hovered ? 0xFF222B3D : 0xFF141924);
         int rowBorder = isActive ? OsokWidgets.COLOR_GOLD : (hovered ? OsokWidgets.COLOR_CARD_BORDER_HOVER : OsokWidgets.COLOR_CARD_BORDER);
 
-        graphics.fill(left, y, right, y + ARENA_ROW_HEIGHT, rowBg);
-        graphics.horizontalLine(left, right - 1, y, rowBorder);
-        graphics.horizontalLine(left, right - 1, y + ARENA_ROW_HEIGHT - 1, rowBorder);
-        graphics.verticalLine(left, y, y + ARENA_ROW_HEIGHT - 1, rowBorder);
-        graphics.verticalLine(right - 1, y, y + ARENA_ROW_HEIGHT - 1, rowBorder);
+        OsokWidgets.panel(graphics, left, y, right, y + ARENA_ROW_HEIGHT, rowBg, rowBorder);
 
         // Status-Streifen links
         int statusCol = stateColor(isActive, isOpen, isResetting);
@@ -533,11 +495,7 @@ public final class ArenaMenuScreen extends Screen {
         int bg = selected ? 0xFF241F16 : (hovered ? 0xFF1C2433 : 0xFF121722);
         int border = selected ? OsokWidgets.COLOR_GOLD : (hovered ? OsokWidgets.COLOR_CARD_BORDER_HOVER : OsokWidgets.COLOR_CARD_BORDER);
 
-        graphics.fill(x, y, x + w, y + h, bg);
-        graphics.horizontalLine(x, x + w - 1, y, border);
-        graphics.horizontalLine(x, x + w - 1, y + h - 1, border);
-        graphics.verticalLine(x, y, y + h - 1, border);
-        graphics.verticalLine(x + w - 1, y, y + h - 1, border);
+        OsokWidgets.panel(graphics, x, y, x + w, y + h, bg, border);
 
         if (selected) {
             graphics.fill(x + 2, y + 2, x + 5, y + h - 2, OsokWidgets.COLOR_GOLD);
@@ -611,23 +569,9 @@ public final class ArenaMenuScreen extends Screen {
             boolean canClick = stopped && !isSelected && !isKillLimitInGunGame;
             boolean hovered = OsokWidgets.isOver(mouseX, mouseY, modeX, y + 24, buttonWidth, 22);
 
-            String label;
-            if (isGunGame) {
-                label = switch (mode) {
-                    case TIME_LIMIT -> Component.translatable("gui.oneshotonekill.menu.target_time_btn_gungame").getString();
-                    case KILL_LIMIT -> Component.translatable("gui.oneshotonekill.menu.target_kills_btn_gungame").getString();
-                    case UNLIMITED -> Component.translatable("gui.oneshotonekill.menu.target_none_btn_gungame").getString();
-                };
-            } else {
-                label = switch (mode) {
-                    case TIME_LIMIT -> Component.translatable("gui.oneshotonekill.menu.target_time_btn").getString();
-                    case KILL_LIMIT -> Component.translatable("gui.oneshotonekill.menu.target_kills_btn").getString();
-                    case UNLIMITED -> Component.translatable("gui.oneshotonekill.menu.target_none_btn").getString();
-                };
-            }
-
             int accentColor = isKillLimitInGunGame ? OsokWidgets.COLOR_TEXT_DISABLED : (isSelected ? OsokWidgets.COLOR_GOLD : OsokWidgets.COLOR_CARD_BORDER);
-            OsokWidgets.cyberButton(graphics, font, modeX, y + 24, buttonWidth, 22, label,
+            OsokWidgets.cyberButton(graphics, font, modeX, y + 24, buttonWidth, 22,
+                    getTargetModeLabel(mode, isGunGame),
                     stopped && !isKillLimitInGunGame, hovered, accentColor);
 
             MatchTargetMode targetMode = mode;
@@ -653,11 +597,7 @@ public final class ArenaMenuScreen extends Screen {
                 int effectiveMins = localPreviewMinutes != null ? localPreviewMinutes : Math.clamp(state.getMatchTargetValue() / 60, 1, 60);
                 String formattedTime = Component.translatable("gui.oneshotonekill.menu.target_time_minutes", effectiveMins).getString();
 
-                graphics.fill(left, y, right, y + 46, 0xFF141924);
-                graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_CARD_BORDER);
-                graphics.horizontalLine(left, right - 1, y + 45, OsokWidgets.COLOR_CARD_BORDER);
-                graphics.verticalLine(left, y, y + 45, OsokWidgets.COLOR_CARD_BORDER);
-                graphics.verticalLine(right - 1, y, y + 45, OsokWidgets.COLOR_CARD_BORDER);
+                OsokWidgets.panel(graphics, left, y, right, y + 46, 0xFF141924, OsokWidgets.COLOR_CARD_BORDER);
 
                 graphics.item(new ItemStack(Items.CLOCK), left + 10, y + 15);
                 graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_time_card_title", formattedTime), left + 36, y + 11, OsokWidgets.COLOR_GOLD);
@@ -701,11 +641,7 @@ public final class ArenaMenuScreen extends Screen {
             }
             case KILL_LIMIT -> {
                 if (isGunGame) {
-                    graphics.fill(left, y, right, y + 54, 0xFF241F16);
-                    graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_AMBER);
-                    graphics.horizontalLine(left, right - 1, y + 53, OsokWidgets.COLOR_AMBER);
-                    graphics.verticalLine(left, y, y + 53, OsokWidgets.COLOR_AMBER);
-                    graphics.verticalLine(right - 1, y, y + 53, OsokWidgets.COLOR_AMBER);
+                    OsokWidgets.panel(graphics, left, y, right, y + 54, 0xFF241F16, OsokWidgets.COLOR_AMBER);
 
                     graphics.item(new ItemStack(Items.BARRIER), left + 10, y + 18);
                     graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_kills_gungame_alert_title"), left + 36, y + 12, OsokWidgets.COLOR_AMBER);
@@ -715,11 +651,7 @@ public final class ArenaMenuScreen extends Screen {
                 } else {
                     int effectiveKills = localPreviewKills != null ? localPreviewKills : Math.clamp(state.getMatchTargetValue(), 1, 100);
 
-                    graphics.fill(left, y, right, y + 46, 0xFF141924);
-                    graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_CARD_BORDER);
-                    graphics.horizontalLine(left, right - 1, y + 45, OsokWidgets.COLOR_CARD_BORDER);
-                    graphics.verticalLine(left, y, y + 45, OsokWidgets.COLOR_CARD_BORDER);
-                    graphics.verticalLine(right - 1, y, y + 45, OsokWidgets.COLOR_CARD_BORDER);
+                    OsokWidgets.panel(graphics, left, y, right, y + 46, 0xFF141924, OsokWidgets.COLOR_CARD_BORDER);
 
                     graphics.item(new ItemStack(Items.TARGET), left + 10, y + 15);
                     graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_kills_card_title", effectiveKills), left + 36, y + 11, OsokWidgets.COLOR_GOLD);
@@ -783,6 +715,21 @@ public final class ArenaMenuScreen extends Screen {
         }
 
         contentLength = y + scroll.offset() - contentTop;
+    }
+
+    private static String getTargetModeLabel(MatchTargetMode mode, boolean isGunGame) {
+        if (isGunGame) {
+            return switch (mode) {
+                case TIME_LIMIT -> Component.translatable("gui.oneshotonekill.menu.target_time_btn_gungame").getString();
+                case KILL_LIMIT -> Component.translatable("gui.oneshotonekill.menu.target_kills_btn_gungame").getString();
+                case UNLIMITED -> Component.translatable("gui.oneshotonekill.menu.target_none_btn_gungame").getString();
+            };
+        }
+        return switch (mode) {
+            case TIME_LIMIT -> Component.translatable("gui.oneshotonekill.menu.target_time_btn").getString();
+            case KILL_LIMIT -> Component.translatable("gui.oneshotonekill.menu.target_kills_btn").getString();
+            case UNLIMITED -> Component.translatable("gui.oneshotonekill.menu.target_none_btn").getString();
+        };
     }
 
     private void drawSlider(GuiGraphicsExtractor graphics, Slider slider, String label, String displayValue, int mouseX, int mouseY) {
@@ -1093,14 +1040,10 @@ public final class ArenaMenuScreen extends Screen {
 
         for (int i = hotspots.size() - 1; i >= 0; i--) {
             Hotspot hotspot = hotspots.get(i);
-            if (!OsokWidgets.isOver(mouseX, mouseY, hotspot.x, hotspot.y, hotspot.width, hotspot.height)) {
-                continue;
+            if (hotspot.matches(mouseX, mouseY, contentTop, contentHeight)) {
+                graphics.requestCursor(hotspot.pointer ? CursorTypes.POINTING_HAND : CursorTypes.NOT_ALLOWED);
+                return;
             }
-            if (hotspot.scrollable && (mouseY < contentTop || mouseY >= contentTop + contentHeight)) {
-                continue;
-            }
-            graphics.requestCursor(hotspot.pointer ? CursorTypes.POINTING_HAND : CursorTypes.NOT_ALLOWED);
-            return;
         }
     }
 
@@ -1238,6 +1181,13 @@ public final class ArenaMenuScreen extends Screen {
 
         public Hotspot(int x, int y, int width, int height, boolean enabled, Runnable action) {
             this(x, y, width, height, enabled, enabled, true, true, action);
+        }
+
+        public boolean matches(int mouseX, int mouseY, int contentTop, int contentHeight) {
+            if (!OsokWidgets.isOver(mouseX, mouseY, x, y, width, height)) {
+                return false;
+            }
+            return !scrollable || (mouseY >= contentTop && mouseY < contentTop + contentHeight);
         }
     }
 

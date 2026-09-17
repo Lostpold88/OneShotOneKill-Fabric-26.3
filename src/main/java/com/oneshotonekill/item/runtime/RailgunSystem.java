@@ -583,14 +583,7 @@ public final class RailgunSystem {
    }
 
    private static int blend(int from, int to, double share) {
-      double amount = Math.clamp(share, 0.0, 1.0);
-      int result = 0;
-      for (int shift = 0; shift <= 16; shift += 8) {
-         int a = (from >> shift) & 0xFF;
-         int b = (to >> shift) & 0xFF;
-         result |= (a + (int) Math.round((b - a) * amount)) << shift;
-      }
-      return result & 0xF8F8F8;
+      return Hologram.mixColor(from, to, share) & 0xF8F8F8;
    }
 
    /**

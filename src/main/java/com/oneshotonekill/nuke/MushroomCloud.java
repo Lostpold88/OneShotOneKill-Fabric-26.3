@@ -1,12 +1,7 @@
 package com.oneshotonekill.nuke;
 
-import com.oneshotonekill.shared.Hologram;
-
 import com.oneshotonekill.registry.ModItems;
-import java.util.ArrayList;
-import java.util.Iterator;
-import java.util.List;
-import net.minecraft.core.component.DataComponents;
+import com.oneshotonekill.shared.Hologram;
 import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.server.level.ServerLevel;
@@ -16,10 +11,13 @@ import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+
+import java.util.ArrayList;
+import java.util.Iterator;
+import java.util.List;
 
 /**
  * Der Atompilz über einem Luftangriff – als Körper, nicht als Partikelwolke.
@@ -206,15 +204,7 @@ public final class MushroomCloud {
 
    /** Blendet zwei Farben kanalweise; {@code share} 0 liefert die erste, 1 die zweite. */
    private static int mix(int from, int to, double share) {
-      double amount = Math.clamp(share, 0.0, 1.0);
-      int red = channel(from, 16) + (int) Math.round((channel(to, 16) - channel(from, 16)) * amount);
-      int green = channel(from, 8) + (int) Math.round((channel(to, 8) - channel(from, 8)) * amount);
-      int blue = channel(from, 0) + (int) Math.round((channel(to, 0) - channel(from, 0)) * amount);
-      return (red << 16) | (green << 8) | blue;
-   }
-
-   private static int channel(int colour, int shift) {
-      return (colour >> shift) & 0xFF;
+      return Hologram.mixColor(from, to, share);
    }
 
    private static double progress(int age, int from, int span) {
@@ -303,12 +293,8 @@ public final class MushroomCloud {
          if (display == null) {
             return null;
          }
-         Vector3f axis = new Vector3f(random.nextFloat() - 0.5F, random.nextFloat() - 0.5F, random.nextFloat() - 0.5F);
-         if (axis.lengthSquared() < 1.0E-4F) {
-            axis.set(0.0F, 1.0F, 0.0F);
-         }
          return new Part(display, shape, nextIndex++, born, bearing, random.nextDouble(),
-            0.78 + random.nextDouble() * 0.44, axis.normalize(), (random.nextDouble() - 0.5) * 0.06);
+            0.78 + random.nextDouble() * 0.44, Hologram.randomRotationAxis(random), (random.nextDouble() - 0.5) * 0.06);
       }
 
       private void draw() {
@@ -481,7 +467,7 @@ public final class MushroomCloud {
             new Quaternionf(),
             new Vector3f(across, band, across),
             INTERPOLATION_TICKS);
-         tint(wave, mix(SMOKE_DARK, DUST, 1.0 - share));
+         wave.colour = Hologram.tint(wave.display, wave.shape, wave.colour, mix(SMOKE_DARK, DUST, 1.0 - share));
       }
 
       /**
@@ -539,7 +525,7 @@ public final class MushroomCloud {
             new Quaternionf().rotationAxis((float) (part.phase * Math.PI * 2.0 + age * part.spin), part.axis),
             new Vector3f(scale, scale, scale),
             INTERPOLATION_TICKS);
-         tint(part, colour);
+         part.colour = Hologram.tint(part.display, part.shape, part.colour, colour);
       }
 
       private void hide(Part part) {
@@ -547,27 +533,7 @@ public final class MushroomCloud {
             return;
          }
          part.hidden = true;
-         Hologram.setPose(part.display, new Vector3f(), new Quaternionf(),
-            new Vector3f(Hologram.HIDDEN_SCALE, Hologram.HIDDEN_SCALE, Hologram.HIDDEN_SCALE), 0);
-      }
-
-      /**
-       * Färbt ein Teil ein.
-       * <p>
-       * Die Farbe steckt im Gegenstand, nicht in der Matrix – jede Änderung ist also ein eigenes
-       * Paket. Deshalb wird sie auf Stufen von acht gerundet und nur bei echter Änderung gesetzt;
-       * vom sekundenlangen Abkühlen bleiben so eine Handvoll Pakete übrig statt eines je Tick
-       * und Teil.
-       */
-      private void tint(Part part, int colour) {
-         int stepped = colour & 0xF8F8F8;
-         if (part.colour == stepped) {
-            return;
-         }
-         part.colour = stepped;
-         ItemStack stack = new ItemStack(part.shape);
-         stack.set(DataComponents.DYED_COLOR, new DyedItemColor(stepped));
-         Hologram.setItem(part.display, stack);
+         Hologram.hide(part.display);
       }
 
       private double fade() {

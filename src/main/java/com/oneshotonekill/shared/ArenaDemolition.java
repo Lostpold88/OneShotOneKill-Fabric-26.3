@@ -33,7 +33,7 @@ import net.minecraft.world.phys.Vec3;
  * Buchhaltungen darüber zu führen, was der Karte gerade fehlt – und die erste vergessene
  * Wiederherstellung beschädigt die Arena dauerhaft.
  */
-@SuppressWarnings({"ForLoopReplaceableByForEach", "UnusedReturnValue", "unused"})
+@SuppressWarnings({"UnusedReturnValue", "unused"})
 public final class ArenaDemolition {
    public static final ArenaDemolition INSTANCE = new ArenaDemolition();
 
@@ -335,7 +335,7 @@ public final class ArenaDemolition {
 
       for (int x = (int) Math.floor(impact.x) - radius; x <= (int) Math.floor(impact.x) + radius; x++) {
          for (int z = (int) Math.floor(impact.z) - radius; z <= (int) Math.floor(impact.z) + radius; z++) {
-            ArenaShape shape = shapeAt(arena, x + 0.5, z + 0.5);
+            ArenaShape shape = arena.shapeAt(x + 0.5, z + 0.5);
             if (shape == null) {
                continue;
             }
@@ -402,18 +402,6 @@ public final class ArenaDemolition {
             iterator.remove();
          }
       }
-   }
-
-   /** Wird pro Kraterspalte aufgerufen – daher bewusst ohne Stream. */
-   private static ArenaShape shapeAt(Arena arena, double x, double z) {
-      List<ArenaShape> regions = arena.getRegions();
-      for (int index = 0; index < regions.size(); index++) {
-         ArenaShape shape = regions.get(index);
-         if (shape.containsColumn(x, z)) {
-            return shape;
-         }
-      }
-      return null;
    }
 
    private record DropSuppression(ServerLevel level, Vec3 impact, int radius, int expiresAt) {

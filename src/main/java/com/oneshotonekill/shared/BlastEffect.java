@@ -5,13 +5,11 @@ import com.oneshotonekill.registry.ModItems;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.util.RandomSource;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
@@ -99,18 +97,7 @@ public final class BlastEffect {
    private static int heatAt(double share) {
       double position = Math.clamp(share, 0.0, 1.0) * (HEAT.length - 1);
       int low = Math.min(HEAT.length - 2, (int) position);
-      return mix(HEAT[low], HEAT[low + 1], position - low);
-   }
-
-   private static int mix(int from, int to, double share) {
-      double amount = Math.clamp(share, 0.0, 1.0);
-      int result = 0;
-      for (int shift = 0; shift <= 16; shift += 8) {
-         int a = (from >> shift) & 0xFF;
-         int b = (to >> shift) & 0xFF;
-         result |= (a + (int) Math.round((b - a) * amount)) << shift;
-      }
-      return result;
+      return Hologram.mixColor(HEAT[low], HEAT[low + 1], position - low);
    }
 
    private static double progress(int age, int from, int span) {
@@ -167,12 +154,8 @@ public final class BlastEffect {
          if (display == null) {
             return null;
          }
-         Vector3f axis = new Vector3f(random.nextFloat() - 0.5F, random.nextFloat() - 0.5F, random.nextFloat() - 0.5F);
-         if (axis.lengthSquared() < 1.0E-4F) {
-            axis.set(0.0F, 1.0F, 0.0F);
-         }
          return new Part(display, shape, nextIndex++, bearing, random.nextDouble(),
-            0.75 + random.nextDouble() * 0.5, axis.normalize());
+            0.75 + random.nextDouble() * 0.5, Hologram.randomRotationAxis(random));
       }
 
       private void draw() {
@@ -208,7 +191,7 @@ public final class BlastEffect {
                PUFF_RISE * radius * push * (0.4 + part.phase),
                Math.sin(part.bearing) * reach,
                PUFF_WIDTH * radius * part.bulk * (0.3 + 0.7 * push),
-               mix(heatAt(0.5), push > 0.4 ? SMOKE_DARK : SMOKE, progress(age, 4, 20)));
+               Hologram.mixColor(heatAt(0.5), push > 0.4 ? SMOKE_DARK : SMOKE, progress(age, 4, 20)));
          }
       }
 
@@ -225,7 +208,7 @@ public final class BlastEffect {
                Math.max(-radius * 0.4, velocity.y * age - 0.5 * SHARD_GRAVITY * radius * age * age),
                velocity.z * age,
                SHARD_WIDTH * radius * part.bulk * (1.0 - progress(age, SHARD_TICKS - 12, 12)),
-               mix(heatAt(0.8), SMOKE_DARK, progress(age, 0, 14)));
+               Hologram.mixColor(heatAt(0.8), SMOKE_DARK, progress(age, 0, 14)));
          }
       }
 
@@ -244,31 +227,21 @@ public final class BlastEffect {
             new Quaternionf().rotationAxis((float) (part.phase * Math.PI * 2.0 + age * 0.05), part.axis),
             new Vector3f(scale, scale, scale),
             INTERPOLATION_TICKS);
-         tint(part, colour);
+         part.colour = Hologram.tint(part.display, part.shape, part.colour, colour);
       }
 
       private void hide(Part part) {
-         if (part == null || part.hidden || ((age + part.index) & 1) != 0) {
-            return;
+         if (part != null && !part.hidden && ((age + part.index) & 1) == 0) {
+            part.hidden = true;
+            Hologram.hide(part.display);
          }
-         part.hidden = true;
-         Hologram.setPose(part.display, new Vector3f(), new Quaternionf(),
-            new Vector3f(Hologram.HIDDEN_SCALE, Hologram.HIDDEN_SCALE, Hologram.HIDDEN_SCALE), 0);
-      }
-
-      private void tint(Part part, int colour) {
-         int stepped = colour & 0xF8F8F8;
-         if (part.colour == stepped) {
-            return;
-         }
-         part.colour = stepped;
-         ItemStack stack = new ItemStack(part.shape);
-         stack.set(DataComponents.DYED_COLOR, new DyedItemColor(stepped));
-         Hologram.setItem(part.display, stack);
       }
 
       private double fade() {
-         return age < FADE_START ? 1.0 : 1.0 - progress(age, FADE_START, DURATION_TICKS - FADE_START);
+         if (age < FADE_START) {
+            return 1.0;
+         }
+         return 1.0 - progress(age, FADE_START, DURATION_TICKS - FADE_START);
       }
    }
 
