@@ -38,15 +38,7 @@ public final class WallClimbing {
     public static boolean isClimbableWall(Player player, Direction normal) {
         if (!hasContact(player, normal)) return false;
         AABB box = player.getBoundingBox();
-        double low = box.minY + 1.55, high = box.minY + 1.95;
-        AABB upperGrip = switch (normal) {
-            case EAST -> new AABB(box.minX - GRIP_REACH, low, box.minZ + 0.08, box.minX + 0.01, high, box.maxZ - 0.08);
-            case WEST -> new AABB(box.maxX - 0.01, low, box.minZ + 0.08, box.maxX + GRIP_REACH, high, box.maxZ - 0.08);
-            case SOUTH -> new AABB(box.minX + 0.08, low, box.minZ - GRIP_REACH, box.maxX - 0.08, high, box.minZ + 0.01);
-            case NORTH -> new AABB(box.minX + 0.08, low, box.maxZ - 0.01, box.maxX - 0.08, high, box.maxZ + GRIP_REACH);
-            default -> throw new IllegalArgumentException("Horizontal wall required");
-        };
-        return player.level().getBlockCollisions(player, upperGrip).iterator().hasNext();
+        return hasWallCollision(player, normal, box, box.minY + 1.55, box.minY + 1.95);
     }
 
     public static boolean hasContact(Player player, Direction normal) {
@@ -54,16 +46,22 @@ public final class WallClimbing {
     }
 
     public static boolean hasContact(Player player, Direction normal, AABB box) {
+        return hasWallCollision(player, normal, box, box.minY + 0.20, box.maxY - 0.20);
+    }
+
+    private static boolean hasWallCollision(Player player, Direction normal, AABB box, double low, double high) {
         if (normal.getAxis() == Direction.Axis.Y) return false;
-        double low = box.minY + 0.20, high = box.maxY - 0.20;
-        AABB grip = switch (normal) {
+        return player.level().getBlockCollisions(player, gripBox(normal, box, low, high)).iterator().hasNext();
+    }
+
+    public static AABB gripBox(Direction normal, AABB box, double low, double high) {
+        return switch (normal) {
             case EAST -> new AABB(box.minX - GRIP_REACH, low, box.minZ + 0.08, box.minX + 0.01, high, box.maxZ - 0.08);
             case WEST -> new AABB(box.maxX - 0.01, low, box.minZ + 0.08, box.maxX + GRIP_REACH, high, box.maxZ - 0.08);
             case SOUTH -> new AABB(box.minX + 0.08, low, box.minZ - GRIP_REACH, box.maxX - 0.08, high, box.minZ + 0.01);
             case NORTH -> new AABB(box.minX + 0.08, low, box.maxZ - 0.01, box.maxX - 0.08, high, box.maxZ + GRIP_REACH);
             default -> throw new IllegalArgumentException("Horizontal wall required");
         };
-        return player.level().getBlockCollisions(player, grip).iterator().hasNext();
     }
 
     public static boolean hasCornerBlock(Player player, Direction wall, Direction adj) {
