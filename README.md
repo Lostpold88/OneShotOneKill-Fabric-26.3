@@ -10,7 +10,7 @@ PvP-Minigame für Minecraft: Ein Treffer genügt. Umschaltbare Arenen, Killstrea
 | :--- | :--- |
 | **Minecraft** | 26.3 |
 | **Fabric Loader** | 0.19.5 |
-| **Fabric API** | 0.160.7+26.3 |
+| **Fabric API** | 0.161.0+26.3 |
 | **Fabric Loom** | 1.17-SNAPSHOT |
 | **Mod-Version** | 2.0.0 |
 | **Java** | 25 |
