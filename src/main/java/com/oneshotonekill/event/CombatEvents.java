@@ -129,33 +129,16 @@ public final class CombatEvents {
          ThrownDevices.INSTANCE.excludeFromFields(victim);
          Deployables.INSTANCE.clearOnDeath(victim);
    
-         if (!attacker.equals(victim)) {
-            if (MatchManager.INSTANCE.getCurrentGameMode() == GameMode.GUN_GAME) {
-               GunGameManager.INSTANCE.recordKill(attacker, victim, cause);
-               ScoreboardManager.INSTANCE.addKill(attacker.getUUID());
-            } else {
-               int newKills = ScoreboardManager.INSTANCE.addKill(attacker.getUUID());
-               if (ScoreboardManager.INSTANCE.claimBounty(victim.getUUID())) {
-                  SpecialItemManager.INSTANCE.grantBounty(attacker, victim);
-               }
-               SpecialItemManager.INSTANCE.grantStreakReward(attacker, ScoreboardManager.INSTANCE.addStreak(attacker.getUUID()));
-               OsokEffects.INSTANCE.sendPrivateSound(attacker, SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0F, 1.8F);
-               MatchManager.INSTANCE.checkKillLimit(attacker, newKills);
-            }
-         }
+         recordAttackerKill(attacker, victim, cause, false);
 
          SpecialItemManager.INSTANCE.tryDropVictimLoot(attacker, victim, cause, victim.position());
 
-         ScoreboardManager.INSTANCE.addDeath(victim.getUUID());
-         ScoreboardManager.INSTANCE.resetStreak(victim.getUUID());
-         ScoreboardManager.INSTANCE.updateAllScoreboards();
          // Sofortige Treffer-Partikel am Sterbeort
          ServerLevel victimLevel = (ServerLevel) victim.level();
          Vec3 hitPos = victim.position().add(0.0, victim.getBbHeight() * 0.5, 0.0);
          victimLevel.sendParticles(ParticleTypes.CRIT, hitPos.x, hitPos.y, hitPos.z, 12, 0.35, 0.35, 0.35, 0.2);
          // Erst nach dem Zählen melden, damit die Serie in der Zeile schon stimmt.
-         KillFeed.kill(attacker, victim, cause);
-         RespawnSystem.INSTANCE.respawnInstant(victim, arena, victim.position(), true);
+         recordVictimDeath(attacker, victim, cause, arena);
       }
    
       public static boolean allowDamage(LivingEntity entity, DamageSource source, float amount) {
@@ -231,30 +214,38 @@ public final class CombatEvents {
             }
          }
 
-         if (!attacker.equals(victim)) {
-            if (MatchManager.INSTANCE.getCurrentGameMode() == GameMode.GUN_GAME) {
-               GunGameManager.INSTANCE.recordKill(attacker, victim, hitCause);
-               ScoreboardManager.INSTANCE.addKill(attacker.getUUID());
-            } else {
-               int newKills = ScoreboardManager.INSTANCE.addKill(attacker.getUUID());
-               if (ScoreboardManager.INSTANCE.claimBounty(victim.getUUID())) {
-                  SpecialItemManager.INSTANCE.grantBounty(attacker, victim);
-               }
-               SpecialItemManager.INSTANCE.grantStreakReward(attacker, ScoreboardManager.INSTANCE.addStreak(attacker.getUUID()));
-               OsokEffects.INSTANCE.sendPrivateSound(attacker, SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0F, 1.8F);
-               if (isMinigunShot) {
-                  MinigunRuntime.INSTANCE.sendKillEffect(attacker);
-               }
-               MatchManager.INSTANCE.checkKillLimit(attacker, newKills);
-            }
-         }
+         recordAttackerKill(attacker, victim, hitCause, isMinigunShot);
+         recordVictimDeath(attacker, victim, hitCause, arena);
+         return false;
+      }
 
+      private static void recordAttackerKill(ServerPlayer attacker, ServerPlayer victim, KillFeed.Cause cause, boolean isMinigunShot) {
+         if (attacker.equals(victim)) {
+            return;
+         }
+         if (MatchManager.INSTANCE.getCurrentGameMode() == GameMode.GUN_GAME) {
+            GunGameManager.INSTANCE.recordKill(attacker, victim, cause);
+            ScoreboardManager.INSTANCE.addKill(attacker.getUUID());
+         } else {
+            int newKills = ScoreboardManager.INSTANCE.addKill(attacker.getUUID());
+            if (ScoreboardManager.INSTANCE.claimBounty(victim.getUUID())) {
+               SpecialItemManager.INSTANCE.grantBounty(attacker, victim);
+            }
+            SpecialItemManager.INSTANCE.grantStreakReward(attacker, ScoreboardManager.INSTANCE.addStreak(attacker.getUUID()));
+            OsokEffects.INSTANCE.sendPrivateSound(attacker, SoundEvents.EXPERIENCE_ORB_PICKUP, 1.0F, 1.8F);
+            if (isMinigunShot) {
+               MinigunRuntime.INSTANCE.sendKillEffect(attacker);
+            }
+            MatchManager.INSTANCE.checkKillLimit(attacker, newKills);
+         }
+      }
+
+      private static void recordVictimDeath(ServerPlayer attacker, ServerPlayer victim, KillFeed.Cause cause, Arena arena) {
          ScoreboardManager.INSTANCE.addDeath(victim.getUUID());
          ScoreboardManager.INSTANCE.resetStreak(victim.getUUID());
          ScoreboardManager.INSTANCE.updateAllScoreboards();
-         KillFeed.kill(attacker, victim, hitCause);
+         KillFeed.kill(attacker, victim, cause);
          RespawnSystem.INSTANCE.respawnInstant(victim, arena, victim.position(), true);
-         return false;
       }
 
       static ServerPlayer attackerOf(DamageSource source) {

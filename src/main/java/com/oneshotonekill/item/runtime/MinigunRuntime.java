@@ -201,7 +201,6 @@ public final class MinigunRuntime {
       private static final double BARREL_RADIUS = 0.0553;
       private static final double AIM_RANGE = 80.0;
       private static final double WALL_CLEARANCE = 0.15;
-      private static final Vec3 WORLD_UP = new Vec3(0.0, 1.0, 0.0);
 
       private Muzzle() {
       }
@@ -210,15 +209,10 @@ public final class MinigunRuntime {
       }
 
       public static Shot resolve(ServerLevel level, ServerPlayer player) {
-         Vec3 eye = player.getEyePosition();
-         Vec3 look = player.getLookAngle().normalize();
-         Vec3 right = look.cross(WORLD_UP);
-         right = right.lengthSqr() < 1.0E-4 ? new Vec3(1.0, 0.0, 0.0) : right.normalize();
-         Vec3 up = right.cross(look).normalize();
-
-         Vec3 muzzle = barrelInFiringPosition(eye, look, right, up, player.getTicksUsingItem());
-         muzzle = keepInsideWorld(level, player, eye, muzzle);
-         return new Shot(muzzle, towardsCrosshair(level, player, eye, look, muzzle));
+         ViewBasis basis = ViewBasis.of(player);
+         Vec3 muzzle = barrelInFiringPosition(basis.eye(), basis.look(), basis.right(), basis.up(), player.getTicksUsingItem());
+         muzzle = keepInsideWorld(level, player, basis.eye(), muzzle);
+         return new Shot(muzzle, towardsCrosshair(level, player, basis.eye(), basis.look(), muzzle));
       }
 
       private static Vec3 barrelInFiringPosition(Vec3 eye, Vec3 look, Vec3 right, Vec3 up, int useTicks) {

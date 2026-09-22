@@ -21,6 +21,7 @@ import net.minecraft.world.level.BlockGetter;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
+import org.jspecify.annotations.Nullable;
 
 @SuppressWarnings({"RedundantCast", "RedundantTypeArguments", "SuspiciousIndentAfterControlStatement", "unused"})
 public final class RandomTpSystem {
@@ -48,12 +49,12 @@ public final class RandomTpSystem {
       List<Vec3> spots = new ArrayList<>(count);
       int maximumAttempts = count * 15;
       for (int attempts = 0; spots.size() < count && attempts < maximumAttempts; attempts++) {
-         ArenaShape region = randomRegion(arena);
-         int x = ThreadLocalRandom.current().nextInt((int) region.getMinX(), (int) region.getMaxX() + 1);
-         int z = ThreadLocalRandom.current().nextInt((int) region.getMinZ(), (int) region.getMaxZ() + 1);
-         if (!region.containsColumn(x + 0.5, z + 0.5)) {
+         ColumnSample sample = sampleRegionColumn(arena);
+         if (sample == null) {
             continue;
          }
+         ArenaShape region = sample.region();
+         int x = sample.x(), z = sample.z();
          if (ArenaDemolition.INSTANCE.isRespawnBlocked(level, x + 0.5, z + 0.5)) {
             continue;
          }
@@ -100,12 +101,12 @@ public final class RandomTpSystem {
             ? MIN_ITEM_SPACING
             : MIN_ITEM_SPACING / 2.0;
 
-         ArenaShape region = randomRegion(arena);
-         int x = ThreadLocalRandom.current().nextInt((int) region.getMinX(), (int) region.getMaxX() + 1);
-         int z = ThreadLocalRandom.current().nextInt((int) region.getMinZ(), (int) region.getMaxZ() + 1);
-         if (!region.containsColumn(x + 0.5, z + 0.5)) {
+         ColumnSample sample = sampleRegionColumn(arena);
+         if (sample == null) {
             continue;
          }
+         ArenaShape region = sample.region();
+         int x = sample.x(), z = sample.z();
 
          int minY = Math.max((int) (region.getMinY() - ArenaShape.ARENA_FLOOR_TOLERANCE), level.getMinY());
          int maxY = Math.min((int) (region.getMaxY() + ArenaShape.ARENA_HEADROOM), level.getMaxY());
@@ -158,6 +159,15 @@ public final class RandomTpSystem {
          }
       }
       return arena.getRegions().getLast();
+   }
+
+   public record ColumnSample(ArenaShape region, int x, int z) {}
+
+   private @Nullable ColumnSample sampleRegionColumn(Arena arena) {
+      ArenaShape region = randomRegion(arena);
+      int x = ThreadLocalRandom.current().nextInt((int) region.getMinX(), (int) region.getMaxX() + 1);
+      int z = ThreadLocalRandom.current().nextInt((int) region.getMinZ(), (int) region.getMaxZ() + 1);
+      return region.containsColumn(x + 0.5, z + 0.5) ? new ColumnSample(region, x, z) : null;
    }
 
    private boolean isValidGroundItemPosition(ServerLevel level, BlockPos groundPos, BlockState ground, BlockState itemSpace) {

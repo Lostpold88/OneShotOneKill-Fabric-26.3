@@ -267,18 +267,9 @@ public final class MatchManager {
       if (server != null) {
          for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             if (arena != null) {
-               Vec3 target = RandomTpSystem.INSTANCE.getRandomArenaLocation(arena, server);
-               ServerLevel level = server.getLevel(arena.getDimension());
-               player.teleportTo(level == null ? player.level() : level, target.x, target.y, target.z,
-                  Set.of(), player.getYRot(), player.getXRot(), false);
-               player.fallDistance = 0.0;
+               spawnPlayerInArena(player, arena, server);
             }
-            if (currentGameMode == GameMode.GUN_GAME) {
-               GunGameManager.INSTANCE.giveTierEquipment(player);
-               GunGameManager.INSTANCE.syncStatus(player, false);
-            } else {
-               EquipmentManager.INSTANCE.giveOneShotEquipment(player);
-            }
+            equipPlayerForCurrentMode(player);
 
             // Gemerkte Spezialitems genau in die ursprünglichen Slots zurückgeben
             Map<Integer, ItemStack> savedItems = pausedSpecialItems.remove(player.getUUID());
@@ -300,6 +291,23 @@ public final class MatchManager {
       pausedSpecialItems.clear();
       ScoreboardManager.INSTANCE.updateAllScoreboards();
       broadcastState();
+   }
+
+   public static void spawnPlayerInArena(ServerPlayer player, Arena arena, MinecraftServer server) {
+      Vec3 target = RandomTpSystem.INSTANCE.getRandomArenaLocation(arena, server);
+      ServerLevel level = server.getLevel(arena.getDimension());
+      player.teleportTo(level == null ? player.level() : level, target.x, target.y, target.z,
+         Set.of(), player.getYRot(), player.getXRot(), false);
+      player.fallDistance = 0.0;
+   }
+
+   public void equipPlayerForCurrentMode(ServerPlayer player) {
+      if (currentGameMode == GameMode.GUN_GAME) {
+         GunGameManager.INSTANCE.giveTierEquipment(player);
+         GunGameManager.INSTANCE.syncStatus(player, false);
+      } else {
+         EquipmentManager.INSTANCE.giveOneShotEquipment(player);
+      }
    }
 
    public void tick(MinecraftServer server) {
@@ -925,16 +933,8 @@ public final class MatchManager {
             GunGameManager.INSTANCE.startMatch(server);
          }
          for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-            Vec3 target = RandomTpSystem.INSTANCE.getRandomArenaLocation(arena, server);
-            ServerLevel level = server.getLevel(arena.getDimension());
-            player.teleportTo(level == null ? player.level() : level, target.x, target.y, target.z, Set.of(), player.getYRot(), player.getXRot(), false);
-            player.fallDistance = 0.0;
-            if (currentGameMode == GameMode.GUN_GAME) {
-               GunGameManager.INSTANCE.giveTierEquipment(player);
-               GunGameManager.INSTANCE.syncStatus(player, false);
-            } else {
-               EquipmentManager.INSTANCE.giveOneShotEquipment(player);
-            }
+            spawnPlayerInArena(player, arena, server);
+            MatchManager.INSTANCE.equipPlayerForCurrentMode(player);
             OsokEffects.INSTANCE.playStartMatchEffect(player);
             ServerPlayNetworking.send(player, MatchCountdownPayload.go(arenaName, modeName));
          }

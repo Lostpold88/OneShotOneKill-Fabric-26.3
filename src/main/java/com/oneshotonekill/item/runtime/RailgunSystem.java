@@ -143,8 +143,6 @@ public final class RailgunSystem {
    private static final int BOLT_HOT = 0xEAFBFF;
    private static final int BOLT_COLD = 0x2E7FC8;
 
-   private static final Vec3 WORLD_UP = new Vec3(0.0, 1.0, 0.0);
-
    private static final int RING_SLOT = 0;
    private static final int CORE_SLOT = 1;
 
@@ -573,13 +571,8 @@ public final class RailgunSystem {
     * Näherung – sie sehen die Waffe an der Hand, nicht vor dem Auge.
     */
    private static Vec3 muzzle(ServerPlayer shooter) {
-      Vec3 eye = shooter.getEyePosition();
-      Vec3 look = shooter.getLookAngle().normalize();
-      Vec3 right = look.cross(WORLD_UP);
-      // Beim Blick senkrecht nach oben oder unten steht kein rechter Vektor mehr zur Verfügung.
-      right = right.lengthSqr() < 1.0E-4 ? new Vec3(1.0, 0.0, 0.0) : right.normalize();
-      Vec3 up = right.cross(look).normalize();
-      return eye.add(look.scale(MUZZLE_FORWARD)).add(right.scale(MUZZLE_RIGHT)).add(up.scale(-MUZZLE_DOWN));
+      ViewBasis basis = ViewBasis.of(shooter);
+      return basis.eye().add(basis.look().scale(MUZZLE_FORWARD)).add(basis.right().scale(MUZZLE_RIGHT)).add(basis.up().scale(-MUZZLE_DOWN));
    }
 
    private static int blend(int from, int to, double share) {
