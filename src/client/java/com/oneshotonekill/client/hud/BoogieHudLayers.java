@@ -112,17 +112,17 @@ public final class BoogieHudLayers {
             graphics.fillGradient(0, height - topH, width, height, ARGB.color(0, r, g, b), ARGB.color(alphaEdge, r, g, b));
 
             int sideW = Math.max(24, width / 5);
-            int steps = 8;
-            for (int i = 0; i < steps; i++) {
-                float f = (float) (steps - i) / steps;
+            int stepSize = Math.max(1, sideW / 128);
+            for (int x = 0; x < sideW; x += stepSize) {
+                int xNext = Math.min(x + stepSize, sideW);
+                float f = 1.0F - (float) (x + xNext) / (2.0F * sideW);
                 int stepAlpha = (int) (alphaEdge * f * f * 0.70F);
+                if (stepAlpha <= 0) {
+                    continue;
+                }
                 int stepCol = ARGB.color(stepAlpha, r, g, b);
-                int xL0 = i * (sideW / steps);
-                int xL1 = (i + 1) * (sideW / steps);
-                graphics.fill(xL0, topH, xL1, height - topH, stepCol);
-                int xR0 = width - (i + 1) * (sideW / steps);
-                int xR1 = width - i * (sideW / steps);
-                graphics.fill(xR0, topH, xR1, height - topH, stepCol);
+                graphics.fill(x, 0, xNext, height, stepCol);
+                graphics.fill(width - xNext, 0, width - x, height, stepCol);
             }
 
             // =========================================================================

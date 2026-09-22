@@ -107,7 +107,7 @@ public abstract class LivingEntityRendererMixin {
          return;
       }
       float seconds = BoogieBombClient.seconds(entity.getUUID());
-      float progress = BoogieDanceAnimation.saltoProgress(seconds);
+      float progress = BoogieDanceAnimation.saltoProgress(seconds, entity.getUUID());
       if (progress >= 0.0F && progress <= 1.0F) {
          float jumpY = BoogieDanceAnimation.saltoJumpY(progress) * weight;
          float pitch = BoogieDanceAnimation.saltoPitch(progress) * weight;
@@ -118,7 +118,7 @@ public abstract class LivingEntityRendererMixin {
          poseStack.translate(0.0F, -0.95F, 0.0F);
       }
 
-      float spinProgress = BoogieDanceAnimation.spinProgress(seconds);
+      float spinProgress = BoogieDanceAnimation.spinProgress(seconds, entity.getUUID());
       if (spinProgress >= 0.0F && spinProgress <= 1.0F) {
          float spinYaw = BoogieDanceAnimation.spinYaw(spinProgress) * weight;
          poseStack.rotate(Axis.YP.rotationDegrees(spinYaw));

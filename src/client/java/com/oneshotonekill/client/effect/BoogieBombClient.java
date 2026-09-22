@@ -105,6 +105,12 @@ public final class BoogieBombClient {
         return dance.accumulatedSeconds;
     }
 
+    public static int getRoutineIndex(UUID id) {
+        Dance dance = DANCERS.get(id);
+        if (dance != null) return dance.routineIndex;
+        return Math.floorMod(id.hashCode(), BoogieDanceAnimation.ROUTINE_COUNT);
+    }
+
     public static Vector3f getDiscoColor(float seconds) {
         float beat = seconds * 2.0F;
         float phase = (beat * 0.5F) % NEON_PALETTE.length;
@@ -122,7 +128,7 @@ public final class BoogieBombClient {
         );
     }
 
-    private record LocalDanceState(float weight, float seconds) {}
+    private record LocalDanceState(float weight, float seconds, UUID id) {}
 
     @Nullable
     private static LocalDanceState getActiveLocalState() {
@@ -131,16 +137,17 @@ public final class BoogieBombClient {
         UUID id = client.player.getUUID();
         float weight = getWeight(id);
         if (weight <= 0.001F) return null;
-        return new LocalDanceState(weight, seconds(id));
+        return new LocalDanceState(weight, seconds(id), id);
     }
 
     public static float cameraRoll() {
         LocalDanceState state = getActiveLocalState();
         if (state == null) return 0.0F;
         float sec = state.seconds();
-        float saltoProg = BoogieDanceAnimation.saltoProgress(sec);
+        UUID localId = state.id();
+        float saltoProg = BoogieDanceAnimation.saltoProgress(sec, localId);
         float saltoFade = saltoProg >= 0.0F ? (1.0F - Math.clamp((float) Math.sin(saltoProg * Math.PI) * 1.35F, 0.0F, 1.0F)) : 1.0F;
-        float spinProg = BoogieDanceAnimation.spinProgress(sec);
+        float spinProg = BoogieDanceAnimation.spinProgress(sec, localId);
         float spinFade = spinProg >= 0.0F ? (1.0F - Math.clamp((float) Math.sin(spinProg * Math.PI) * 1.30F, 0.0F, 1.0F)) : 1.0F;
         float beat = sec * 2.0F;
         float swing = (float) Math.sin(beat * Math.PI);
@@ -151,12 +158,13 @@ public final class BoogieBombClient {
         LocalDanceState state = getActiveLocalState();
         if (state == null) return cameraDistance;
         float sec = state.seconds();
+        UUID localId = state.id();
 
         // 1. Initialer Bass-Drop Punch (die ersten 0.45s beim Treffer der Granate)
         float dropZoom = (sec < 0.45F) ? (float) Math.sin(Math.clamp(sec / 0.45F, 0.0F, 1.0F) * Math.PI) * 1.35F : 0.0F;
 
         // 2. Salto-Zoom während des Saltos
-        float p = BoogieDanceAnimation.saltoProgress(sec);
+        float p = BoogieDanceAnimation.saltoProgress(sec, localId);
         float saltoZoom = (p >= 0.0F && p <= 1.0F) ? (float) Math.sin(p * Math.PI) * 1.10F : 0.0F;
 
         // 3. Rhythmischer Woofer-Puls auf jedem Beat (Subwoofer-Pumpen)
@@ -171,6 +179,7 @@ public final class BoogieBombClient {
         LocalDanceState state = getActiveLocalState();
         if (state == null) return 0.0F;
         float sec = state.seconds();
+        UUID localId = state.id();
         float beat = sec * 2.0F;
 
         // 1. Initialer Bass-Drop FOV-Kick beim Treffer
@@ -182,7 +191,7 @@ public final class BoogieBombClient {
 
         // 3. Kontinuierliches subtiles Atmen & Salto-Punch
         float pulse = (float) Math.sin(beat * Math.PI * 2.0) * 0.016F;
-        float p = BoogieDanceAnimation.saltoProgress(sec);
+        float p = BoogieDanceAnimation.saltoProgress(sec, localId);
         float saltoPunch = (p >= 0.0F && p <= 1.0F) ? (float) Math.sin(p * Math.PI) * 0.035F : 0.0F;
 
         return (dropPunch + kickFov + pulse + saltoPunch) * state.weight();
@@ -234,7 +243,7 @@ public final class BoogieBombClient {
         } else {
             if (dance == null) {
                 float initialSeconds = Math.clamp(packet.elapsedMillis(), 0, BoogieBombSystem.DURATION_MILLIS) / 1000.0F;
-                dance = new Dance(now - (long) (initialSeconds * 1_000_000_000L), initialSeconds);
+                dance = new Dance(packet.playerId(), now - (long) (initialSeconds * 1_000_000_000L), initialSeconds);
                 DANCERS.put(packet.playerId(), dance);
             } else {
                 dance.stopTime = 0L;
@@ -338,11 +347,14 @@ public final class BoogieBombClient {
         @Nullable DiscoSound sound;
         float accumulatedSeconds;
         long lastUpdateNanos;
+        final int routineIndex;
 
-        Dance(long start, float initialSeconds) {
+        Dance(UUID id, long start, float initialSeconds) {
             this.start = start;
             this.accumulatedSeconds = initialSeconds;
             this.lastUpdateNanos = System.nanoTime();
+            int seed = (int) (id.hashCode() ^ (start / 1_000_000_000L));
+            this.routineIndex = Math.floorMod(seed, BoogieDanceAnimation.ROUTINE_COUNT);
         }
 
         void update(long now) {

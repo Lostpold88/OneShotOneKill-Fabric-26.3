@@ -8,6 +8,7 @@ import com.oneshotonekill.shared.SpecialItemRules;
 import io.netty.buffer.ByteBuf;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.UUIDUtil;
+import net.minecraft.core.particles.ColorParticleOption;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.codec.ByteBufCodecs;
@@ -136,6 +137,10 @@ public final class BoogieBombSystem {
             ServerPlayer player = server.getPlayerList().getPlayer(entry.getKey());
             if (player == null || !player.isAlive() || player.isSpectator() || player.level() != dance.level
                     || dance.level != worlds.getActiveLevel() || remaining(dance) <= 0) {
+                if (player != null && dance.level == worlds.getActiveLevel()) {
+                    boolean premature = remaining(dance) > 500;
+                    triggerPartyCrasher(player, premature);
+                }
                 removeEffects(entry.getKey(), dance, server);
                 active.remove();
                 continue;
@@ -192,7 +197,11 @@ public final class BoogieBombSystem {
     /** Also used for custom damage paths which deliberately bypass vanilla health loss. */
     public void clearFor(ServerPlayer player) {
         Dance dance = dancers.remove(player.getUUID());
-        if (dance != null) removeEffects(player.getUUID(), dance, player.level().getServer());
+        if (dance != null) {
+            boolean premature = remaining(dance) > 500;
+            triggerPartyCrasher(player, premature);
+            removeEffects(player.getUUID(), dance, player.level().getServer());
+        }
     }
 
     public void syncJoiningPlayer(ServerPlayer joining) {
@@ -205,8 +214,40 @@ public final class BoogieBombSystem {
     public void reset(MinecraftServer server) {
         flights.forEach(shot -> Hologram.remove(shot.model));
         flights.clear();
-        dancers.forEach((id, dance) -> removeEffects(id, dance, server));
+        dancers.forEach((id, dance) -> {
+            ServerPlayer player = server.getPlayerList().getPlayer(id);
+            if (player != null) {
+                triggerPartyCrasher(player, true);
+            }
+            removeEffects(id, dance, server);
+        });
         dancers.clear();
+    }
+
+    private void triggerPartyCrasher(ServerPlayer player, boolean premature) {
+        ServerLevel level = player.level();
+        Vec3 pos = player.position().add(0, player.getBbHeight() * 0.65, 0);
+
+        if (premature) {
+            // Party crashed! Schallplatten-Scratch + Party-Knall + Glitzer
+            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.ITEM_BREAK, SoundSource.PLAYERS, 1.25F, 1.65F);
+            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.FIREWORK_ROCKET_BLAST, SoundSource.PLAYERS, 1.0F, 1.45F);
+            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.FIREWORK_ROCKET_TWINKLE, SoundSource.PLAYERS, 0.9F, 1.2F);
+        } else {
+            // Reguläres Ende (15s Finale): Feierlicher Party-Finale-Burst
+            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.FIREWORK_ROCKET_BLAST, SoundSource.PLAYERS, 1.0F, 1.25F);
+            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.FIREWORK_ROCKET_TWINKLE, SoundSource.PLAYERS, 1.1F, 1.4F);
+            level.playSound(null, pos.x, pos.y, pos.z, SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.7F, 1.8F);
+        }
+
+        // Bunter Konfetti- und Partikel-Burst
+        for (int colour : COLOURS) {
+            level.sendParticles(new DustParticleOptions(colour, 1.4F),
+                    pos.x, pos.y, pos.z, 6, 0.45, 0.45, 0.45, 0.22);
+        }
+        level.sendParticles(ParticleTypes.FIREWORK, pos.x, pos.y, pos.z, 20, 0.4, 0.4, 0.4, 0.25);
+        level.sendParticles(ParticleTypes.NOTE, pos.x, pos.y + 0.2, pos.z, 10, 0.5, 0.3, 0.5, 1.0);
+        level.sendParticles(ColorParticleOption.create(ParticleTypes.FLASH, 1.0F, 0.95F, 0.45F), pos.x, pos.y, pos.z, 1, 0, 0, 0, 0);
     }
 
     private static int elapsed(Dance dance) {

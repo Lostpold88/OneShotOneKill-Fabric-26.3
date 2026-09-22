@@ -22,7 +22,11 @@ import net.minecraft.util.Brightness;
 import net.minecraft.util.Mth;
 import net.minecraft.world.item.ItemDisplayContext;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Matrix4fc;
 
 import java.util.ArrayList;
@@ -104,14 +108,62 @@ public final class BoogieDiscoRenderer {
 
             float seconds = BoogieBombClient.seconds(id);
             double hover = Math.sin(seconds * 5.0) * 0.04;
-            double saltoLift = BoogieDanceAnimation.saltoBallOffset(seconds) * weight;
+            double saltoLift = BoogieDanceAnimation.saltoBallOffset(seconds, id) * weight;
             double ballY = py + player.getBbHeight() + 0.85 + hover + saltoLift;
 
-            frames.add(new DiscoFrame(
-                    (float) (px - camPos.x), (float) (py - camPos.y), (float) (pz - camPos.z),
-                    (float) (px - camPos.x), (float) (ballY - camPos.y), (float) (pz - camPos.z),
-                    seconds, weight
-            ));
+            float relBallX = (float) (px - camPos.x);
+            float relBallY = (float) (ballY - camPos.y);
+            float relBallZ = (float) (pz - camPos.z);
+
+            double rayStartY = ballY - 0.12 * weight;
+            Vec3 rayStart = new Vec3(px, rayStartY, pz);
+
+            int beamCount = 8;
+            float baseRadius = (2.6F + (float) Math.sin(seconds * 3.14F) * 0.35F) * weight;
+            float rotSpeed = seconds * 2.2F;
+
+            BeamData[] beams = new BeamData[beamCount];
+            double nominalDepth = Math.max(1.5, rayStartY - py);
+
+            for (int i = 0; i < beamCount; i++) {
+                float angle = rotSpeed + i * (float) (Math.PI * 2.0 / beamCount);
+                float cos = (float) Math.cos(angle);
+                float sin = (float) Math.sin(angle);
+
+                float sweepRadius = baseRadius * (0.88F + 0.24F * (float) Math.sin(seconds * 4.0F + i * 1.2F));
+
+                // Schräg nach außen-unten gerichteter Richtungsvektor
+                double dirX = cos * sweepRadius;
+                double dirY = -nominalDepth;
+                double dirZ = sin * sweepRadius;
+                double dirLen = Math.sqrt(dirX * dirX + dirY * dirY + dirZ * dirZ);
+                if (dirLen < 0.001) dirLen = 1.0;
+                Vec3 normDir = new Vec3(dirX / dirLen, dirY / dirLen, dirZ / dirLen);
+
+                // Raycast bis zu 32 Blöcke nach unten/außen, um den tatsächlichen Bodenblock zu treffen
+                Vec3 rayEnd = rayStart.add(normDir.scale(32.0));
+                BlockHitResult hit = client.level.clip(new ClipContext(
+                        rayStart, rayEnd,
+                        ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+                        CollisionContext.empty()
+                ));
+
+                Vec3 hitPos = hit.getType() == HitResult.Type.BLOCK ? hit.getLocation() : rayEnd;
+                double hitDist = rayStart.distanceTo(hitPos);
+
+                // Kegelradius skaliert sanft mit der Strahllänge
+                float rBot = (float) Math.clamp(0.42F * weight * (hitDist / nominalDepth), 0.25F * weight, 1.35F * weight);
+                float distFactor = (float) Math.clamp(nominalDepth / Math.max(1.0, hitDist), 0.35, 1.0);
+
+                beams[i] = new BeamData(
+                        (float) (hitPos.x - camPos.x),
+                        (float) (hitPos.y - camPos.y),
+                        (float) (hitPos.z - camPos.z),
+                        cos, sin, rBot, distFactor
+                );
+            }
+
+            frames.add(new DiscoFrame(relBallX, relBallY, relBallZ, seconds, weight, beams));
         }
 
         if (!frames.isEmpty()) {
@@ -166,41 +218,36 @@ public final class BoogieDiscoRenderer {
                 float relX = frame.relBallX;
                 float relY = frame.relBallY;
                 float relZ = frame.relBallZ;
-                float relFootY = frame.relPlayerY;
 
-                renderSpotlightBeams(m, buffer, relX, relY, relZ, relFootY, frame.seconds, scale);
+                renderSpotlightBeams(m, buffer, relX, relY, relZ, frame.beams, scale);
             });
         }
     }
 
     /**
-     * 8 runde, volumetrische Spotlight-Lichtkegel mit weicher Transparenz und runden Bodenflecken.
+     * 8 runde, volumetrische Spotlight-Lichtkegel mit weicher Transparenz und runden Bodenflecken,
+     * die per Raycast den tatsächlichen Bodenblock treffen (auch über Kanten hinweg).
      */
     private static void renderSpotlightBeams(Matrix4fc pose, VertexConsumer buffer,
-                                             float bx, float by, float bz, float footY,
-                                             float seconds, float scale) {
+                                             float bx, float by, float bz,
+                                             BeamData[] beams,
+                                             float scale) {
         float topY = by - 0.12F * scale;
-        int beamCount = 8;
-        float baseRadius = (2.6F + (float) Math.sin(seconds * 3.14F) * 0.35F) * scale;
-        float rotSpeed = seconds * 2.2F;
         int radialSegments = 12;
 
-        for (int i = 0; i < beamCount; i++) {
-            float angle = rotSpeed + i * (float) (Math.PI * 2.0 / beamCount);
-            float cos = (float) Math.cos(angle);
-            float sin = (float) Math.sin(angle);
-
+        for (int i = 0; i < beams.length; i++) {
+            BeamData beam = beams[i];
             float[] col = DISCO_COLORS[i % DISCO_COLORS.length];
             float r = col[0], g = col[1], b = col[2];
 
-            // Zielpunkt auf dem Boden
-            float sweepRadius = baseRadius * (0.88F + 0.24F * (float) Math.sin(seconds * 4.0F + i * 1.2F));
-            float groundX = bx + cos * sweepRadius;
-            float groundZ = bz + sin * sweepRadius;
+            // Zielpunkt auf dem tatsächlichen Bodenblock
+            float groundX = beam.relX();
+            float groundY = beam.relY();
+            float groundZ = beam.relZ();
 
             // Richtungsvektor vom Kugelursprung zum Boden
             float dx = groundX - bx;
-            float dy = footY - topY;
+            float dy = groundY - topY;
             float dz = groundZ - bz;
             float len = (float) Math.sqrt(dx * dx + dy * dy + dz * dz);
             if (len < 0.01F) continue;
@@ -223,11 +270,12 @@ public final class BoogieDiscoRenderer {
 
             // Radien: Oben schlanker Hals an der Kugel, unten weit aufgefächert
             float rTop = 0.04F * scale;
-            float rBot = 0.42F * scale;
+            float rBot = beam.rBot();
 
             // Transparenz: Sanfte, unaufdringliche atmosphärische Lichtstreuung
+            float distFactor = beam.distFactor();
             float alphaTop = 0.16F * scale;
-            float alphaBot = 0.05F * scale;
+            float alphaBot = 0.05F * scale * distFactor;
 
             // Runder 12-eckiger Kegelstumpf
             for (int seg = 0; seg < radialSegments; seg++) {
@@ -245,13 +293,13 @@ public final class BoogieDiscoRenderer {
                 float t1y = topY + vy * sa1 * rTop;
                 float t1z = bz + (uz * ca1 + vz * sa1) * rTop;
 
-                // Unten
+                // Unten am realen Boden
                 float b0x = groundX + (ux * ca0 + vx * sa0) * rBot;
-                float b0y = footY + vy * sa0 * rBot;
+                float b0y = groundY + vy * sa0 * rBot;
                 float b0z = groundZ + (uz * ca0 + vz * sa0) * rBot;
 
                 float b1x = groundX + (ux * ca1 + vx * sa1) * rBot;
-                float b1y = footY + vy * sa1 * rBot;
+                float b1y = groundY + vy * sa1 * rBot;
                 float b1z = groundZ + (uz * ca1 + vz * sa1) * rBot;
 
                 quadBoth(pose, buffer,
@@ -264,9 +312,9 @@ public final class BoogieDiscoRenderer {
 
             // Feiner, transparenter Kernstrahl in gleicher Farbe für sanften Helligkeitsverlauf
             float coreTop = 0.02F * scale;
-            float coreBot = 0.16F * scale;
+            float coreBot = rBot * 0.40F;
             float coreAlphaTop = 0.10F * scale;
-            float coreAlphaBot = 0.03F * scale;
+            float coreAlphaBot = 0.03F * scale * distFactor;
             for (int seg = 0; seg < 6; seg++) {
                 double a0 = seg * Math.PI * 2.0 / 6;
                 double a1 = (seg + 1) * Math.PI * 2.0 / 6;
@@ -276,14 +324,14 @@ public final class BoogieDiscoRenderer {
                 quadBoth(pose, buffer,
                         bx + (ux * ca0 + vx * sa0) * coreTop, topY + vy * sa0 * coreTop, bz + (uz * ca0 + vz * sa0) * coreTop, coreAlphaTop,
                         bx + (ux * ca1 + vx * sa1) * coreTop, topY + vy * sa1 * coreTop, bz + (uz * ca1 + vz * sa1) * coreTop, coreAlphaTop,
-                        groundX + (ux * ca1 + vx * sa1) * coreBot, footY + vy * sa1 * coreBot, groundZ + (uz * ca1 + vz * sa1) * coreBot, coreAlphaBot,
-                        groundX + (ux * ca0 + vx * sa0) * coreBot, footY + vy * sa0 * coreBot, groundZ + (uz * ca0 + vz * sa0) * coreBot, coreAlphaBot,
+                        groundX + (ux * ca1 + vx * sa1) * coreBot, groundY + vy * sa1 * coreBot, groundZ + (uz * ca1 + vz * sa1) * coreBot, coreAlphaBot,
+                        groundX + (ux * ca0 + vx * sa0) * coreBot, groundY + vy * sa0 * coreBot, groundZ + (uz * ca0 + vz * sa0) * coreBot, coreAlphaBot,
                         r, g, b);
             }
 
-            // Runder, sanft nach außen auslaufender Scheinwerfer-Lichtfleck am Boden
-            renderSpotlightFloorPool(pose, buffer, groundX, footY + 0.015F, groundZ,
-                    cos, sin, rBot * 1.35F, r, g, b, 0.22F * scale);
+            // Runder, sanft nach außen auslaufender Scheinwerfer-Lichtfleck direkt auf dem Bodenblock
+            renderSpotlightFloorPool(pose, buffer, groundX, groundY + 0.015F, groundZ,
+                    beam.cos(), beam.sin(), rBot * 1.35F, r, g, b, 0.22F * scale * distFactor);
         }
     }
 
@@ -357,7 +405,11 @@ public final class BoogieDiscoRenderer {
         buffer.addVertex(pose, x, y, z).setColor(r, g, b, a);
     }
 
-    private record DiscoFrame(float relPlayerX, float relPlayerY, float relPlayerZ,
-                              float relBallX, float relBallY, float relBallZ,
-                              float seconds, float weight) {}
+    private record BeamData(float relX, float relY, float relZ,
+                            float cos, float sin, float rBot,
+                            float distFactor) {}
+
+    private record DiscoFrame(float relBallX, float relBallY, float relBallZ,
+                              float seconds, float weight,
+                              BeamData[] beams) {}
 }

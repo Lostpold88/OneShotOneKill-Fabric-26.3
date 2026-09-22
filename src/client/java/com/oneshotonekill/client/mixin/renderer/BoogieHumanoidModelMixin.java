@@ -23,7 +23,7 @@ public abstract class BoogieHumanoidModelMixin {
             float weight = BoogieBombClient.getWeight(entity.getUUID());
             if (weight > 0.001F) {
                 BoogieDanceAnimation.pose((HumanoidModel<?>) (Object) this,
-                        BoogieBombClient.seconds(entity.getUUID()), weight);
+                        BoogieBombClient.seconds(entity.getUUID()), weight, entity.getUUID());
             }
         }
     }

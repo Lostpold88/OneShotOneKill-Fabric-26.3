@@ -2,6 +2,9 @@ package com.oneshotonekill.client.effect;
 
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.model.geom.ModelPart;
+import org.jspecify.annotations.Nullable;
+
+import java.util.UUID;
 
 /** Seventies disco retargeted to Minecraft's six rigid limbs: diagonal points, hip swings,
  * crossed arms and alternating steps. The skin's sleeves, jacket and armour follow their parents.
@@ -21,25 +24,45 @@ public final class BoogieDanceAnimation {
         {-85, -32, -32, -85, 32, 32}
     };
 
-    public static final float SALTO_START = 4.8F;
-    public static final float SALTO_DURATION = 1.35F;
+    public record Routine(
+        String name,
+        float saltoStart, float saltoDuration,
+        float spinStart, float spinDuration,
+        float hustleStart, float hustleEnd,
+        float finaleStart
+    ) {}
 
-    public static final float SPIN_START = 6.15F;
-    public static final float SPIN_DURATION = 1.15F;
+    public static final Routine[] ROUTINES = {
+        // Routine 0: Saturday Night Fever (Klassisch: Travolta -> Salto -> Spin -> Hustle)
+        new Routine("Disco Classic", 4.60F, 1.35F, 6.00F, 1.15F, 7.30F, 11.0F, 11.0F),
+        // Routine 1: The Hustler (Startet direkt mit Hustle Rolling Wheels -> Spin -> Travolta -> Salto vor dem Finale)
+        new Routine("The Hustler", 8.80F, 1.35F, 3.90F, 1.15F, 0.0F, 3.80F, 11.0F),
+        // Routine 2: Acrobatic Dynamo (Früher Überraschungs-Salto auf Beat 5 -> Hustle -> Late Spin)
+        new Routine("Acrobatic Dynamo", 2.20F, 1.35F, 7.80F, 1.15F, 3.80F, 7.60F, 11.0F),
+        // Routine 3: Spin Master (Frühe Pirouette -> Travolta -> Mid Salto -> Hustle)
+        new Routine("Spin Master", 6.60F, 1.35F, 1.60F, 1.15F, 2.90F, 6.40F, 11.0F),
+        // Routine 4: Double Groove (Hustle -> Salto -> Travolta -> Late Spin)
+        new Routine("Double Groove", 4.70F, 1.35F, 8.60F, 1.15F, 1.0F, 4.50F, 11.0F)
+    };
 
-    public static final float HUSTLE_START = 7.30F;
-    public static final float HUSTLE_END = 11.0F;
+    public static final int ROUTINE_COUNT = ROUTINES.length;
 
-    public static final float FINALE_START = 11.0F;
-
-    public static float saltoProgress(float seconds) {
-        if (seconds < SALTO_START || seconds > SALTO_START + SALTO_DURATION) return -1.0F;
-        return (seconds - SALTO_START) / SALTO_DURATION;
+    public static Routine getRoutine(@Nullable UUID id) {
+        if (id == null) return ROUTINES[0];
+        int idx = BoogieBombClient.getRoutineIndex(id);
+        return ROUTINES[Math.floorMod(idx, ROUTINES.length)];
     }
 
-    public static float spinProgress(float seconds) {
-        if (seconds < SPIN_START || seconds > SPIN_START + SPIN_DURATION) return -1.0F;
-        return (seconds - SPIN_START) / SPIN_DURATION;
+    public static float saltoProgress(float seconds, @Nullable UUID id) {
+        Routine r = getRoutine(id);
+        if (seconds < r.saltoStart() || seconds > r.saltoStart() + r.saltoDuration()) return -1.0F;
+        return (seconds - r.saltoStart()) / r.saltoDuration();
+    }
+
+    public static float spinProgress(float seconds, @Nullable UUID id) {
+        Routine r = getRoutine(id);
+        if (seconds < r.spinStart() || seconds > r.spinStart() + r.spinDuration()) return -1.0F;
+        return (seconds - r.spinStart()) / r.spinDuration();
     }
 
     public static float spinYaw(float progress) {
@@ -49,17 +72,19 @@ public final class BoogieDanceAnimation {
         return 360.0F * ease;
     }
 
-    public static float hustleWeight(float seconds) {
-        if (seconds < HUSTLE_START || seconds > HUSTLE_END) return 0.0F;
-        float blendIn = Math.clamp((seconds - HUSTLE_START) / 0.40F, 0.0F, 1.0F);
-        float blendOut = Math.clamp((HUSTLE_END - seconds) / 0.40F, 0.0F, 1.0F);
+    public static float hustleWeight(float seconds, @Nullable UUID id) {
+        Routine r = getRoutine(id);
+        if (seconds < r.hustleStart() || seconds > r.hustleEnd()) return 0.0F;
+        float blendIn = Math.clamp((seconds - r.hustleStart()) / 0.40F, 0.0F, 1.0F);
+        float blendOut = Math.clamp((r.hustleEnd() - seconds) / 0.40F, 0.0F, 1.0F);
         float target = Math.min(blendIn, blendOut);
         return target * target * (3.0F - 2.0F * target);
     }
 
-    public static float finaleWeight(float seconds) {
-        if (seconds < FINALE_START) return 0.0F;
-        float blendIn = Math.clamp((seconds - FINALE_START) / 0.45F, 0.0F, 1.0F);
+    public static float finaleWeight(float seconds, @Nullable UUID id) {
+        Routine r = getRoutine(id);
+        if (seconds < r.finaleStart()) return 0.0F;
+        float blendIn = Math.clamp((seconds - r.finaleStart()) / 0.45F, 0.0F, 1.0F);
         return blendIn * blendIn * (3.0F - 2.0F * blendIn);
     }
 
@@ -85,8 +110,8 @@ public final class BoogieDanceAnimation {
         return 360.0F * ease;
     }
 
-    public static float saltoBallOffset(float seconds) {
-        float p = saltoProgress(seconds);
+    public static float saltoBallOffset(float seconds, @Nullable UUID id) {
+        float p = saltoProgress(seconds, id);
         if (p < 0.10F || p > 0.90F) return 0.0F;
         float fp = (p - 0.10F) / 0.80F;
         return 0.95F * (float) Math.sin(fp * Math.PI);
@@ -149,8 +174,10 @@ public final class BoogieDanceAnimation {
         rotations[5] = net.minecraft.util.Mth.lerp(blend, rotations[5], lZ);
     }
 
-    public static void pose(HumanoidModel<?> model, float seconds, float weight) {
+    public static void pose(HumanoidModel<?> model, float seconds, float weight, @Nullable UUID id) {
         if (weight <= 0.0001F) return;
+
+        Routine routine = getRoutine(id);
 
         // Ursprüngliche Vanilla-Pose zwischenspeichern (Gehen, Stehen, Blickrichtung)
         PartTransform vHead = PartTransform.capture(model.head);
@@ -165,7 +192,7 @@ public final class BoogieDanceAnimation {
         model.rightArm.resetPose(); model.leftArm.resetPose();
         model.rightLeg.resetPose(); model.leftLeg.resetPose();
 
-        float p = saltoProgress(seconds);
+        float p = saltoProgress(seconds, id);
         float saltoBlend = 0.0F;
         float sHeadXRot = 0.0F, sBodyXRot = 0.0F;
         float sRArmXRot = 0.0F, sRArmYRot = 0.0F, sRArmZRot = 0.0F;
@@ -253,15 +280,15 @@ public final class BoogieDanceAnimation {
         float hip = swing * 1.35F;
 
         // Phase 3A: 360° Boden-Pirouette
-        float spinP = spinProgress(seconds);
+        float spinP = spinProgress(seconds, id);
         float spinBlend = 0.0F;
         if (spinP >= 0.0F && spinP <= 1.0F) {
             spinBlend = Math.clamp((float) Math.sin(spinP * Math.PI) * 1.30F, 0.0F, 1.0F);
         }
 
         // Phase 3B: The Hustle / Rolling Wheels
-        float hw = hustleWeight(seconds);
-        float rollAngle = (seconds - HUSTLE_START) * 2.0F * (float) (Math.PI * 2.0);
+        float hw = hustleWeight(seconds, id);
+        float rollAngle = (seconds - routine.hustleStart()) * 2.0F * (float) (Math.PI * 2.0);
         float rollSin = (float) Math.sin(rollAngle);
         float rollCos = (float) Math.cos(rollAngle);
         float hRArmX = -1.25F + rollSin * 0.28F;
@@ -273,7 +300,7 @@ public final class BoogieDanceAnimation {
         float shimmy = (float) Math.sin(beat * Math.PI) * 0.10F;
 
         // Phase 4: Hands in the Air Grand Finale
-        float fw = finaleWeight(seconds);
+        float fw = finaleWeight(seconds, id);
         float partyPump = (1.0F - (float) Math.cos(beat * Math.PI * 2.0)) * 0.18F;
         float fRArmX = -2.75F + partyPump;
         float fRArmY = -0.15F;
@@ -296,9 +323,21 @@ public final class BoogieDanceAnimation {
 
         transformSocket(0.0F, 0.0F, dBodyX, dBodyY, dBodyZ, dBodyXRot, dBodyYRot, dBodyZRot, socket);
         float dHeadX = socket[0], dHeadY = socket[1], dHeadZ = socket[2];
-        float dHeadXRot = (float) Math.sin(beat * Math.PI * 2.0) * 0.12F * discoGrooveFactor;
-        float dHeadYRot = -swing * 0.20F;
-        float dHeadZRot = swing * 0.06F;
+
+        // Authentisches 120-BPM Head-Bobbing (Kopfnicken):
+        // Schneller, markanter Vorwärtsnick auf den Beat mit elastischem Rebound
+        float beatCycle = (beat % 1.0F);
+        if (beatCycle < 0.0F) beatCycle += 1.0F;
+        float nodSin = (float) Math.sin(beatCycle * Math.PI);
+        float nodDown = nodSin * nodSin * 0.28F;
+        // Zusätzlicher Snare-Akzent auf jedem zweiten Beat
+        float snarePhase = (beat * 0.5F) % 1.0F;
+        if (snarePhase < 0.0F) snarePhase += 1.0F;
+        float snareAccent = (float) Math.pow(Math.max(0.0F, Math.sin(snarePhase * Math.PI)), 3.0) * 0.08F;
+
+        float dHeadXRot = (nodDown + snareAccent) * discoGrooveFactor;
+        float dHeadYRot = -swing * 0.24F;
+        float dHeadZRot = (float) Math.sin(beat * Math.PI) * 0.12F * discoGrooveFactor;
 
         if (spinBlend > 0.001F) {
             dHeadXRot = net.minecraft.util.Mth.lerp(spinBlend, dHeadXRot, 0.0F);
