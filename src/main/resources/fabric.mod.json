@@ -16,9 +16,6 @@
 		],
 		"client": [
 			"com.oneshotonekill.client.OsokClient"
-		],
-		"fabric-datagen": [
-			"com.oneshotonekill.client.OneShotOneKillDataGenerator"
 		]
 	},
 	"mixins": [

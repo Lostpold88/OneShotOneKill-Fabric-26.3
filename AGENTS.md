@@ -205,7 +205,6 @@ Fabric-API-Events, Access Widener und Mixins sind vollwertige Werkzeuge und kön
 - **Einstiegspunkte** in [`src/main/resources/fabric.mod.json`](src/main/resources/fabric.mod.json):
   - `main`: `ModInitializer` (gemeinsam)
   - `client`: `ClientModInitializer` (nur Client)
-  - `fabric-datagen`: `DataGeneratorEntrypoint`
 - **Fabric Events:** `Event<T>`-Konstanten mit Callbacks werden per `EVENT.register(...)` abonniert. Das Abbruchverhalten ergibt sich aus dem Rückgabetyp des Callbacks (über MCP prüfbar).
 - **Registrierungen:** Erfolgen über Vanilla-Registries mit `Identifier`.
 - **Netzwerk:** Payload-Typen registrieren und über die Fabric Networking API (z. B. `ServerPlayNetworking`, `ClientPlayNetworking`) senden.
