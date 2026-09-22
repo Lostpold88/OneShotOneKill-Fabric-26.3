@@ -125,15 +125,6 @@ public final class StatusAbilities {
    private static final double GLIDE_LAUNCH_RISE = 0.45;
 
    /**
-    * Am Boden laeuft die Uhr nicht weiter.
-    * <p>
-    * Eine Landung war einmal das Ende: Wer zwischen zwei Daechern aufsetzte, verlor den Rest
-    * seiner acht Sekunden im Stehen. Jetzt haelt der Flug an, und ein doppelter Druck auf die
-    * Sprungtaste holt ihn zurueck. Damit das Geschirr nicht den Rest der Runde am Ruecken
-    * haengt, begrenzt dieser Wert die Wartezeit – gezaehlt ab dem Aufsetzen, nicht ab dem
-    * letzten Bodenkontakt: Wer wartend herumspringt, verlaengert damit nichts.
-    */
-   private static final int GLIDE_GROUND_GRACE = 200;
    /**
     * So lange nach dem Erloeschen des Schubs bleibt der Fall folgenlos.
     * <p>
@@ -400,6 +391,11 @@ public final class StatusAbilities {
       gliding.put(player.getUUID(), new Glide(GLIDE_TICKS));
       launch(player);
       Feedback.actionBar(player, "§b🦅 GLEITFLUG — 8 s §7· Doppelt springen startet nach einer Landung neu");
+      MinecraftServer server = player.level().getServer();
+      if (server != null) {
+         StatusAbilities.Broadcaster.INSTANCE.refresh(player);
+         StatusAbilities.Broadcaster.INSTANCE.refreshGliders(server);
+      }
       return true;
    }
 
@@ -418,10 +414,10 @@ public final class StatusAbilities {
          return false;
       }
       glide.sinceLaunch = 0;
-      glide.groundTicks = 0;
       glide.landed = false;
       launch(player);
       Feedback.actionBar(player, "§b🦅 GLEITFLUG — " + (glide.ticksLeft / 20 + 1) + " s");
+      StatusAbilities.Broadcaster.INSTANCE.refresh(player);
       return true;
    }
 
@@ -688,10 +684,9 @@ public final class StatusAbilities {
    /**
     * Ein Tick Flug – oder ein Tick Warten am Boden.
     * <p>
-    * Die Flugzeit läuft nur in der Luft. Wer landet, behält seinen Rest und startet mit einem
-    * doppelten Sprung neu; erst nach {@link #GLIDE_GROUND_GRACE} Ticks am Stück löst sich das
-    * Geschirr von selbst auf. Deshalb kommt hier keine gemeinsame {@code countDown}-Schleife
-    * zum Einsatz: die zählt bedingungslos herunter.
+    * Die Flugzeit läuft immer ab – egal ob der Spieler fliegt oder am Boden steht.
+    * Wer landet, behält die Steuerung am Boden und kann mit einem doppelten Sprung
+    * vor Ablauf der Zeit jederzeit wieder abheben.
     */
    private void tickGlide(MinecraftServer server) {
       Iterator<Map.Entry<UUID, Glide>> iterator = gliding.entrySet().iterator();
@@ -706,34 +701,23 @@ public final class StatusAbilities {
          Glide glide = entry.getValue();
          glide.sinceLaunch++;
 
-         if (player.onGround() && !glide.landed) {
-            glide.landed = true;
-            glide.groundTicks = 0;
-            player.setNoGravity(false);
-            Feedback.actionBar(player, "§b🦅 GELANDET — " + (glide.ticksLeft / 20 + 1)
-               + " s übrig §7· doppelt springen und weiterfliegen");
-         }
-
-         // Gelandet heißt: Das Geschirr hängt am Rücken, aber es fliegt nicht.
-         //
-         // Entscheidend ist, dass hier nicht auf den Bodenkontakt geprüft wird, sondern auf den
-         // Zustand. Vorher genügte es, den Boden zu verlassen, damit die Flugmechanik wieder
-         // griff – und ein gewöhnlicher Sprung reichte dafür aus. Wer einmal sprang, wurde von
-         // ihr aufgenommen, in Blickrichtung gedreht und mit Mindesttempo davongetragen, statt
-         // einfach wieder herunterzukommen. Aus dem Landen kommt man jetzt nur noch auf einem
-         // Weg heraus, und das ist der doppelte Sprung.
-         if (glide.landed) {
-            if (++glide.groundTicks > GLIDE_GROUND_GRACE) {
-               iterator.remove();
-               endGlide(player);
-            }
-            continue;
-         }
-
+         // Gesamtlaufzeit läuft kontinuierlich ab – egal ob fliegend oder gelandet
          player.fallDistance = 0.0;
          if (--glide.ticksLeft <= 0) {
             iterator.remove();
             endGlide(player);
+            continue;
+         }
+
+         if (glide.sinceLaunch > 5 && player.onGround() && !glide.landed) {
+            glide.landed = true;
+            player.setNoGravity(false);
+            Feedback.actionBar(player, "§b🦅 GELANDET — " + (glide.ticksLeft / 20 + 1)
+               + " s übrig §7· doppelt springen und weiterfliegen");
+            StatusAbilities.Broadcaster.INSTANCE.refresh(player);
+         }
+
+         if (glide.landed) {
             continue;
          }
 
@@ -883,6 +867,11 @@ public final class StatusAbilities {
             24, 0.4, 0.3, 0.4, 0.06);
          level.playSound(null, player.getX(), player.getY(), player.getZ(),
             SoundEvents.FIRE_EXTINGUISH, SoundSource.PLAYERS, 0.7F, 1.4F);
+         MinecraftServer server = level.getServer();
+         if (server != null) {
+            StatusAbilities.Broadcaster.INSTANCE.refresh(player);
+            StatusAbilities.Broadcaster.INSTANCE.refreshGliders(server);
+         }
       }
       Feedback.actionBar(player, "§b🦅 Schub erloschen");
    }
@@ -909,9 +898,7 @@ public final class StatusAbilities {
     * versetzt, und ein Schub, der ihn danach weiterzieht, wäre nicht mehr sein eigener.
     */
    public void clearOnDeath(ServerPlayer player) {
-      if (gliding.remove(player.getUUID()) != null) {
-         player.setNoGravity(false);
-      }
+      removeGlider(player);
       softLanding.remove(player.getUUID());
    }
 
@@ -927,11 +914,20 @@ public final class StatusAbilities {
             StatusAbilities.Broadcaster.INSTANCE.refreshMagnetFields(server);
          }
       }
-      if (gliding.remove(player.getUUID()) != null) {
-         player.setNoGravity(false);
-      }
+      removeGlider(player);
       softLanding.remove(player.getUUID());
       shields.remove(player.getUUID());
+   }
+
+   private void removeGlider(ServerPlayer player) {
+      if (gliding.remove(player.getUUID()) != null) {
+         player.setNoGravity(false);
+         MinecraftServer server = player.level().getServer();
+         if (server != null) {
+            StatusAbilities.Broadcaster.INSTANCE.refresh(player);
+            StatusAbilities.Broadcaster.INSTANCE.refreshGliders(server);
+         }
+      }
    }
 
    public void reset(MinecraftServer server) {
@@ -971,15 +967,14 @@ public final class StatusAbilities {
    /**
     * Ein laufender Gleitflug.
     * <p>
-    * {@code ticksLeft} ist reine Flugzeit, {@code groundTicks} zählt den Aufenthalt am Boden
-    * und {@code sinceLaunch} den Abstand zum letzten Absprung – daran hängen sowohl der
+    * {@code ticksLeft} ist die Gesamtlaufzeit und läuft kontinuierlich ab (auch bei Landung).
+    * {@code sinceLaunch} misst den Abstand zum letzten Absprung – daran hängen sowohl der
     * Startschub als auch die Sperre gegen doppelte Auslösung.
     */
    private static final class Glide {
       private int ticksLeft;
-      private int groundTicks;
       private int sinceLaunch;
-      /** Aufgesetzt und wartend: Die Uhr steht, und die Flugmechanik greift nicht mehr. */
+      /** Aufgesetzt und wartend: Flugmechanik pausiert, aber Zeit läuft weiter. */
       private boolean landed;
 
       private Glide(int ticksLeft) {
@@ -1107,6 +1102,16 @@ public final class StatusAbilities {
          MagnetFieldsPayload payload = new MagnetFieldsPayload(magnetPlayers);
          for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             lastMagnetFields.put(player.getUUID(), magnetPlayers);
+            ServerPlayNetworking.send(player, payload);
+         }
+      }
+
+      /** Verteilt die aktiven Gleiter sofort an alle Clients. */
+      public void refreshGliders(MinecraftServer server) {
+         List<UUID> glidingPlayers = StatusAbilities.INSTANCE.activeGliders();
+         GlidingPlayersPayload payload = new GlidingPlayersPayload(glidingPlayers);
+         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            lastGliders.put(player.getUUID(), glidingPlayers);
             ServerPlayNetworking.send(player, payload);
          }
       }
