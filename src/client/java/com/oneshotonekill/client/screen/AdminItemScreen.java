@@ -18,6 +18,7 @@ import net.minecraft.client.input.CharacterEvent;
 import net.minecraft.client.input.KeyEvent;
 import net.minecraft.client.input.MouseButtonEvent;
 import net.minecraft.network.chat.Component;
+import net.minecraft.util.StringUtil;
 import net.minecraft.util.Util;
 import net.minecraft.world.item.ItemStack;
 import net.fabricmc.fabric.api.client.networking.v1.ClientPlayNetworking;
@@ -163,6 +164,13 @@ public final class AdminItemScreen extends Screen {
       this.minecraft.gui.hud.extractDeferredSubtitles();
    }
 
+   private void setSearchFocused(boolean focused) {
+      if (this.searchFocused != focused) {
+         this.searchFocused = focused;
+         this.minecraft.onTextInputFocusChange(this, focused);
+      }
+   }
+
    @Override
    public boolean keyPressed(KeyEvent event) {
       if (searchFocused) {
@@ -173,8 +181,21 @@ public final class AdminItemScreen extends Screen {
                updateContentLength();
             }
             return true;
-         } else if (event.key() == InputConstants.KEY_ESCAPE || event.key() == InputConstants.KEY_RETURN) {
-            searchFocused = false;
+         } else if (event.isEscape() || event.isConfirmation()) {
+            setSearchFocused(false);
+            return true;
+         } else if (event.isPaste()) {
+            String clip = this.minecraft.keyboardHandler.getClipboard();
+            String filtered = StringUtil.filterText(clip);
+            if (!filtered.isEmpty()) {
+               searchQuery += filtered;
+               scroll.set(0.0F);
+               updateContentLength();
+            }
+            return true;
+         }
+
+         if (OsokClient.isAdminMenuKey(event)) {
             return true;
          }
       }
@@ -199,6 +220,7 @@ public final class AdminItemScreen extends Screen {
 
    @Override
    public void removed() {
+      setSearchFocused(false);
       rememberedScroll = scroll.value();
       lastSelectedCategory = currentCategory;
       super.removed();
@@ -486,8 +508,12 @@ public final class AdminItemScreen extends Screen {
       boolean searchHover = OsokWidgets.isOver(mouseX, mouseY, searchX, y, searchWidth, 20);
       OsokWidgets.searchInput(graphics, font, searchX, y, searchWidth, 20, searchQuery, Component.translatable("gui.oneshotonekill.admin.search").getString(), searchFocused, searchHover);
 
+      if (searchFocused) {
+         this.minecraft.textInputManager().setTextInputArea(searchX, y, searchX + searchWidth, y + 20);
+      }
+
       hotspots.add(new Hotspot(searchX, y, searchWidth, 20, false, CursorTypes.IBEAM,
-         () -> searchFocused = true));
+         () -> setSearchFocused(true)));
    }
 
    private void selectCategory(ItemCategory category) {
@@ -516,6 +542,7 @@ public final class AdminItemScreen extends Screen {
             searchQuery = "";
             scroll.set(0.0F);
             updateContentLength();
+            setSearchFocused(true);
             OsokWidgets.playClearSound();
             return true;
          }
@@ -532,7 +559,7 @@ public final class AdminItemScreen extends Screen {
             }
          }
          if (!hitSomething) {
-            searchFocused = false;
+            setSearchFocused(false);
          }
          return true;
       }
