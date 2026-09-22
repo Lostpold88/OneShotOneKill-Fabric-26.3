@@ -140,15 +140,17 @@ public final class BoogieDiscoRenderer {
                 if (dirLen < 0.001) dirLen = 1.0;
                 Vec3 normDir = new Vec3(dirX / dirLen, dirY / dirLen, dirZ / dirLen);
 
-                // Raycast bis zu 32 Blöcke nach unten/außen, um den tatsächlichen Bodenblock zu treffen
+                // Raycast bis zu 32 Blöcke nach außen-unten, um Boden, Wände, Glas und alle Objekte zu treffen
                 Vec3 rayEnd = rayStart.add(normDir.scale(32.0));
                 BlockHitResult hit = client.level.clip(new ClipContext(
                         rayStart, rayEnd,
-                        ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+                        ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE,
                         CollisionContext.empty()
                 ));
 
-                Vec3 hitPos = hit.getType() == HitResult.Type.BLOCK ? hit.getLocation() : rayEnd;
+                boolean hasHit = hit.getType() == HitResult.Type.BLOCK;
+                Vec3 hitPos = hasHit ? hit.getLocation() : rayEnd;
+                Vec3 normal = hasHit ? hit.getDirection().getUnitVec3() : new Vec3(-normDir.x, -normDir.y, -normDir.z);
                 double hitDist = rayStart.distanceTo(hitPos);
 
                 // Kegelradius skaliert sanft mit der Strahllänge
@@ -159,7 +161,10 @@ public final class BoogieDiscoRenderer {
                         (float) (hitPos.x - camPos.x),
                         (float) (hitPos.y - camPos.y),
                         (float) (hitPos.z - camPos.z),
-                        cos, sin, rBot, distFactor
+                        (float) normal.x,
+                        (float) normal.y,
+                        (float) normal.z,
+                        cos, sin, rBot, distFactor, hasHit
                 );
             }
 
@@ -268,7 +273,51 @@ public final class BoogieDiscoRenderer {
             float vy = dirZ * ux - dirX * uz;
             float vz = -dirY * ux;
 
-            // Radien: Oben schlanker Hals an der Kugel, unten weit aufgefächert
+            // Basis am Auftreffpunkt (unten am Objekt):
+            // Liegt exakt auf der getroffenen Fläche (Boden, Wand, Glas, Decke)
+            float b1xBasis, b1yBasis, b1zBasis;
+            float b2xBasis, b2yBasis, b2zBasis;
+
+            if (beam.hasHit()) {
+                float nx = beam.normX();
+                float ny = beam.normY();
+                float nz = beam.normZ();
+
+                if (Math.abs(ny) < 0.9F) {
+                    // Vertikale Wandfläche (oder schräg)
+                    float hLen = (float) Math.sqrt(nz * nz + nx * nx);
+                    if (hLen < 0.001F) {
+                        b1xBasis = 1.0F;
+                        b1yBasis = 0.0F;
+                        b1zBasis = 0.0F;
+                    } else {
+                        b1xBasis = nz / hLen;
+                        b1yBasis = 0.0F;
+                        b1zBasis = -nx / hLen;
+                    }
+                    b2xBasis = ny * b1zBasis - nz * b1yBasis;
+                    b2yBasis = nz * b1xBasis - nx * b1zBasis;
+                    b2zBasis = nx * b1yBasis - ny * b1xBasis;
+                } else {
+                    // Horizontale Boden- oder Deckenfläche
+                    b1xBasis = 1.0F;
+                    b1yBasis = 0.0F;
+                    b1zBasis = 0.0F;
+                    b2xBasis = 0.0F;
+                    b2yBasis = 0.0F;
+                    b2zBasis = ny > 0 ? 1.0F : -1.0F;
+                }
+            } else {
+                // Strahl ins Leere: senkrecht zur Strahlachse
+                b1xBasis = ux;
+                b1yBasis = 0.0F;
+                b1zBasis = uz;
+                b2xBasis = vx;
+                b2yBasis = vy;
+                b2zBasis = vz;
+            }
+
+            // Radien: Oben schlanker Hals an der Kugel, unten am Objekt aufgefächert
             float rTop = 0.04F * scale;
             float rBot = beam.rBot();
 
@@ -277,7 +326,7 @@ public final class BoogieDiscoRenderer {
             float alphaTop = 0.16F * scale;
             float alphaBot = 0.05F * scale * distFactor;
 
-            // Runder 12-eckiger Kegelstumpf
+            // Runder 12-eckiger Kegelstumpf direkt bis zur Objektoberfläche
             for (int seg = 0; seg < radialSegments; seg++) {
                 double a0 = seg * Math.PI * 2.0 / radialSegments;
                 double a1 = (seg + 1) * Math.PI * 2.0 / radialSegments;
@@ -293,14 +342,14 @@ public final class BoogieDiscoRenderer {
                 float t1y = topY + vy * sa1 * rTop;
                 float t1z = bz + (uz * ca1 + vz * sa1) * rTop;
 
-                // Unten am realen Boden
-                float b0x = groundX + (ux * ca0 + vx * sa0) * rBot;
-                float b0y = groundY + vy * sa0 * rBot;
-                float b0z = groundZ + (uz * ca0 + vz * sa0) * rBot;
+                // Unten am getroffenen Objekt
+                float b0x = groundX + (b1xBasis * ca0 + b2xBasis * sa0) * rBot;
+                float b0y = groundY + (b1yBasis * ca0 + b2yBasis * sa0) * rBot;
+                float b0z = groundZ + (b1zBasis * ca0 + b2zBasis * sa0) * rBot;
 
-                float b1x = groundX + (ux * ca1 + vx * sa1) * rBot;
-                float b1y = groundY + vy * sa1 * rBot;
-                float b1z = groundZ + (uz * ca1 + vz * sa1) * rBot;
+                float b1x = groundX + (b1xBasis * ca1 + b2xBasis * sa1) * rBot;
+                float b1y = groundY + (b1yBasis * ca1 + b2yBasis * sa1) * rBot;
+                float b1z = groundZ + (b1zBasis * ca1 + b2zBasis * sa1) * rBot;
 
                 quadBoth(pose, buffer,
                         t0x, t0y, t0z, alphaTop,
@@ -324,34 +373,42 @@ public final class BoogieDiscoRenderer {
                 quadBoth(pose, buffer,
                         bx + (ux * ca0 + vx * sa0) * coreTop, topY + vy * sa0 * coreTop, bz + (uz * ca0 + vz * sa0) * coreTop, coreAlphaTop,
                         bx + (ux * ca1 + vx * sa1) * coreTop, topY + vy * sa1 * coreTop, bz + (uz * ca1 + vz * sa1) * coreTop, coreAlphaTop,
-                        groundX + (ux * ca1 + vx * sa1) * coreBot, groundY + vy * sa1 * coreBot, groundZ + (uz * ca1 + vz * sa1) * coreBot, coreAlphaBot,
-                        groundX + (ux * ca0 + vx * sa0) * coreBot, groundY + vy * sa0 * coreBot, groundZ + (uz * ca0 + vz * sa0) * coreBot, coreAlphaBot,
+                        groundX + (b1xBasis * ca1 + b2yBasis * sa1) * coreBot, groundY + (b1yBasis * ca1 + b2yBasis * sa1) * coreBot, groundZ + (b1zBasis * ca1 + b2zBasis * sa1) * coreBot, coreAlphaBot,
+                        groundX + (b1xBasis * ca0 + b2yBasis * sa0) * coreBot, groundY + (b1yBasis * ca0 + b2yBasis * sa0) * coreBot, groundZ + (b1zBasis * ca0 + b2zBasis * sa0) * coreBot, coreAlphaBot,
                         r, g, b);
             }
 
-            // Runder, sanft nach außen auslaufender Scheinwerfer-Lichtfleck direkt auf dem Bodenblock
-            renderSpotlightFloorPool(pose, buffer, groundX, groundY + 0.015F, groundZ,
-                    beam.cos(), beam.sin(), rBot * 1.35F, r, g, b, 0.22F * scale * distFactor);
+            // Runder, sanft nach außen auslaufender Scheinwerfer-Lichtfleck direkt auf der getroffenen Fläche (Boden, Wand, Glas)
+            if (beam.hasHit()) {
+                renderSpotlightSurfacePool(pose, buffer,
+                        groundX, groundY, groundZ,
+                        beam.normX(), beam.normY(), beam.normZ(),
+                        b1xBasis, b1yBasis, b1zBasis,
+                        b2xBasis, b2yBasis, b2zBasis,
+                        rBot * 1.35F, r, g, b, 0.22F * scale * distFactor);
+            }
         }
     }
 
     /**
-     * Runder, weich auslaufender Scheinwerfer-Lichtfleck auf dem Boden.
-     * Radialer Helligkeitsgradient: Hell im Zentrum, weich auf 0.0 am Außenrand.
+     * Runder, weich auslaufender Scheinwerfer-Lichtfleck direkt auf der getroffenen Objektoberfläche
+     * (Boden, Wand, Glas, Decke).
      */
-    private static void renderSpotlightFloorPool(Matrix4fc pose, VertexConsumer buffer,
-                                                 float cx, float y, float cz,
-                                                 float dirX, float dirZ, float radius,
-                                                 float r, float g, float b, float maxAlpha) {
+    private static void renderSpotlightSurfacePool(Matrix4fc pose, VertexConsumer buffer,
+                                                   float cx, float cy, float cz,
+                                                   float nx, float ny, float nz,
+                                                   float t1x, float t1y, float t1z,
+                                                   float t2x, float t2y, float t2z,
+                                                   float radius,
+                                                   float r, float g, float b, float maxAlpha) {
         if (maxAlpha <= 0.01F) return;
         int segments = 16;
-        float radAlong = radius * 1.22F;
-        float radAcross = radius * 0.95F;
-
-        // Tangentenvektor quer zur Strahlrichtung
-        float tanX = -dirZ;
-
         float rInner = 0.03F * radius;
+
+        // Versatz um 0.015F entlang der Flächennormale, um Z-Fighting mit dem Block zu verhindern
+        float ox = cx + nx * 0.015F;
+        float oy = cy + ny * 0.015F;
+        float oz = cz + nz * 0.015F;
 
         for (int i = 0; i < segments; i++) {
             double a0 = i * Math.PI * 2.0 / segments;
@@ -360,25 +417,29 @@ public final class BoogieDiscoRenderer {
             float c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
 
             // Innenring nahe Zentrum
-            float in0x = cx + (dirX * c0 * rInner * 1.22F + tanX * s0 * rInner * 0.95F);
-            float in0z = cz + (dirZ * c0 * rInner * 1.22F + dirX * s0 * rInner * 0.95F);
+            float in0x = ox + (t1x * c0 + t2x * s0) * rInner;
+            float in0y = oy + (t1y * c0 + t2y * s0) * rInner;
+            float in0z = oz + (t1z * c0 + t2z * s0) * rInner;
 
-            float in1x = cx + (dirX * c1 * rInner * 1.22F + tanX * s1 * rInner * 0.95F);
-            float in1z = cz + (dirZ * c1 * rInner * 1.22F + dirX * s1 * rInner * 0.95F);
+            float in1x = ox + (t1x * c1 + t2x * s1) * rInner;
+            float in1y = oy + (t1y * c1 + t2y * s1) * rInner;
+            float in1z = oz + (t1z * c1 + t2z * s1) * rInner;
 
             // Außenrand
-            float out0x = cx + (dirX * c0 * radAlong + tanX * s0 * radAcross);
-            float out0z = cz + (dirZ * c0 * radAlong + dirX * s0 * radAcross);
+            float out0x = ox + (t1x * c0 + t2x * s0) * radius;
+            float out0y = oy + (t1y * c0 + t2y * s0) * radius;
+            float out0z = oz + (t1z * c0 + t2z * s0) * radius;
 
-            float out1x = cx + (dirX * c1 * radAlong + tanX * s1 * radAcross);
-            float out1z = cz + (dirZ * c1 * radAlong + dirX * s1 * radAcross);
+            float out1x = ox + (t1x * c1 + t2x * s1) * radius;
+            float out1y = oy + (t1y * c1 + t2y * s1) * radius;
+            float out1z = oz + (t1z * c1 + t2z * s1) * radius;
 
             // Quad von Innenring (hell) nach Außenrand (0.0 Alpha)
             quadBoth(pose, buffer,
-                    in0x, y, in0z, maxAlpha,
-                    in1x, y, in1z, maxAlpha,
-                    out1x, y, out1z, 0.0F,
-                    out0x, y, out0z, 0.0F,
+                    in0x, in0y, in0z, maxAlpha,
+                    in1x, in1y, in1z, maxAlpha,
+                    out1x, out1y, out1z, 0.0F,
+                    out0x, out0y, out0z, 0.0F,
                     r, g, b);
         }
     }
@@ -406,8 +467,9 @@ public final class BoogieDiscoRenderer {
     }
 
     private record BeamData(float relX, float relY, float relZ,
+                            float normX, float normY, float normZ,
                             float cos, float sin, float rBot,
-                            float distFactor) {}
+                            float distFactor, boolean hasHit) {}
 
     private record DiscoFrame(float relBallX, float relBallY, float relBallZ,
                               float seconds, float weight,
