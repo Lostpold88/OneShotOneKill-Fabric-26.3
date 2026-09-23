@@ -175,7 +175,8 @@ public final class BoogieDiscoRenderer {
                 float distFactor = (float) Math.clamp(nominalDepth / Math.max(1.0, hitDist), 0.35, 1.0);
 
                 // 2. Lambertsches Kosinusgesetz & Einfallswinkel:
-                float cosTheta = Math.abs((float) (normDir.x * normal.x + normDir.y * normal.y + normDir.z * normal.z));
+                double dot = normDir.x * normal.x + normDir.y * normal.y + normDir.z * normal.z;
+                float cosTheta = Math.abs((float) dot);
                 float lambert = Math.clamp(0.25F + 0.75F * cosTheta, 0.25F, 1.0F);
 
                 // 3. Teilreflexion an Glas, Eis und polierten Flächen (Specular Bounce):
@@ -183,7 +184,6 @@ public final class BoogieDiscoRenderer {
                 if (hasHit) {
                     BlockState hitState = client.level.getBlockState(hit.getBlockPos());
                     if (isReflectiveBlock(hitState)) {
-                        double dot = normDir.x * normal.x + normDir.y * normal.y + normDir.z * normal.z;
                         Vec3 reflectDir = normDir.subtract(normal.scale(2.0 * dot)).normalize();
 
                         Vec3 bounceStart = hitPos.add(normal.scale(0.02));
