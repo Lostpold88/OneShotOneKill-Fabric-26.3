@@ -26,8 +26,12 @@ import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.level.block.HalfTransparentBlock;
+import net.minecraft.world.level.block.IronBarsBlock;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Matrix4fc;
+import org.jspecify.annotations.Nullable;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -81,6 +85,19 @@ public final class BoogieDiscoRenderer {
     public static void clear() {
         DISCO_BALL_RENDER_STATE.clear();
         discoBallStack = null;
+    }
+
+    /**
+     * Prüft, ob ein Block spiegelnde bzw. teilreflektierende Eigenschaften besitzt
+     * (Glasblöcke, Glasscheiben, Eisarten und polierte Gesteine).
+     */
+    private static boolean isReflectiveBlock(BlockState state) {
+        var block = state.getBlock();
+        if (block instanceof HalfTransparentBlock || block instanceof IronBarsBlock) {
+            return true;
+        }
+        String name = block.getDescriptionId();
+        return name.contains("polished");
     }
 
     private static void onExtract(LevelExtractionContext context) {
@@ -157,6 +174,55 @@ public final class BoogieDiscoRenderer {
                 float rBot = (float) Math.clamp(0.42F * weight * (hitDist / nominalDepth), 0.25F * weight, 1.35F * weight);
                 float distFactor = (float) Math.clamp(nominalDepth / Math.max(1.0, hitDist), 0.35, 1.0);
 
+                // 2. Lambertsches Kosinusgesetz & Einfallswinkel:
+                float cosTheta = Math.abs((float) (normDir.x * normal.x + normDir.y * normal.y + normDir.z * normal.z));
+                float lambert = Math.clamp(0.25F + 0.75F * cosTheta, 0.25F, 1.0F);
+
+                // 3. Teilreflexion an Glas, Eis und polierten Flächen (Specular Bounce):
+                BounceData bounce = null;
+                if (hasHit) {
+                    BlockState hitState = client.level.getBlockState(hit.getBlockPos());
+                    if (isReflectiveBlock(hitState)) {
+                        double dot = normDir.x * normal.x + normDir.y * normal.y + normDir.z * normal.z;
+                        Vec3 reflectDir = normDir.subtract(normal.scale(2.0 * dot)).normalize();
+
+                        Vec3 bounceStart = hitPos.add(normal.scale(0.02));
+                        Vec3 bounceEnd = bounceStart.add(reflectDir.scale(14.0));
+                        BlockHitResult bounceHit = client.level.clip(new ClipContext(
+                                bounceStart, bounceEnd,
+                                ClipContext.Block.OUTLINE, ClipContext.Fluid.NONE,
+                                CollisionContext.empty()
+                        ));
+
+                        boolean bHasHit = bounceHit.getType() == HitResult.Type.BLOCK;
+                        Vec3 bHitPos = bHasHit ? bounceHit.getLocation() : bounceEnd;
+                        Vec3 bNormal = bHasHit ? bounceHit.getDirection().getUnitVec3() : reflectDir.scale(-1.0);
+                        double bDist = bounceStart.distanceTo(bHitPos);
+
+                        float bRTop = rBot * 0.45F;
+                        float bRBot = (float) Math.clamp(bRTop + 0.15F * weight * (bDist / 5.0), 0.15F * weight, 0.85F * weight);
+                        float fresnel = Math.clamp(0.30F + 0.40F * (1.0F - cosTheta), 0.25F, 0.75F);
+
+                        bounce = new BounceData(
+                                (float) (bounceStart.x - camPos.x),
+                                (float) (bounceStart.y - camPos.y),
+                                (float) (bounceStart.z - camPos.z),
+                                (float) (bHitPos.x - camPos.x),
+                                (float) (bHitPos.y - camPos.y),
+                                (float) (bHitPos.z - camPos.z),
+                                (float) bNormal.x,
+                                (float) bNormal.y,
+                                (float) bNormal.z,
+                                (float) reflectDir.x,
+                                (float) reflectDir.y,
+                                (float) reflectDir.z,
+                                bRTop, bRBot,
+                                fresnel,
+                                bHasHit
+                        );
+                    }
+                }
+
                 beams[i] = new BeamData(
                         (float) (hitPos.x - camPos.x),
                         (float) (hitPos.y - camPos.y),
@@ -164,7 +230,10 @@ public final class BoogieDiscoRenderer {
                         (float) normal.x,
                         (float) normal.y,
                         (float) normal.z,
-                        cos, sin, rBot, distFactor, hasHit
+                        (float) normDir.x,
+                        (float) normDir.y,
+                        (float) normDir.z,
+                        cos, sin, rBot, distFactor, lambert, hasHit, bounce
                 );
             }
 
@@ -230,8 +299,10 @@ public final class BoogieDiscoRenderer {
     }
 
     /**
-     * 8 runde, volumetrische Spotlight-Lichtkegel mit weicher Transparenz und runden Bodenflecken,
-     * die per Raycast den tatsächlichen Bodenblock treffen (auch über Kanten hinweg).
+     * 8 runde, volumetrische Spotlight-Lichtkegel mit weicher Transparenz und runden/elliptischen Bodenflecken,
+     * die per Raycast den tatsächlichen Block treffen (auch über Kanten hinweg).
+     * Enthält physikalische elliptische Projektionsflächen, winkelabhängige Lambert-Helligkeit
+     * sowie Teilreflexionen (Bounce) an Glas, Eis und polierten Flächen.
      */
     private static void renderSpotlightBeams(Matrix4fc pose, VertexConsumer buffer,
                                              float bx, float by, float bz,
@@ -245,12 +316,12 @@ public final class BoogieDiscoRenderer {
             float[] col = DISCO_COLORS[i % DISCO_COLORS.length];
             float r = col[0], g = col[1], b = col[2];
 
-            // Zielpunkt auf dem tatsächlichen Bodenblock
+            // Zielpunkt auf dem tatsächlichen Block
             float groundX = beam.relX();
             float groundY = beam.relY();
             float groundZ = beam.relZ();
 
-            // Richtungsvektor vom Kugelursprung zum Boden
+            // Richtungsvektor vom Kugelursprung zum getroffenen Punkt
             float dx = groundX - bx;
             float dy = groundY - topY;
             float dz = groundZ - bz;
@@ -258,7 +329,7 @@ public final class BoogieDiscoRenderer {
             if (len < 0.01F) continue;
             float dirX = dx / len, dirY = dy / len, dirZ = dz / len;
 
-            // Orthonormale Basis senkrecht zum Strahl
+            // Orthonormale Basis senkrecht zum Strahl (oben an der Kugel)
             float ux = -dirZ;
             float uz = dirX;
             float uLen = (float) Math.sqrt(ux * ux + uz * uz);
@@ -273,67 +344,31 @@ public final class BoogieDiscoRenderer {
             float vy = dirZ * ux - dirX * uz;
             float vz = -dirY * ux;
 
-            // Basis am Auftreffpunkt (unten am Objekt):
-            // Liegt exakt auf der getroffenen Fläche (Boden, Wand, Glas, Decke)
-            float b1xBasis, b1yBasis, b1zBasis;
-            float b2xBasis, b2yBasis, b2zBasis;
-
-            if (beam.hasHit()) {
-                float nx = beam.normX();
-                float ny = beam.normY();
-                float nz = beam.normZ();
-
-                if (Math.abs(ny) < 0.9F) {
-                    // Vertikale Wandfläche (oder schräg)
-                    float hLen = (float) Math.sqrt(nz * nz + nx * nx);
-                    if (hLen < 0.001F) {
-                        b1xBasis = 1.0F;
-                        b1yBasis = 0.0F;
-                        b1zBasis = 0.0F;
-                    } else {
-                        b1xBasis = nz / hLen;
-                        b1yBasis = 0.0F;
-                        b1zBasis = -nx / hLen;
-                    }
-                    b2xBasis = ny * b1zBasis - nz * b1yBasis;
-                    b2yBasis = nz * b1xBasis - nx * b1zBasis;
-                    b2zBasis = nx * b1yBasis - ny * b1xBasis;
-                } else {
-                    // Horizontale Boden- oder Deckenfläche
-                    b1xBasis = 1.0F;
-                    b1yBasis = 0.0F;
-                    b1zBasis = 0.0F;
-                    b2xBasis = 0.0F;
-                    b2yBasis = 0.0F;
-                    b2zBasis = ny > 0 ? 1.0F : -1.0F;
-                }
-            } else {
-                // Strahl ins Leere: senkrecht zur Strahlachse
-                b1xBasis = ux;
-                b1yBasis = 0.0F;
-                b1zBasis = uz;
-                b2xBasis = vx;
-                b2yBasis = vy;
-                b2zBasis = vz;
-            }
+            // 1. Exakte elliptische Halbachsen auf der getroffenen Fläche (Kegelschnitt)
+            float rBot = beam.rBot();
+            EllipticalBasis basis = computeEllipticalBasis(
+                    dirX, dirY, dirZ,
+                    beam.normX(), beam.normY(), beam.normZ(),
+                    rBot, beam.hasHit()
+            );
 
             // Radien: Oben schlanker Hals an der Kugel, unten am Objekt aufgefächert
             float rTop = 0.04F * scale;
-            float rBot = beam.rBot();
 
-            // Transparenz: Sanfte, unaufdringliche atmosphärische Lichtstreuung
+            // Transparenz mit Lambert-Kosinusgesetz:
             float distFactor = beam.distFactor();
+            float lambert = beam.lambert();
             float alphaTop = 0.16F * scale;
-            float alphaBot = 0.05F * scale * distFactor;
+            float alphaBot = 0.05F * scale * distFactor * (0.4F + 0.6F * lambert);
 
-            // Runder 12-eckiger Kegelstumpf direkt bis zur Objektoberfläche
+            // Runder 12-eckiger Kegelstumpf mit elliptischer Basis direkt bis zur Objektoberfläche
             for (int seg = 0; seg < radialSegments; seg++) {
                 double a0 = seg * Math.PI * 2.0 / radialSegments;
                 double a1 = (seg + 1) * Math.PI * 2.0 / radialSegments;
                 float ca0 = (float) Math.cos(a0), sa0 = (float) Math.sin(a0);
                 float ca1 = (float) Math.cos(a1), sa1 = (float) Math.sin(a1);
 
-                // Oben
+                // Oben (runder Hals an der Kugel)
                 float t0x = bx + (ux * ca0 + vx * sa0) * rTop;
                 float t0y = topY + vy * sa0 * rTop;
                 float t0z = bz + (uz * ca0 + vz * sa0) * rTop;
@@ -342,14 +377,14 @@ public final class BoogieDiscoRenderer {
                 float t1y = topY + vy * sa1 * rTop;
                 float t1z = bz + (uz * ca1 + vz * sa1) * rTop;
 
-                // Unten am getroffenen Objekt
-                float b0x = groundX + (b1xBasis * ca0 + b2xBasis * sa0) * rBot;
-                float b0y = groundY + (b1yBasis * ca0 + b2yBasis * sa0) * rBot;
-                float b0z = groundZ + (b1zBasis * ca0 + b2zBasis * sa0) * rBot;
+                // Unten am getroffenen Objekt (elliptische Basis)
+                float b0x = groundX + basis.minorX() * ca0 + basis.majorX() * sa0;
+                float b0y = groundY + basis.minorY() * ca0 + basis.majorY() * sa0;
+                float b0z = groundZ + basis.minorZ() * ca0 + basis.majorZ() * sa0;
 
-                float b1x = groundX + (b1xBasis * ca1 + b2xBasis * sa1) * rBot;
-                float b1y = groundY + (b1yBasis * ca1 + b2yBasis * sa1) * rBot;
-                float b1z = groundZ + (b1zBasis * ca1 + b2zBasis * sa1) * rBot;
+                float b1x = groundX + basis.minorX() * ca1 + basis.majorX() * sa1;
+                float b1y = groundY + basis.minorY() * ca1 + basis.majorY() * sa1;
+                float b1z = groundZ + basis.minorZ() * ca1 + basis.majorZ() * sa1;
 
                 quadBoth(pose, buffer,
                         t0x, t0y, t0z, alphaTop,
@@ -359,11 +394,10 @@ public final class BoogieDiscoRenderer {
                         r, g, b);
             }
 
-            // Feiner, transparenter Kernstrahl in gleicher Farbe für sanften Helligkeitsverlauf
+            // Feiner, transparenter Kernstrahl in gleicher Farbe
             float coreTop = 0.02F * scale;
-            float coreBot = rBot * 0.40F;
             float coreAlphaTop = 0.10F * scale;
-            float coreAlphaBot = 0.03F * scale * distFactor;
+            float coreAlphaBot = 0.03F * scale * distFactor * (0.4F + 0.6F * lambert);
             for (int seg = 0; seg < 6; seg++) {
                 double a0 = seg * Math.PI * 2.0 / 6;
                 double a1 = (seg + 1) * Math.PI * 2.0 / 6;
@@ -373,42 +407,199 @@ public final class BoogieDiscoRenderer {
                 quadBoth(pose, buffer,
                         bx + (ux * ca0 + vx * sa0) * coreTop, topY + vy * sa0 * coreTop, bz + (uz * ca0 + vz * sa0) * coreTop, coreAlphaTop,
                         bx + (ux * ca1 + vx * sa1) * coreTop, topY + vy * sa1 * coreTop, bz + (uz * ca1 + vz * sa1) * coreTop, coreAlphaTop,
-                        groundX + (b1xBasis * ca1 + b2yBasis * sa1) * coreBot, groundY + (b1yBasis * ca1 + b2yBasis * sa1) * coreBot, groundZ + (b1zBasis * ca1 + b2zBasis * sa1) * coreBot, coreAlphaBot,
-                        groundX + (b1xBasis * ca0 + b2yBasis * sa0) * coreBot, groundY + (b1yBasis * ca0 + b2yBasis * sa0) * coreBot, groundZ + (b1zBasis * ca0 + b2zBasis * sa0) * coreBot, coreAlphaBot,
+                        groundX + (basis.minorX() * ca1 + basis.majorX() * sa1) * 0.40F, groundY + (basis.minorY() * ca1 + basis.majorY() * sa1) * 0.40F, groundZ + (basis.minorZ() * ca1 + basis.majorZ() * sa1) * 0.40F, coreAlphaBot,
+                        groundX + (basis.minorX() * ca0 + basis.majorX() * sa0) * 0.40F, groundY + (basis.minorY() * ca0 + basis.majorY() * sa0) * 0.40F, groundZ + (basis.minorZ() * ca0 + basis.majorZ() * sa0) * 0.40F, coreAlphaBot,
                         r, g, b);
             }
 
-            // Runder, sanft nach außen auslaufender Scheinwerfer-Lichtfleck direkt auf der getroffenen Fläche (Boden, Wand, Glas)
+            // 2. Elliptischer Scheinwerfer-Lichtfleck mit Lambert-Intensität
             if (beam.hasHit()) {
+                float spotAlpha = 0.22F * scale * distFactor * lambert;
                 renderSpotlightSurfacePool(pose, buffer,
                         groundX, groundY, groundZ,
                         beam.normX(), beam.normY(), beam.normZ(),
-                        b1xBasis, b1yBasis, b1zBasis,
-                        b2xBasis, b2yBasis, b2zBasis,
-                        rBot * 1.35F, r, g, b, 0.22F * scale * distFactor);
+                        basis,
+                        1.35F,
+                        r, g, b, spotAlpha);
+            }
+
+            // 3. Sekundärstrahl (Bounce) an Glas, Eis oder polierten Flächen
+            BounceData bounce = beam.bounce();
+            if (bounce != null) {
+                float bStartX = bounce.startX();
+                float bStartY = bounce.startY();
+                float bStartZ = bounce.startZ();
+
+                float bHitX = bounce.hitX();
+                float bHitY = bounce.hitY();
+                float bHitZ = bounce.hitZ();
+
+                float bDirX = bounce.dirX();
+                float bDirY = bounce.dirY();
+                float bDirZ = bounce.dirZ();
+
+                float bux = -bDirZ;
+                float buz = bDirX;
+                float buLen = (float) Math.sqrt(bux * bux + buz * buz);
+                if (buLen < 0.001F) {
+                    bux = 1.0F;
+                    buz = 0.0F;
+                } else {
+                    bux /= buLen;
+                    buz /= buLen;
+                }
+                float bvx = bDirY * buz;
+                float bvy = bDirZ * bux - bDirX * buz;
+                float bvz = -bDirY * bux;
+
+                EllipticalBasis bounceBasis = computeEllipticalBasis(
+                        bDirX, bDirY, bDirZ,
+                        bounce.normX(), bounce.normY(), bounce.normZ(),
+                        bounce.rBot(), bounce.hasHit()
+                );
+
+                float bRTop = bounce.rTop();
+                float bAlphaTop = alphaBot * bounce.alphaFactor() * 0.90F;
+                float bAlphaBot = bAlphaTop * 0.35F;
+
+                for (int seg = 0; seg < 8; seg++) {
+                    double a0 = seg * Math.PI * 2.0 / 8;
+                    double a1 = (seg + 1) * Math.PI * 2.0 / 8;
+                    float ca0 = (float) Math.cos(a0), sa0 = (float) Math.sin(a0);
+                    float ca1 = (float) Math.cos(a1), sa1 = (float) Math.sin(a1);
+
+                    // Oben am Reflexionsursprung
+                    float bt0x = bStartX + (bux * ca0 + bvx * sa0) * bRTop;
+                    float bt0y = bStartY + bvy * sa0 * bRTop;
+                    float bt0z = bStartZ + (buz * ca0 + bvz * sa0) * bRTop;
+
+                    float bt1x = bStartX + (bux * ca1 + bvx * sa1) * bRTop;
+                    float bt1y = bStartY + bvy * sa1 * bRTop;
+                    float bt1z = bStartZ + (buz * ca1 + bvz * sa1) * bRTop;
+
+                    // Unten am zweiten Auftreffpunkt
+                    float bb0x = bHitX + bounceBasis.minorX() * ca0 + bounceBasis.majorX() * sa0;
+                    float bb0y = bHitY + bounceBasis.minorY() * ca0 + bounceBasis.majorY() * sa0;
+                    float bb0z = bHitZ + bounceBasis.minorZ() * ca0 + bounceBasis.majorZ() * sa0;
+
+                    float bb1x = bHitX + bounceBasis.minorX() * ca1 + bounceBasis.majorX() * sa1;
+                    float bb1y = bHitY + bounceBasis.minorY() * ca1 + bounceBasis.majorY() * sa1;
+                    float bb1z = bHitZ + bounceBasis.minorZ() * ca1 + bounceBasis.majorZ() * sa1;
+
+                    quadBoth(pose, buffer,
+                            bt0x, bt0y, bt0z, bAlphaTop,
+                            bt1x, bt1y, bt1z, bAlphaTop,
+                            bb1x, bb1y, bb1z, bAlphaBot,
+                            bb0x, bb0y, bb0z, bAlphaBot,
+                            r, g, b);
+                }
+
+                if (bounce.hasHit()) {
+                    renderSpotlightSurfacePool(pose, buffer,
+                            bHitX, bHitY, bHitZ,
+                            bounce.normX(), bounce.normY(), bounce.normZ(),
+                            bounceBasis,
+                            1.20F,
+                            r, g, b, 0.14F * scale * bounce.alphaFactor());
+                }
             }
         }
     }
 
     /**
-     * Runder, weich auslaufender Scheinwerfer-Lichtfleck direkt auf der getroffenen Objektoberfläche
-     * (Boden, Wand, Glas, Decke).
+     * Berechnet die physikalisch exakte elliptische Halbachsenbasis (Minor und Major)
+     * eines schräg auf eine Oberfläche treffenden Kegelstrahls (Kegelschnitt).
+     */
+    private static EllipticalBasis computeEllipticalBasis(
+            float dirX, float dirY, float dirZ,
+            float nx, float ny, float nz,
+            float radius, boolean hasHit) {
+        if (!hasHit) {
+            float ux = -dirZ;
+            float uz = dirX;
+            float uLen = (float) Math.sqrt(ux * ux + uz * uz);
+            if (uLen < 0.001F) {
+                ux = 1.0F;
+                uz = 0.0F;
+            } else {
+                ux /= uLen;
+                uz /= uLen;
+            }
+            float vx = dirY * uz;
+            float vy = dirZ * ux - dirX * uz;
+            float vz = -dirY * ux;
+            return new EllipticalBasis(
+                    ux * radius, 0.0F, uz * radius,
+                    vx * radius, vy * radius, vz * radius
+            );
+        }
+
+        // Kreuzprodukt d x n = Minor-Achse quer zur Einstrahlrichtung
+        float cx = dirY * nz - dirZ * ny;
+        float cy = dirZ * nx - dirX * nz;
+        float cz = dirX * ny - dirY * nx;
+        float cLen = (float) Math.sqrt(cx * cx + cy * cy + cz * cz);
+
+        float tMinorX, tMinorY, tMinorZ;
+        if (cLen < 0.001F) {
+            if (Math.abs(ny) < 0.9F) {
+                float hLen = (float) Math.sqrt(nz * nz + nx * nx);
+                tMinorX = nz / hLen;
+                tMinorY = 0.0F;
+                tMinorZ = -nx / hLen;
+            } else {
+                tMinorX = 1.0F;
+                tMinorY = 0.0F;
+                tMinorZ = 0.0F;
+            }
+        } else {
+            tMinorX = cx / cLen;
+            tMinorY = cy / cLen;
+            tMinorZ = cz / cLen;
+        }
+
+        // Major-Achse = n x tMinor (liegt in der Oberfläche genau in Einstrahlrichtung)
+        float tMajorX = ny * tMinorZ - nz * tMinorY;
+        float tMajorY = nz * tMinorX - nx * tMinorZ;
+        float tMajorZ = nx * tMinorY - ny * tMinorX;
+
+        // Kosinus des Einfallswinkels zur Flächennormale
+        float cosTheta = Math.abs(dirX * nx + dirY * ny + dirZ * nz);
+        float clampedCos = Math.clamp(cosTheta, 0.20F, 1.0F);
+
+        // Elliptische Halbachsen: Minor bleibt unverändert radius, Major wird um 1 / cos(theta) gestreckt (max 5x)
+        float rMajor = radius / clampedCos;
+
+        return new EllipticalBasis(
+                tMinorX * radius, tMinorY * radius, tMinorZ * radius,
+                tMajorX * rMajor, tMajorY * rMajor, tMajorZ * rMajor
+        );
+    }
+
+    /**
+     * Runder bis elliptischer, weich auslaufender Scheinwerfer-Lichtfleck direkt auf der getroffenen Objektoberfläche.
      */
     private static void renderSpotlightSurfacePool(Matrix4fc pose, VertexConsumer buffer,
                                                    float cx, float cy, float cz,
                                                    float nx, float ny, float nz,
-                                                   float t1x, float t1y, float t1z,
-                                                   float t2x, float t2y, float t2z,
-                                                   float radius,
+                                                   EllipticalBasis basis,
+                                                   float radiusMultiplier,
                                                    float r, float g, float b, float maxAlpha) {
         if (maxAlpha <= 0.01F) return;
         int segments = 16;
-        float rInner = 0.03F * radius;
 
         // Versatz um 0.015F entlang der Flächennormale, um Z-Fighting mit dem Block zu verhindern
         float ox = cx + nx * 0.015F;
         float oy = cy + ny * 0.015F;
         float oz = cz + nz * 0.015F;
+
+        float uX = basis.minorX() * radiusMultiplier;
+        float uY = basis.minorY() * radiusMultiplier;
+        float uZ = basis.minorZ() * radiusMultiplier;
+
+        float vX = basis.majorX() * radiusMultiplier;
+        float vY = basis.majorY() * radiusMultiplier;
+        float vZ = basis.majorZ() * radiusMultiplier;
 
         for (int i = 0; i < segments; i++) {
             double a0 = i * Math.PI * 2.0 / segments;
@@ -416,23 +607,23 @@ public final class BoogieDiscoRenderer {
             float c0 = (float) Math.cos(a0), s0 = (float) Math.sin(a0);
             float c1 = (float) Math.cos(a1), s1 = (float) Math.sin(a1);
 
-            // Innenring nahe Zentrum
-            float in0x = ox + (t1x * c0 + t2x * s0) * rInner;
-            float in0y = oy + (t1y * c0 + t2y * s0) * rInner;
-            float in0z = oz + (t1z * c0 + t2z * s0) * rInner;
+            // Innenring nahe Zentrum (3% Ausdehnung)
+            float in0x = ox + (uX * c0 + vX * s0) * 0.03F;
+            float in0y = oy + (uY * c0 + vY * s0) * 0.03F;
+            float in0z = oz + (uZ * c0 + vZ * s0) * 0.03F;
 
-            float in1x = ox + (t1x * c1 + t2x * s1) * rInner;
-            float in1y = oy + (t1y * c1 + t2y * s1) * rInner;
-            float in1z = oz + (t1z * c1 + t2z * s1) * rInner;
+            float in1x = ox + (uX * c1 + vX * s1) * 0.03F;
+            float in1y = oy + (uY * c1 + vY * s1) * 0.03F;
+            float in1z = oz + (uZ * c1 + vZ * s1) * 0.03F;
 
-            // Außenrand
-            float out0x = ox + (t1x * c0 + t2x * s0) * radius;
-            float out0y = oy + (t1y * c0 + t2y * s0) * radius;
-            float out0z = oz + (t1z * c0 + t2z * s0) * radius;
+            // Außenrand der Ellipse
+            float out0x = ox + (uX * c0 + vX * s0);
+            float out0y = oy + (uY * c0 + vY * s0);
+            float out0z = oz + (uZ * c0 + vZ * s0);
 
-            float out1x = ox + (t1x * c1 + t2x * s1) * radius;
-            float out1y = oy + (t1y * c1 + t2y * s1) * radius;
-            float out1z = oz + (t1z * c1 + t2z * s1) * radius;
+            float out1x = ox + (uX * c1 + vX * s1);
+            float out1y = oy + (uY * c1 + vY * s1);
+            float out1z = oz + (uZ * c1 + vZ * s1);
 
             // Quad von Innenring (hell) nach Außenrand (0.0 Alpha)
             quadBoth(pose, buffer,
@@ -466,10 +657,30 @@ public final class BoogieDiscoRenderer {
         buffer.addVertex(pose, x, y, z).setColor(r, g, b, a);
     }
 
-    private record BeamData(float relX, float relY, float relZ,
-                            float normX, float normY, float normZ,
-                            float cos, float sin, float rBot,
-                            float distFactor, boolean hasHit) {}
+    private record EllipticalBasis(
+            float minorX, float minorY, float minorZ,
+            float majorX, float majorY, float majorZ
+    ) {}
+
+    private record BounceData(
+            float startX, float startY, float startZ,
+            float hitX, float hitY, float hitZ,
+            float normX, float normY, float normZ,
+            float dirX, float dirY, float dirZ,
+            float rTop, float rBot,
+            float alphaFactor,
+            boolean hasHit
+    ) {}
+
+    private record BeamData(
+            float relX, float relY, float relZ,
+            float normX, float normY, float normZ,
+            float dirX, float dirY, float dirZ,
+            float cos, float sin, float rBot,
+            float distFactor, float lambert,
+            boolean hasHit,
+            @Nullable BounceData bounce
+    ) {}
 
     private record DiscoFrame(float relBallX, float relBallY, float relBallZ,
                               float seconds, float weight,
