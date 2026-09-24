@@ -21,7 +21,7 @@
 >      - **Build & Testing (`intellij-index`):** `ide_build_project`, `ide_list_tests`, `ide_run_tests`.
 >      - **Index & Dateisystem-Synchronisation (`intellij-index`):** `ide_index_status` (Pre-Flight Check für Smart-/Dumb-Mode), `ide_sync_files` nach jeder externen Dateiänderung aufrufen.
 >      - **Lifecycle-Management (`intellij-index`):** `ide_project_status`, `ide_enroll_all_projects`, `ide_release_all_projects`, `ide_release_project`, `ide_get_project_modes`, `ide_set_project_mode`, `ide_set_all_project_modes`, `ide_set_power_save_mode`, `ide_lifecycle_log`, `ide_set_lifecycle_log_file`.
->      - **Client-Start & Runtime-Debugging (`jetbrains-debugger`):** `list_run_configurations`, `execute_run_configuration`, `list_debug_sessions`, `start_debug_session(configuration_name: "Minecraft Client")`, `stop_debug_session`, `set_breakpoint`, `remove_breakpoint`, `list_breakpoints`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `pause_execution`, `step_over`, `step_into`, `step_out`, `run_to_line`, `get_stack_trace`, `select_stack_frame`, `list_threads`, `get_variables`, `set_variable`, `get_source_context`.
+>      - **Client-Start & Runtime-Debugging (`jetbrains-debugger`):** `list_run_configurations`, `execute_run_configuration`, `list_debug_sessions`, `start_debug_session(configuration_name: "Minecraft Client")`, `stop_debug_session`, `set_breakpoint`, `remove_breakpoint`, `list_breakpoints`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `pause_execution`, `step_over`, `step_into`, `step_out`, `run_to_line`, `jump_to_line`, `get_stack_trace`, `select_stack_frame`, `list_threads`, `get_variables`, `set_variable`, `get_source_context`.
 >    - ⛔ **STRIKT VERBOTEN:** 
 >      - Verwende **NIEMALS** CLI-Bytecode-Tools wie `javap`, `disassemble` oder Disassembler-Skripte! Alle Typen, Methoden, Parameter und Klassenstrukturen werden ausschließlich semantisch über `intellij-index` (`ide_find_class`, `ide_find_definition`, `ide_symbol_info`, `ide_type_hierarchy` etc.) analysiert.
 >      - Verwende **NIEMALS** reine Textsuch-Tools (`grep`, Textsuche) oder Vermutungen, wenn semantische IDE-Index-Tools zur Verfügung stehen.
@@ -96,7 +96,7 @@ Die Anbindung an IntelliJ IDEA erfolgt über das **intellij-index MCP** (`http:/
 >    - `ide_read_file`: Quellcode aus externen JARs / Bibliotheken und Abhängigkeiten lesen (`file` oder `qualifiedName`, `startLine`, `endLine`).
 >    - `ide_open_file`: Datei an genauer Zeile/Spalte im Editor öffnen (`file`, `line`, `column`).
 >    - `ide_get_active_file`: Aktuell im Editor fokussierte Datei abfragen (liefert Cursorposition und Selektion).
->    - `ide_open_project`: Projekt per absolutem Pfad öffnen und auf Indexierung warten (`path`, `timeoutSeconds`, keine `.idea`-Voraussetzung).
+>    - `ide_open_project`: Projekt per absolutem Pfad öffnen und auf Indexierung warten (`path`, `autoLink` [Maven/Gradle-Buildsystem automatisch verlinken, Default: `false`], `excludeDirectories` [Ordner von Indexing/Refactoring ausschließen, z. B. `["wksp", ".claude"]`], `timeoutSeconds`, keine `.idea`-Voraussetzung; liefert Bestätigung inkl. Setup-Details).
 >    - `ide_open_workspace`: Maven-Workspace aus Verzeichnis (`path`) oder Modulliste (`modules`) aggregieren (`timeoutSeconds`).
 >    - `ide_close_project`: Geöffnetes Projektfenster schließen und Speicher freigeben (`project_path`).
 >    - `ide_reload_project`: Maven-/Gradle-Buildmodell asynchron neu laden (`project_path`).
@@ -134,7 +134,7 @@ Die Anbindung an den Debugger erfolgt über das **jetbrains-debugger MCP** (`htt
 > **Direkte MCP-Nutzung nach [`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md):**
 > Bei unklarem Laufzeitverhalten, fehlerhaften Werten, NullPointern oder unvorhergesehenem Kontrollfluss wird nicht im Code geraten, sondern programmatisch über MCP gedebuggt:
 > - **[`jetbrains-debugger/SKILL.md`](jetbrains-debugger/SKILL.md):** Umfassender Leitfaden, Debugging-Muster, Pausen-Handling und Best Practices.
-> - **[`jetbrains-debugger/references/tool-reference.md`](jetbrains-debugger/references/tool-reference.md):** Vollständige Referenz aller Debugger-Werkzeuge (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `pause_execution`, `step_over`, `step_into`, `step_out`, `run_to_line`, etc.).
+> - **[`jetbrains-debugger/references/tool-reference.md`](jetbrains-debugger/references/tool-reference.md):** Vollständige Referenz aller Debugger-Werkzeuge (`start_debug_session`, `set_breakpoint`, `get_debug_session_status`, `wait_for_pause`, `evaluate_expression`, `resume_execution`, `pause_execution`, `step_over`, `step_into`, `step_out`, `run_to_line`, `jump_to_line`, etc.).
 > - **Batch-Automatisierung:** Für das restlose Bereinigen aller Breakpoints steht [`tools/mcp_debugger.py`](tools/mcp_debugger.py) mit `python tools/mcp_debugger.py clear-all-bp` zur Verfügung.
 >
 > ### Vollständige Übersicht aller aktiven MCP-Tools (`jetbrains-debugger`):
@@ -147,27 +147,28 @@ Die Anbindung an den Debugger erfolgt über das **jetbrains-debugger MCP** (`htt
 >    - `list_debug_sessions`: Alle aktiven Debug-Sessions auflisten.
 >
 > 2. **Breakpoints:**
->    - `set_breakpoint`: Zeilen-Breakpoint mit absolutem Pfad (`file`), 1-basierter Zeile (`line`), optionaler Bedingung (`condition`), Log-Message (`log_message`) oder Suspend-Policy (`suspend_policy`: `"all"`, `"thread"`, `"none"`) setzen.
+>    - `set_breakpoint`: Zeilen-Breakpoint mit absolutem Pfad (`file_path`, unterstützt auch JARs via `!/`), 1-basierter Zeile (`line`), optionaler Bedingung (`condition`), Log-Message (`log_message` mit `{expression}`-Platzhaltern für Tracepoints), Suspend-Policy (`suspend_policy`: `"all"`, `"thread"`, `"none"`), `enabled` und `temporary` (Einmal-Breakpoint).
 >    - `remove_breakpoint`: Breakpoint anhand der ID entfernen (`breakpoint_id`).
->    - `list_breakpoints`: Alle Breakpoints im Projekt auflisten.
+>    - `list_breakpoints`: Alle Breakpoints im Projekt auflisten (liefert ID, Dateipfad, Zeile, Enabled-Status, Suspend-Policy etc.).
 >
 > 3. **Execution Control & Stepping:**
 >    - `resume_execution`: Programmausführung nach Pause fortsetzen.
 >    - `pause_execution`: Laufende Programmausführung anhalten.
->    - `wait_for_pause`: Blockierend auf den nächsten Breakpoint oder Step warten (liefert vollen Session-Status inkl. Stack, Variablen & Source; konfigurierbares `timeout`, z. B. 60s).
+>    - `wait_for_pause`: Blockierend auf den nächsten Breakpoint oder Step warten (liefert vollen Session-Status inkl. Stack, Variablen & Source; konfigurierbares `timeout`, z. B. 60s; optionales `breakpoint_ids`-Array zum selektiven Warten auf bestimmte Breakpoints; wartet bei weggelassenem `session_id` auch auf das Erscheinen einer Session).
 >    - `step_over`: Nächste Zeile ausführen (Funktionsaufrufe überspringen).
 >    - `step_into`: In den Funktionsaufruf auf aktueller Zeile hineinspringen.
 >    - `step_out`: Ausführung bis zum Verlassen der aktuellen Funktion fortsetzen.
->    - `run_to_line`: Ausführung bis zu einer bestimmten Zielzeile laufen lassen (`file`: absolut, `line`: 1-basiert).
+>    - `run_to_line`: Ausführung bis zu einer bestimmten Zielzeile laufen lassen (`file_path`: absolut, `line`: 1-basiert; führt den dazwischenliegenden Code aus).
+>    - `jump_to_line`: Pausierten Ausführungspunkt ohne Codeausführung auf eine andere Zeile in der aktuellen Funktion verschieben ("Set Next Statement" / "Jump to Cursor"; überspringt Code dazwischen oder wiederholt frühere Zeilen, z. B. nach `set_variable`; `file_path`: absolut, `line`: 1-basiert; unterstützt für Python/pydevd, andere Debugger wie JVM/Java/Kotlin melden Fehler).
 >
 > 4. **Inspektion (Stack, Variablen, Threads & Source):**
 >    - `get_debug_session_status`: Primäres Inspektions-Tool – bündelt Stack, Variablen, Source und Lokation in einem einzigen Aufruf ohne Wartezeit.
 >    - `get_variables`: Variablen im aktuellen oder per `frame_index` ausgewählten Stack-Frame auflisten.
->    - `set_variable`: Variablenwert zur Laufzeit manipulieren (`name`, `value`).
+>    - `set_variable`: Variablenwert zur Laufzeit manipulieren (`variable_name`, `new_value`).
 >    - `get_stack_trace`: Vollständigen Aufruf-Stack abrufen.
 >    - `select_stack_frame`: Stack-Frame per `frame_index` für Variablen- und Expressionskontext auswählen.
 >    - `list_threads`: Alle Threads der JVM auflisten.
->    - `get_source_context`: Quellcode-Ausschnitt um eine Zeile / Lokation herum abrufen (`file`: absolut oder in JARs via `!/`, `line`, `lines_before`, `lines_after`).
+>    - `get_source_context`: Quellcode-Ausschnitt um eine Zeile / Lokation herum abrufen (`file_path`: absolut oder in JARs via `!/`, `line`, `lines_before`, `lines_after`).
 >
 > 5. **Expression Evaluation:**
 >    - `evaluate_expression`: Beliebige Ausdrücke, Methodenaufrufe und Berechnungen im Kontext des aktuellen Frames auswerten (Sicherheitsregeln beachten: In eingeschränkten Modi keine Template-Strings wie `${...}`).
@@ -176,9 +177,11 @@ Die Anbindung an den Debugger erfolgt über das **jetbrains-debugger MCP** (`htt
 > 1. **Client-Start via IntelliJ Debugger MCP:** Den Minecraft Client immer über `start_debug_session(configuration_name: "Minecraft Client")` (oder `execute_run_configuration(name: "Minecraft Client", mode: "debug")`) starten, damit die JVM-Instanz dauerhaft im Debugger eingeklinkt ist.
 > 2. Breakpoints **vor** dem Auslösen der Aktion setzen (`set_breakpoint`).
 > 3. Nach Stepping (`step_over`, `step_into`, etc.) oder `resume_execution` immer mit `wait_for_pause` auf die Pause warten.
-> 4. Dateipfade für Breakpoints müssen **absolut** sein, Zeilennummern **1-basiert**.
-> 5. Zur Status- und Variableninspektion primär `get_debug_session_status` nutzen (bündelt Stack, Variablen, Code und Lokation in einem Aufruf).
-> 6. Nach Abschluss der Untersuchung Breakpoints mit `python tools/mcp_debugger.py clear-all-bp` aufräumen oder die Session mit `stop_debug_session` beenden.
+> 4. Dateipfade für Breakpoints, `run_to_line`, `jump_to_line` und `get_source_context` müssen **absolut** sein, Zeilennummern **1-basiert** (Unterstützung für JAR-Dateien via `!/`-Separator).
+> 5. `run_to_line` führt Code bis zur Zielzeile regulär aus; `jump_to_line` (Set Next Statement) überspringt dazwischenliegenden Code.
+> 6. Zur Status- und Variableninspektion primär `get_debug_session_status` nutzen (bündelt Stack, Variablen, Code und Lokation in einem Aufruf).
+> 7. Sicherheitsfilter der IDE bei `evaluate_expression`, `condition` und `log_message` beachten (in restriktiven Modi keine Template-Interpolation wie `${...}`).
+> 8. Nach Abschluss der Untersuchung Breakpoints mit `python tools/mcp_debugger.py clear-all-bp` aufräumen oder die Session mit `stop_debug_session` beenden.
 
 ---
 
