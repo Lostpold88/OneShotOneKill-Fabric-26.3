@@ -1,5 +1,6 @@
 package com.oneshotonekill.client.mixin.renderer;
 
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.oneshotonekill.client.ClientInputEvents;
 import net.minecraft.client.model.HumanoidModel;
 import net.minecraft.client.renderer.entity.player.AvatarRenderer;
@@ -41,11 +42,11 @@ public abstract class AvatarRendererMixin {
 
    // Ausgeschriebener Deskriptor: javap zeigt neben der eigentlichen Methode noch die Bruecken
    // shouldShowName(LivingEntity, double) und shouldShowName(Entity, double).
-   @Inject(method = "shouldShowName(Lnet/minecraft/world/entity/Avatar;D)Z", at = @At("RETURN"), cancellable = true)
-   private void osok$hideInvisibleName(Avatar entity, double distanceToCameraSq,
-                                       CallbackInfoReturnable<Boolean> cir) {
-      if (cir.getReturnValueZ() && ClientInputEvents.hidesNameTag(entity)) {
-         cir.setReturnValue(false);
+   @ModifyReturnValue(method = "shouldShowName(Lnet/minecraft/world/entity/Avatar;D)Z", at = @At("RETURN"))
+   private boolean osok$hideInvisibleName(boolean original, Avatar entity, double distanceToCameraSq) {
+      if (original && ClientInputEvents.hidesNameTag(entity)) {
+         return false;
       }
+      return original;
    }
 }

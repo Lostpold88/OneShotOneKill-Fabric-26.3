@@ -1,12 +1,11 @@
 package com.oneshotonekill.client.mixin.effect;
 
+import com.llamalad7.mixinextras.injector.ModifyReturnValue;
 import com.oneshotonekill.client.ClientInputEvents;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.player.AbstractClientPlayer;
 import org.spongepowered.asm.mixin.Mixin;
 import org.spongepowered.asm.mixin.injection.At;
-import org.spongepowered.asm.mixin.injection.Inject;
-import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
 
 /**
  * Sichtfeld: Startstoß beim Match-Beginn, Vibration der laufenden Minigun, Sog im Gleitflug.
@@ -20,10 +19,11 @@ import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
  */
 @Mixin(AbstractClientPlayer.class)
 public abstract class AbstractClientPlayerFovMixin {
-   @Inject(method = "getFieldOfViewModifier", at = @At("RETURN"), cancellable = true)
-   private void osok$modifyFov(boolean firstPerson, float effectScale, CallbackInfoReturnable<Float> cir) {
+   @ModifyReturnValue(method = "getFieldOfViewModifier", at = @At("RETURN"))
+   private float osok$modifyFov(float original, boolean firstPerson, float effectScale) {
       if ((Object) this == Minecraft.getInstance().player) {
-         cir.setReturnValue(ClientInputEvents.modifyFovModifier(cir.getReturnValueF()));
+         return ClientInputEvents.modifyFovModifier(original);
       }
+      return original;
    }
 }
