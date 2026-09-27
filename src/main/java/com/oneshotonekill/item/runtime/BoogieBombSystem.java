@@ -1,10 +1,12 @@
 package com.oneshotonekill.item.runtime;
 
 import com.oneshotonekill.OneShotOneKill;
+import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.arena.ArenaWorlds;
 import com.oneshotonekill.registry.ModItems;
 import com.oneshotonekill.shared.Hologram;
 import com.oneshotonekill.shared.SpecialItemRules;
+import com.oneshotonekill.movement.ArenaBorderCollision;
 import io.netty.buffer.ByteBuf;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.UUIDUtil;
@@ -98,6 +100,16 @@ public final class BoogieBombSystem {
                 continue;
             }
             Vec3 next = shot.position.add(shot.velocity);
+
+            // 1. Arena Border Bounce
+            Arena arena = Arena.byDimension(shot.level.dimension());
+            ArenaBorderCollision.ProjectileBounce borderBounce = ArenaBorderCollision.handleBorderBounce(shot.level, arena, shot.position, shot.velocity, next);
+            if (borderBounce.bounced()) {
+                shot.position = borderBounce.position();
+                shot.velocity = borderBounce.velocity();
+                next = shot.position.add(shot.velocity);
+            }
+
             BlockHitResult block = shot.level.clip(new ClipContext(shot.position, next,
                     ClipContext.Block.COLLIDER, ClipContext.Fluid.ANY, CollisionContext.empty()));
             Vec3 impact = block.getType() == HitResult.Type.MISS ? next : block.getLocation();

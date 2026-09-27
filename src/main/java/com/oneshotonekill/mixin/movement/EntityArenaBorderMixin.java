@@ -14,9 +14,6 @@ import org.spongepowered.asm.mixin.injection.At;
 public abstract class EntityArenaBorderMixin {
     @ModifyReturnValue(method = "collide", at = @At("RETURN"))
     private Vec3 osok$clampArenaBorderMovement(Vec3 original, Vec3 movement) {
-        if (original.x == 0.0 && original.y == 0.0 && original.z == 0.0) {
-            return original;
-        }
         return ArenaBorderCollision.clampMovement((Entity) (Object) this, original);
     }
 }

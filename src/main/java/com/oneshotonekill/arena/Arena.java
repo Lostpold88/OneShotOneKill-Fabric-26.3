@@ -128,7 +128,11 @@ public enum Arena {
     }
 
     public boolean isInArena(double x, double y, double z) {
-        return regions.stream().anyMatch(region -> region.contains(x, y, z));
+        return regions.stream().anyMatch(region ->
+                region.containsColumn(x, z)
+                        && y >= region.getMinY() - ArenaShape.ARENA_FLOOR_TOLERANCE
+                        && (ceilingY == null || y <= ceilingY)
+        );
     }
 
     public ArenaShape shapeAt(double x, double z) {
@@ -138,5 +142,80 @@ public enum Arena {
             }
         }
         return null;
+    }
+
+    public ArenaShape regionAt(double x, double y, double z) {
+        ArenaShape best = null;
+        double bestDist = Double.MAX_VALUE;
+        for (ArenaShape shape : regions) {
+            if (shape.containsColumn(x, z)) {
+                double floor = shape.getMinY() - ArenaShape.ARENA_FLOOR_TOLERANCE;
+                double ceil = ceilingY != null ? ceilingY : shape.getMaxY() + ArenaShape.ARENA_HEADROOM;
+                if (y >= floor && y <= ceil) {
+                    return shape;
+                }
+                double d = y < floor ? (floor - y) : (y - ceil);
+                if (d < bestDist) {
+                    bestDist = d;
+                    best = shape;
+                }
+            }
+        }
+        if (best != null) {
+            return best;
+        }
+        for (ArenaShape shape : regions) {
+            if (shape.containsColumn(x, z)) {
+                return shape;
+            }
+        }
+        return regions.isEmpty() ? null : regions.getFirst();
+    }
+
+    public double getFloorY(double x, double y, double z) {
+        double minFloor = Double.MAX_VALUE;
+        for (ArenaShape shape : regions) {
+            if (shape.containsColumn(x, z)) {
+                double floor = shape.getMinY() - ArenaShape.ARENA_FLOOR_TOLERANCE;
+                if (floor < minFloor) {
+                    minFloor = floor;
+                }
+            }
+        }
+        if (minFloor != Double.MAX_VALUE) {
+            return minFloor;
+        }
+        return regions.stream().mapToDouble(ArenaShape::getMinY).min().orElse(0.0) - ArenaShape.ARENA_FLOOR_TOLERANCE;
+    }
+
+    public double getFloorY(double x, double z) {
+        return getFloorY(x, 0.0, z);
+    }
+
+    public double[] getInwardNormal(double x, double y, double z) {
+        ArenaShape shape = regionAt(x, y, z);
+        if (shape != null) {
+            return shape.getInwardNormal(x, z);
+        }
+        return getInwardNormal(x, z);
+    }
+
+    public double[] getInwardNormal(double x, double z) {
+        ArenaShape shape = shapeAt(x, z);
+        if (shape != null) {
+            return shape.getInwardNormal(x, z);
+        }
+        double bestDistSq = Double.MAX_VALUE;
+        ArenaShape closest = null;
+        for (ArenaShape s : regions) {
+            double cx = (s.getMinX() + s.getMaxX()) * 0.5 - x;
+            double cz = (s.getMinZ() + s.getMaxZ()) * 0.5 - z;
+            double d = cx * cx + cz * cz;
+            if (d < bestDistSq) {
+                bestDistSq = d;
+                closest = s;
+            }
+        }
+        return closest != null ? closest.getInwardNormal(x, z) : new double[]{0.0, 0.0};
     }
 }
