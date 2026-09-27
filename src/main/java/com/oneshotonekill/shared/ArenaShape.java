@@ -38,8 +38,6 @@ public sealed interface ArenaShape permits ArenaShape.Polygon, ArenaShape.Box {
 
     boolean containsColumn(double x, double z);
 
-    double[] getInwardNormal(double x, double z);
-
     default boolean contains(double x, double y, double z) {
         return containsColumn(x, z)
                 && y >= getMinY() - ARENA_FLOOR_TOLERANCE
@@ -133,46 +131,6 @@ public sealed interface ArenaShape permits ArenaShape.Polygon, ArenaShape.Box {
             int ix = (int) Math.floor(x) - (int) minX;
             int iz = (int) Math.floor(z) - (int) minZ;
             return ix >= 0 && ix < width && iz >= 0 && iz < depth && getMask()[ix * depth + iz];
-        }
-
-        @Override
-        public double[] getInwardNormal(double x, double z) {
-            double bestDistSq = Double.MAX_VALUE;
-            double bestNx = 0.0;
-            double bestNz = 0.0;
-            for (int i = 0; i < verticesX.length; i++) {
-                int j = (i + 1) % verticesX.length;
-                double x1 = verticesX[i], z1 = verticesZ[i];
-                double x2 = verticesX[j], z2 = verticesZ[j];
-                double dx = x2 - x1, dz = z2 - z1;
-                double lenSq = dx * dx + dz * dz;
-                if (lenSq < 1.0E-8) continue;
-                double t = Math.clamp(((x - x1) * dx + (z - z1) * dz) / lenSq, 0.0, 1.0);
-                double projX = x1 + t * dx;
-                double projZ = z1 + t * dz;
-                double distSq = (x - projX) * (x - projX) + (z - projZ) * (z - projZ);
-                if (distSq < bestDistSq) {
-                    bestDistSq = distSq;
-                    double len = Math.sqrt(lenSq);
-                    double n1x = -dz / len;
-                    double n1z = dx / len;
-                    double testDist = 0.5;
-                    if (containsColumn(projX + n1x * testDist, projZ + n1z * testDist)) {
-                        bestNx = n1x;
-                        bestNz = n1z;
-                    } else {
-                        bestNx = -n1x;
-                        bestNz = -n1z;
-                    }
-                }
-            }
-            if (bestNx == 0.0 && bestNz == 0.0) {
-                double cx = (minX + maxX) * 0.5 - x;
-                double cz = (minZ + maxZ) * 0.5 - z;
-                double clen = Math.hypot(cx, cz);
-                return clen > 1.0E-4 ? new double[]{cx / clen, cz / clen} : new double[]{0.0, 1.0};
-            }
-            return new double[]{bestNx, bestNz};
         }
 
         private boolean[] getMask() {
@@ -278,19 +236,6 @@ public sealed interface ArenaShape permits ArenaShape.Polygon, ArenaShape.Box {
         @Override
         public boolean containsColumn(double x, double z) {
             return x >= minX && x <= maxX && z >= minZ && z <= maxZ;
-        }
-
-        @Override
-        public double[] getInwardNormal(double x, double z) {
-            double dMinX = Math.abs(x - minX);
-            double dMaxX = Math.abs(x - maxX);
-            double dMinZ = Math.abs(z - minZ);
-            double dMaxZ = Math.abs(z - maxZ);
-            double min = Math.min(Math.min(dMinX, dMaxX), Math.min(dMinZ, dMaxZ));
-            if (min == dMinX) return new double[]{1.0, 0.0};
-            if (min == dMaxX) return new double[]{-1.0, 0.0};
-            if (min == dMinZ) return new double[]{0.0, 1.0};
-            return new double[]{0.0, -1.0};
         }
     }
 

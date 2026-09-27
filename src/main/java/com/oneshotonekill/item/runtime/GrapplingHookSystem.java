@@ -1,5 +1,8 @@
 package com.oneshotonekill.item.runtime;
 
+import com.oneshotonekill.OneShotOneKill;
+import com.oneshotonekill.arena.Arena;
+import com.oneshotonekill.arena.ArenaWorlds;
 import com.oneshotonekill.network.OsokPayloads.GrapplePullPayload;
 import com.oneshotonekill.registry.ModItems;
 import com.oneshotonekill.shared.Feedback;
@@ -243,15 +246,21 @@ public final class GrapplingHookSystem {
         Vec3 look = player.getLookAngle().normalize();
         Vec3 origin = muzzlePosition(player, 1.0F);
 
-        // Hypothetical check: does the trajectory hit a solid block within MAX_RANGE?
+        // Hypothetical check: does the trajectory hit a solid block within MAX_RANGE inside the arena?
         BlockHitResult prospectiveHit = level.clip(new ClipContext(
                 origin, origin.add(look.scale(MAX_RANGE)), ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
                 CollisionContext.empty()));
 
+        ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
+        Arena arena = worlds == null ? null : worlds.getActive();
+
         double targetDistance = -1.0;
         if (prospectiveHit.getType() != HitResult.Type.MISS) {
             Vec3 surface = prospectiveHit.getLocation();
-            targetDistance = origin.distanceTo(surface);
+            Vec3 approach = surface.subtract(look.scale(0.10));
+            if (arena == null || arena.isInArena(approach.x, approach.y, approach.z)) {
+                targetDistance = origin.distanceTo(surface);
+            }
         }
 
         Display.ItemDisplay hook = Hologram.spawnEffect(level, origin,
@@ -311,7 +320,6 @@ public final class GrapplingHookSystem {
 
     private boolean tickFlying(Grapple grapple, ServerPlayer owner) {
         Vec3 next = grapple.position.add(grapple.velocity);
-
         BlockHitResult hit = grapple.level.clip(new ClipContext(
                 grapple.position, next, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
                 CollisionContext.empty()));
@@ -330,7 +338,10 @@ public final class GrapplingHookSystem {
             int maxTicks = (int) Math.ceil(grapple.targetDistance / FIRE_SPEED) + 15;
             shouldRetract = travelled >= grapple.targetDistance + 3.0 || grapple.ticks >= maxTicks || travelled >= MAX_RANGE;
         } else {
-            shouldRetract = travelled >= EMPTY_MAX_DISTANCE || grapple.ticks >= EMPTY_MAX_TICKS;
+            ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
+            Arena arena = worlds == null ? null : worlds.getActive();
+            boolean outsideArena = arena != null && !arena.isInArena(grapple.position.x, grapple.position.y, grapple.position.z);
+            shouldRetract = travelled >= EMPTY_MAX_DISTANCE || grapple.ticks >= EMPTY_MAX_TICKS || outsideArena;
         }
 
         if (shouldRetract) {
@@ -349,7 +360,17 @@ public final class GrapplingHookSystem {
     }
 
     private void latch(Grapple grapple, ServerPlayer owner, BlockHitResult hit) {
+        ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
+        Arena arena = worlds == null ? null : worlds.getActive();
         Vec3 surface = hit.getLocation();
+        // Der getroffene Wandblock darf knapp außerhalb des vermessenen Polygons liegen. Entscheidend
+        // ist die Stelle unmittelbar vor dem Einschlag – also die Seite, von der der Spieler kommt.
+        Vec3 approach = surface.subtract(grapple.aimDirection.scale(0.10));
+        if (arena != null && !arena.isInArena(approach.x, approach.y, approach.z)) {
+            grapple.position = surface;
+            beginRetracting(grapple, owner, true);
+            return;
+        }
 
         Direction hitDir = hit.getDirection();
         Vec3 normal = hitDir.getUnitVec3();

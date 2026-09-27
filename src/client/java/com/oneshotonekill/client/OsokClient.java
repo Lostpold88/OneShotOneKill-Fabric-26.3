@@ -25,7 +25,6 @@ import com.oneshotonekill.client.sound.MinigunSoundController;
 import com.oneshotonekill.client.sound.NukeSoundController;
 import com.oneshotonekill.client.sound.TimeDistortionSoundController;
 import com.oneshotonekill.client.state.ClientStates.*;
-import com.oneshotonekill.movement.ArenaBorderCollision;
 import com.oneshotonekill.event.InteractionGates;
 import com.oneshotonekill.network.OsokPayloads.DetonateC4Payload;
 import com.oneshotonekill.network.OsokPayloads.GlideBoostPayload;
@@ -142,8 +141,6 @@ public final class OsokClient implements ClientModInitializer {
                 TabScoreboardHudLayer.render(graphics, deltaTracker, progress);
             }
         });
-
-        ArenaBorderCollision.setClientMatchRunningPredicate(MinimapState.INSTANCE::isMatchRunning);
     }
 
     /**
@@ -347,7 +344,6 @@ public final class OsokClient implements ClientModInitializer {
         InteractionGates.registerClientPullGate(player ->
                 GrapplePullState.INSTANCE.isPulling(player.getUUID())
         );
-        com.oneshotonekill.movement.ArenaBorderCollision.setClientMatchRunningPredicate(MinimapState.INSTANCE::isMatchRunning);
 
         ClientTickEvents.END_CLIENT_TICK.register(OsokClient::onClientTick);
         ClientPlayConnectionEvents.DISCONNECT.register((handler, client) -> onDisconnect());

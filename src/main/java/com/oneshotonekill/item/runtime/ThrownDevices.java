@@ -6,7 +6,6 @@ import com.oneshotonekill.shared.Feedback;
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.arena.ArenaWorlds;
-import com.oneshotonekill.movement.ArenaBorderCollision;
 import com.oneshotonekill.network.OsokPayloads.*;
 import com.oneshotonekill.registry.ModItems;
 import java.util.ArrayList;
@@ -213,14 +212,6 @@ public final class ThrownDevices {
       while (iterator.hasNext()) {
          Projectile shot = iterator.next();
          Vec3 next = shot.position.add(shot.velocity);
-
-         Arena arena = Arena.byDimension(level.dimension());
-         ArenaBorderCollision.ProjectileBounce borderBounce = ArenaBorderCollision.handleBorderBounce(level, arena, shot.position, shot.velocity, next);
-         if (borderBounce.bounced()) {
-            shot.position = borderBounce.position();
-            shot.velocity = borderBounce.velocity();
-            next = shot.position.add(shot.velocity);
-         }
 
          BlockHitResult hit = level.clip(new ClipContext(
             shot.position, next, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty()));
