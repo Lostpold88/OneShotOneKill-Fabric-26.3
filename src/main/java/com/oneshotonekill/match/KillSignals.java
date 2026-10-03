@@ -18,6 +18,7 @@ public final class KillSignals {
    private final Map<UUID, Integer> shieldBlocks = new HashMap<>();
    private final Map<UUID, Integer> teleports = new HashMap<>();
    private final Map<UUID, Integer> grapples = new HashMap<>();
+   private final Map<UUID, Integer> magnets = new HashMap<>();
 
    private KillSignals() {
    }
@@ -33,6 +34,14 @@ public final class KillSignals {
 
    public void teleported(ServerPlayer player) {
       teleports.put(player.getUUID(), now());
+   }
+
+   public void magnetActive(ServerPlayer player) {
+      magnets.put(player.getUUID(), now());
+   }
+
+   public boolean magnetWithin(ServerPlayer player, int ticks) {
+      return within(magnets, player, ticks);
    }
 
    public void grappling(ServerPlayer player) {
@@ -60,11 +69,13 @@ public final class KillSignals {
       shieldBlocks.remove(player.getUUID());
       teleports.remove(player.getUUID());
       grapples.remove(player.getUUID());
+      magnets.remove(player.getUUID());
    }
 
    public void reset() {
       shieldBlocks.clear();
       teleports.clear();
       grapples.clear();
+      magnets.clear();
    }
 }

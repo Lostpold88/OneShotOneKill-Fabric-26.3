@@ -45,8 +45,6 @@ public final class GunGameManager {
 
    /** So hoch darf ein Spieler über dem Boden liegen, damit wir die Höhe noch messen. */
    private static final double HEIGHT_PROBE = 8.0;
-   /** Nach 30 Sekunden ungenutzter Reflektor-Kugel wird sie zurückgenommen, damit niemand festhängt. */
-   private static final int SHIELD_IDLE_TICKS = 600;
    /** Der HUD-Zustand wird alle paar Ticks gegen die Fenster der Stufe geprüft. */
    private static final int HUD_CHECK_TICKS = 5;
 
@@ -55,7 +53,6 @@ public final class GunGameManager {
    private final Map<UUID, Integer> resupplyCounters = new HashMap<>();
    private final Map<UUID, Map<UUID, Integer>> lastCountedKill = new HashMap<>();
    private final Map<UUID, Boolean> lastWindowState = new HashMap<>();
-   private final Map<UUID, Integer> shieldIdleSince = new HashMap<>();
    private final Set<UUID> announcedFinalTier = new HashSet<>();
    private UUID leader;
    /** Gesetzt, sobald jemand die letzte Stufe geschafft hat: ab dann kommt kein HUD mehr zurück. */
@@ -115,7 +112,6 @@ public final class GunGameManager {
       resupplyCounters.clear();
       lastCountedKill.clear();
       lastWindowState.clear();
-      shieldIdleSince.clear();
       announcedFinalTier.clear();
       leader = null;
       finished = false;
@@ -364,17 +360,8 @@ public final class GunGameManager {
             syncStatus(player, false);
          }
 
-         // Soft-Lock-Schutz: Eine ungenutzte Reflektor-Kugel steht nicht ewig.
-         if (tier == GunGameTier.SHIELD) {
-            if (StatusAbilities.INSTANCE.hasShield(player)) {
-               int since = shieldIdleSince.computeIfAbsent(id, key -> now);
-               if (now - since >= SHIELD_IDLE_TICKS && StatusAbilities.INSTANCE.dropShield(player)) {
-                  shieldIdleSince.remove(id);
-                  Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.gungame_shield_expired"));
-               }
-            } else {
-               shieldIdleSince.remove(id);
-            }
+         if (StatusAbilities.INSTANCE.remainingMagnetTicks(player) > 0) {
+            KillSignals.INSTANCE.magnetActive(player);
          }
 
          // HUD-Zustand nur bei Änderung des Fensters senden.

@@ -38,11 +38,15 @@ public enum GunGameTier {
       (killer, victim, facts) -> StatusAbilities.INSTANCE.isVanished(killer) && facts.victimBackTurned(),
       killer -> StatusAbilities.INSTANCE.isVanished(killer), false, 300),
    MAGNET(1, ModItems.ARROW_MAGNET, "item.oneshotonekill.arrow_magnet", 2, Kit.ITEM_BASE, bow(),
-      (killer, victim, facts) -> StatusAbilities.INSTANCE.remainingMagnetTicks(killer) > 0,
-      killer -> StatusAbilities.INSTANCE.remainingMagnetTicks(killer) > 0, true, 300),
+      (killer, victim, facts) -> StatusAbilities.INSTANCE.remainingMagnetTicks(killer) > 0
+         || KillSignals.INSTANCE.magnetWithin(killer, 100),
+      killer -> StatusAbilities.INSTANCE.remainingMagnetTicks(killer) > 0
+         || KillSignals.INSTANCE.magnetWithin(killer, 100), false, 300),
    SHIELD(1, ModItems.REFLECTOR_SHIELD, "item.oneshotonekill.reflector_shield", 2, Kit.ITEM_BASE, both(),
-      (killer, victim, facts) -> KillSignals.INSTANCE.shieldBlockedWithin(killer, 160),
-      killer -> KillSignals.INSTANCE.shieldBlockedWithin(killer, 160), false, 200),
+      (killer, victim, facts) -> StatusAbilities.INSTANCE.hasShield(killer)
+         || KillSignals.INSTANCE.shieldBlockedWithin(killer, 300),
+      killer -> StatusAbilities.INSTANCE.hasShield(killer)
+         || KillSignals.INSTANCE.shieldBlockedWithin(killer, 300), false, 200),
    SMOKE(1, ModItems.SMOKE_BOMB, "item.oneshotonekill.smoke_bomb", 2, Kit.ITEM_BASE, sword(),
       (killer, victim, facts) -> ThrownDevices.INSTANCE.isInsideSmoke(killer),
       killer -> ThrownDevices.INSTANCE.isInsideSmoke(killer), false, 240),

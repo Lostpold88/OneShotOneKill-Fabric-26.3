@@ -132,7 +132,8 @@ public abstract class LivingEntityRendererMixin {
    private void osok$hideInvisibleAvatar(LivingEntityRenderState state, PoseStack poseStack,
                                          SubmitNodeCollector submitNodeCollector, CameraRenderState camera,
                                          CallbackInfo ci) {
-      if (state instanceof AvatarRenderState && state.isInvisible) {
+      // Wer leuchtet (Radar-Puls, Gejagter), bleibt als Umriss sichtbar, auch wenn er unsichtbar ist.
+      if (state instanceof AvatarRenderState && state.isInvisible && !state.appearsGlowing()) {
          ci.cancel();
       }
    }

@@ -86,21 +86,29 @@ public final class GunGameHudLayer implements HudElement {
       graphics.text(font, font.plainSubstrByWidth(condition, BADGE_WIDTH - 36), badgeX + 22, badgeY + 40,
          met ? 0xFFE2E8F0 : 0xFF94A3B8);
 
-      // Zeile 4: nächste Stufe und Abstand zum Führenden
+      // Zeile 4: Abstand zum Führenden rechts, nächste Stufe links. Erst die rechte Seite messen,
+      // damit sich beide Texte bei langen Namen oder Sprachen nie überlappen.
+      String rightText = "";
+      int rightColor = COLOR_MET;
+      if (state.getRank() > 1) {
+         rightText = Component.translatable("hud.oneshotonekill.match.leader_tier", state.getLeaderTier()).getString();
+         rightColor = 0xFFFB7185;
+      } else if (state.getPlayerCount() > 1) {
+         rightText = Component.translatable("hud.oneshotonekill.match.you_lead").getString();
+      }
+      int rightWidth = rightText.isEmpty() ? 0 : font.width(rightText);
+      int leftSpace = BADGE_WIDTH - 20 - rightWidth - (rightWidth > 0 ? 8 : 0);
       if (next != null) {
          String nextText = Component.translatable("hud.oneshotonekill.match.next_tier",
             Component.translatable(next.nameKey()).getString()).getString();
-         graphics.text(font, font.plainSubstrByWidth(nextText, BADGE_WIDTH - 110), badgeX + 10, badgeY + 54, 0xFF64748B);
+         graphics.text(font, font.plainSubstrByWidth(nextText, leftSpace), badgeX + 10, badgeY + 54, 0xFF64748B);
       } else {
-         graphics.text(font, Component.translatable("hud.oneshotonekill.match.final_tier"), badgeX + 10, badgeY + 54,
-            OsokWidgets.COLOR_GOLD);
+         graphics.text(font, font.plainSubstrByWidth(
+            Component.translatable("hud.oneshotonekill.match.final_tier").getString(), leftSpace),
+            badgeX + 10, badgeY + 54, OsokWidgets.COLOR_GOLD);
       }
-      if (state.getRank() > 1) {
-         String gap = Component.translatable("hud.oneshotonekill.match.leader_tier", state.getLeaderTier()).getString();
-         graphics.text(font, gap, badgeRight - 10 - font.width(gap), badgeY + 54, 0xFFFB7185);
-      } else if (state.getPlayerCount() > 1) {
-         String lead = Component.translatable("hud.oneshotonekill.match.you_lead").getString();
-         graphics.text(font, lead, badgeRight - 10 - font.width(lead), badgeY + 54, COLOR_MET);
+      if (rightWidth > 0) {
+         graphics.text(font, rightText, badgeRight - 10 - rightWidth, badgeY + 54, rightColor);
       }
 
       // Fortschrittsbalken unten am Badge
