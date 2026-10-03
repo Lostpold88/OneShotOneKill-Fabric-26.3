@@ -235,7 +235,7 @@ public final class ThrownDevices {
       if (shot.display == null || shot.display.isRemoved()) {
          return;
       }
-      Hologram.move(shot.display, shot.position);
+      Hologram.moveLeading(shot.display, shot.position, shot.velocity);
       if (shot.type == DeviceType.TELEPORT) {
          // Die Kreisel laufen gegeneinander: einer um die Hochachse, der ganze Körper langsam quer.
          Quaternionf spin = new Quaternionf().rotateY(shot.ticks * 0.5F).rotateZ(shot.ticks * 0.14F);

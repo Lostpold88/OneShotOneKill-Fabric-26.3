@@ -123,11 +123,10 @@ public final class BoogieBombSystem {
                 shots.remove();
                 detonate(shot.level, shot.position);
             } else if (shot.model != null) {
-                Hologram.move(shot.model, shot.position);
+                Hologram.moveLeading(shot.model, shot.position, shot.velocity);
                 Hologram.setPose(shot.model, new Vector3f(),
                         new Quaternionf().rotateX(shot.ticks * 0.34F).rotateZ(shot.ticks * 0.11F), new Vector3f(0.42F), 1);
-                shot.level.sendParticles(new DustParticleOptions(COLOURS[shot.ticks % COLOURS.length], 0.55F),
-                        impact.x, impact.y, impact.z, 1, 0.015, 0.015, 0.015, 0);
+                partyTrail(shot.level, impact, shot.velocity, shot.ticks);
             }
         }
         Iterator<Map.Entry<UUID, Dance>> active = dancers.entrySet().iterator();
@@ -153,13 +152,77 @@ public final class BoogieBombSystem {
         }
     }
 
-    private void detonate(ServerLevel level, Vec3 position) {
+
+/** Flugschweif der Bombe: zwei gegenläufige Konfetti-Spiralen, Funken, Noten und Feuerwerk. */
+    private static void partyTrail(ServerLevel level, Vec3 pos, Vec3 velocity, int ticks) {
+        Vec3 dir = velocity.lengthSqr() < 1.0E-4 ? new Vec3(0, 1, 0) : velocity.normalize();
+        Vec3 side = dir.cross(new Vec3(0, 1, 0));
+        side = side.lengthSqr() < 1.0E-4 ? new Vec3(1, 0, 0) : side.normalize();
+        Vec3 up = dir.cross(side);
+        for (int arm = 0; arm < 2; arm++) {
+            double angle = ticks * 0.9 + arm * Math.PI;
+            Vec3 p = pos.add(side.scale(Math.cos(angle) * 0.28)).add(up.scale(Math.sin(angle) * 0.28));
+            level.sendParticles(new DustParticleOptions(COLOURS[(ticks + arm * 3) % COLOURS.length], 0.8F),
+                    p.x, p.y, p.z, 1, 0, 0, 0, 0);
+        }
+        level.sendParticles(ParticleTypes.END_ROD, pos.x, pos.y, pos.z, 1, 0.05, 0.05, 0.05, 0.01);
+        if (ticks % 3 == 0) {
+            level.sendParticles(ParticleTypes.NOTE, pos.x, pos.y + 0.2, pos.z, 0, (ticks % 24) / 24.0, 0, 0, 1);
+        }
+        if (ticks % 4 == 0) {
+            level.sendParticles(ParticleTypes.FIREWORK, pos.x, pos.y, pos.z, 1, 0.1, 0.1, 0.1, 0.02);
+        }
+    }
+
+    /** Waagerechter Ring aus bunten Staubpartikeln um {@code centre}, jede Farbe der Palette im Wechsel. */
+    private static void spawnColourRing(ServerLevel level, Vec3 centre, double radius, double height,
+                                        int points, float size) {
+        for (int i = 0; i < points; i++) {
+            double angle = i * Math.PI * 2.0 / points;
+            level.sendParticles(new DustParticleOptions(COLOURS[i % COLOURS.length], size),
+                    centre.x + Math.cos(angle) * radius, centre.y + height, centre.z + Math.sin(angle) * radius,
+                    1, 0, 0, 0, 0);
+        }
+    }
+
+private void detonate(ServerLevel level, Vec3 position) {
         level.playSound(null, position.x, position.y, position.z,
                 SoundEvents.FIREWORK_ROCKET_BLAST, SoundSource.PLAYERS, 0.9F, 1.4F);
+        level.playSound(null, position.x, position.y, position.z,
+                SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, SoundSource.PLAYERS, 1.1F, 1.1F);
+        level.playSound(null, position.x, position.y, position.z,
+                SoundEvents.FIREWORK_ROCKET_TWINKLE, SoundSource.PLAYERS, 1.0F, 1.6F);
+        level.playSound(null, position.x, position.y, position.z,
+                SoundEvents.PLAYER_LEVELUP, SoundSource.PLAYERS, 0.8F, 1.9F);
+
+        // Greller Blitz im Zentrum
+        level.sendParticles(ColorParticleOption.create(ParticleTypes.FLASH, 1.0F, 0.95F, 0.45F),
+                position.x, position.y + 0.3, position.z, 1, 0, 0, 0, 0);
+
+        // Drei farbige Druckwellen-Ringe: weiter, flacher Bodenring bis hin zur kleinen Krone
+        spawnColourRing(level, position, BLAST_RADIUS * 0.9, 0.15, 32, 1.7F);
+        spawnColourRing(level, position, BLAST_RADIUS * 0.55, 0.9, 24, 1.5F);
+        spawnColourRing(level, position, BLAST_RADIUS * 0.28, 1.6, 16, 1.3F);
+
+        // Funkenregen in alle Richtungen (count 0 = Offset wird zur Geschwindigkeit)
+        for (int i = 0; i < 28; i++) {
+            double angle = i * Math.PI * 2.0 / 28;
+            double lift = 0.12 + 0.28 * ((i * 7) % 5) / 4.0;
+            level.sendParticles(ParticleTypes.END_ROD, position.x, position.y + 0.3, position.z,
+                    0, Math.cos(angle), lift, Math.sin(angle), 0.32);
+        }
+        // Funkensäule nach oben
+        for (int i = 0; i < 10; i++) {
+            level.sendParticles(ParticleTypes.END_ROD, position.x, position.y + 0.2, position.z,
+                    0, (i % 3 - 1) * 0.06, 1.0, (i % 2 - 0.5) * 0.12, 0.28 + 0.04 * i);
+        }
+        level.sendParticles(ParticleTypes.FIREWORK, position.x, position.y + 0.4, position.z, 50, 0.9, 0.7, 0.9, 0.12);
+        level.sendParticles(ParticleTypes.NOTE, position.x, position.y + 0.8, position.z, 12, 1.2, 0.6, 1.2, 1.0);
         for (int colour : COLOURS) {
             level.sendParticles(new DustParticleOptions(colour, 1.4F),
                     position.x, position.y + 0.2, position.z, 12, 0.9, 0.7, 0.9, 0.1);
         }
+
         for (ServerPlayer player : level.getEntitiesOfClass(ServerPlayer.class,
                 new AABB(position, position).inflate(BLAST_RADIUS),
                 p -> p.isAlive() && !p.isSpectator() && SpecialItemRules.activeArena(p) != null)) {
@@ -182,15 +245,40 @@ public final class BoogieBombSystem {
 
     private void showDisco(ServerPlayer player, Dance dance) {
         double seconds = elapsed(dance) / 1000.0;
+        ServerLevel level = dance.level;
         Vec3 top = player.position().add(0, player.getBbHeight() + 0.85, 0);
-        if (player.tickCount % 4 == 0) {
-            int col = COLOURS[(player.tickCount / 4) % COLOURS.length];
-            dance.level.sendParticles(new DustParticleOptions(col, 1.2F),
-                    top.x, top.y, top.z, 2, 0.25, 0.25, 0.25, 0);
+        int tick = player.tickCount;
+        if (tick % 4 == 0) {
+            int col = COLOURS[(tick / 4) % COLOURS.length];
+            level.sendParticles(new DustParticleOptions(col, 1.2F),
+                    top.x, top.y, top.z, 2, 0.3, 0.3, 0.3, 0);
         }
-        if (player.tickCount % 7 == 0) {
-            dance.level.sendParticles(ParticleTypes.NOTE, top.x, top.y - 0.3, top.z, 0,
+        if (tick % 7 == 0) {
+            level.sendParticles(ParticleTypes.NOTE, top.x, top.y - 0.3, top.z, 0,
                     ((int) (seconds * 5) % 24) / 24.0, 0, 0, 1);
+        }
+        // Zwei Konfetti-Spiralen winden sich um den Tänzer nach oben
+        if (tick % 2 == 0) {
+            double height = player.getBbHeight();
+            double rise = (tick % 24) / 24.0 * height;
+            for (int arm = 0; arm < 2; arm++) {
+                double angle = tick * 0.45 + arm * Math.PI;
+                level.sendParticles(new DustParticleOptions(COLOURS[(tick / 2 + arm * 3) % COLOURS.length], 0.9F),
+                        player.getX() + Math.cos(angle) * 0.95, player.getY() + rise, player.getZ() + Math.sin(angle) * 0.95,
+                        1, 0, 0, 0, 0);
+            }
+        }
+        // Glitzerfunken rieseln von der Discokugel (count 0 = Offset wird zur Geschwindigkeit)
+        if (tick % 10 == 5) {
+            for (int i = 0; i < 2; i++) {
+                double angle = tick * 0.37 + i * Math.PI;
+                level.sendParticles(ParticleTypes.END_ROD, top.x, top.y, top.z,
+                        0, Math.cos(angle), -0.35, Math.sin(angle), 0.12);
+            }
+        }
+        // Beat (120 BPM): Feuerwerksfunken und farbiger Bodenring um die Füße
+        if (tick % 10 == 0) {
+            spawnColourRing(level, player.position(), 1.3, 0.1, 12, 1.0F);
         }
     }
 

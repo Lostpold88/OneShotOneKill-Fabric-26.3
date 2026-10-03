@@ -45,6 +45,9 @@ public final class Hologram {
     * Matrix im Stapel.
     */
    public static final float HIDDEN_SCALE = 1.0E-4F;
+/** Vorsprung fliegender Modelle in Ticks, damit sie auf ihrer Partikelspur sitzen (siehe {@link #moveLeading}). */
+   public static final double FLIGHT_LEAD_TICKS = 1.5;
+
    /** Suchbereich beim Aufräumen – großzügig genug für jede Arena dieser Mod. */
    private static final AABB SWEEP_AREA = new AABB(-5000.0, -128.0, -5000.0, 5000.0, 512.0, 5000.0);
 
@@ -279,6 +282,18 @@ public final class Hologram {
       display.setPosRotInterpolationDuration(1);
       display.setPos(position.x, position.y, position.z);
    }
+/**
+    * Bewegt ein fliegendes Display der Partikelspur voraus.
+    * <p>
+    * Zwei Verzögerungen addieren sich: Displays werden nach dem Level-Tick bewegt, der Entity-Tracker meldet die
+    * neue Position also erst im nächsten Server-Tick, während Partikel sofort gesendet werden. Dazu interpoliert
+    * der Client die Position noch über einen Tick. Ohne Ausgleich hinkt das Modell hinter seiner Spur her.
+    * {@link #FLIGHT_LEAD_TICKS} gleicht beides aus; {@code velocity} ist die Bewegung pro Tick.
+    */
+   public static void moveLeading(Display.ItemDisplay display, Vec3 position, Vec3 velocity) {
+      move(display, position.add(velocity.scale(FLIGHT_LEAD_TICKS)));
+   }
+
 
    public static void remove(Display.ItemDisplay display) {
       if (display == null) {

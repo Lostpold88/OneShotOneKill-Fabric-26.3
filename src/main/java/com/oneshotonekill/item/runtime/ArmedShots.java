@@ -294,7 +294,7 @@ public final class ArmedShots {
       Vec3 direction = motion.normalize();
       Vec3 position = shot.position;
       if (shot.display != null) {
-         Hologram.move(shot.display, position);
+         Hologram.moveLeading(shot.display, position, motion);
          Quaternionf aim = new Quaternionf().rotationTo(0.0F, 0.0F, 1.0F,
             (float) direction.x, (float) direction.y, (float) direction.z);
          if (shot.type == ShotType.EXPLOSIVE) {
