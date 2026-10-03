@@ -410,12 +410,12 @@ public final class GrapplingHookHudLayer implements HudElement {
       int muted = argb(0x9AA8BD, 0.9F);
       String distText = !live ? "--.-" : distance < 100.0 ? String.format(Locale.ROOT, "%.1f", distance) : Long.toString(Math.round(distance));
       HudFx.rightText(graphics, font, "ENTF.", cx - radius - 7.0F, cy - 15.0F, 0.7F, muted);
-      HudFx.rightText(graphics, font, distText, cx - radius - 7.0F, cy - 6.0F, 1.35F, argb(live ? WHITE : IDLE, 0.97F));
+      HudFx.rightText(graphics, font, distText, cx - radius - 7.0F, cy - 6.0F, 1.0F, argb(live ? WHITE : IDLE, 0.97F));
       HudFx.rightText(graphics, font, "METER", cx - radius - 7.0F, cy + 8.0F, 0.7F, muted);
 
       String speedText = active ? String.format(Locale.ROOT, "%.1f", speedMs) : "--.-";
       HudFx.leftText(graphics, font, "TEMPO", cx + radius + 7.0F, cy - 15.0F, 0.7F, muted);
-      HudFx.leftText(graphics, font, speedText, cx + radius + 7.0F, cy - 6.0F, 1.35F, argb(active ? WHITE : IDLE, 0.97F));
+      HudFx.leftText(graphics, font, speedText, cx + radius + 7.0F, cy - 6.0F, 1.0F, argb(active ? WHITE : IDLE, 0.97F));
       HudFx.leftText(graphics, font, active ? "M/S  " + Math.round(tension * 100.0F) + "%" : "M/S", cx + radius + 7.0F, cy + 8.0F, 0.7F,
          active ? argb(heat, 0.95F) : muted);
    }

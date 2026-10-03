@@ -19,7 +19,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.client.gui.components.PlayerFaceExtractor;
 import net.minecraft.client.multiplayer.PlayerInfo;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 
 /**
@@ -80,7 +79,8 @@ public final class TabScoreboardHudLayer {
 
       int width = graphics.guiWidth();
       int height = graphics.guiHeight();
-      float ui = HudFx.uiScale(width, height);
+      // Minimal kleiner als die übrigen HUDs: Die Tafel ist breit und soll das Bild nicht erschlagen.
+      float ui = HudFx.uiScale(width, height) * 0.9F;
       float vw = width / ui;
       float vh = height / ui;
 
@@ -228,7 +228,7 @@ public final class TabScoreboardHudLayer {
          clock = HudFx.twoDigits(seconds / 60) + ":" + HudFx.twoDigits(seconds % 60);
          label = "MATCH TIME";
       }
-      HudFx.bigText(graphics, font, clock, centerX, top + 17, 2.0F, argb(clockColor, a), true);
+      HudFx.bigText(graphics, font, clock, centerX, top + 17, 1.5F, argb(clockColor, a), true);
       HudFx.smallText(graphics, font, label, centerX, top + 33, 0.8F, argb(MUTED, a));
       if (barFill >= 0.0F) {
          int barW = 120;

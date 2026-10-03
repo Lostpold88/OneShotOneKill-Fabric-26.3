@@ -307,9 +307,9 @@ public final class ClientClimbing {
             }
         }
         age++;
-        // Die Leertaste allein klettert hinauf; Rückwärts klettert hinunter; beide zusammen halten den Griff.
-        boolean up = WallClimbing.wantsUp(player.input.keyPresses.forward(), player.input.keyPresses.backward());
-        Vec3 delta = WallClimbing.movement(activeWall, up, player.input.keyPresses.backward(), left, right);
+        // Die Leertaste hält den Griff: W klettert hinauf, S hinunter, ohne beides (oder mit beidem) bleibt man hängen.
+        Vec3 delta = WallClimbing.movement(activeWall, player.input.keyPresses.forward(),
+                player.input.keyPresses.backward(), left, right);
         Vec3 landing = delta.y > 0 ? MantleGeometry.findTarget(player, activeWall) : null;
         // Hold the grip at a reachable roof edge until the server confirms the transition.
         if (landing != null && landing.y - player.getY() <= 1.85) delta = new Vec3(delta.x, 0, delta.z);

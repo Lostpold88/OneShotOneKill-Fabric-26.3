@@ -305,7 +305,7 @@ public final class MatchCountdownLayer implements HudElement {
                                           int second, float secondProgress, float elapsed, float punch, int accent) {
       int centreX = width / 2;
       int centreY = height / 2;
-      float base = Mth.clamp(height / 46.0F, 4.0F, 18.0F);
+      float base = Mth.clamp(height / 66.0F, 3.0F, 13.0F);
       float appear = easeOutBack(secondProgress * 5.0F);
       float scale = base * (1.0F + 1.6F * (1.0F - Math.min(1.0F, appear)));
       float alpha = Mth.clamp(secondProgress * 10.0F, 0.0F, 1.0F)

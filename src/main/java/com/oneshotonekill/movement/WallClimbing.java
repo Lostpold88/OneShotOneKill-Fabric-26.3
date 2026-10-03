@@ -165,11 +165,11 @@ public final class WallClimbing {
         );
     }
 /**
-     * Ob die Eingabe nach oben klettern will: Vorwärts <em>oder</em> keine Rückwärtstaste. Die Leertaste allein
-     * klettert also hinauf; Rückwärts allein klettert hinunter; beide zusammen halten den Griff.
+     * Ob die Eingabe nach oben klettert: nur mit Vorwärts (und ohne Rückwärts). Die Leertaste allein hält den Griff -
+     * man bleibt an der Wand hängen, bis man W (hoch) oder S (runter) drückt.
      */
     public static boolean wantsUp(boolean forward, boolean backward) {
-        return forward || !backward;
+        return forward && !backward;
     }
 
 

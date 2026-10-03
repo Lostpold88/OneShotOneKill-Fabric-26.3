@@ -263,7 +263,7 @@ public final class NukeCountdownLayer implements HudElement {
       float urgency = 1.0F - Mth.clamp(toImpact / 6.0F, 0.0F, 1.0F);
       int colour = toImpact > 6.0F ? OsokWidgets.COLOR_GOLD : OsokWidgets.COLOR_CRIMSON;
       float flicker = toImpact < 3.0F ? (((int) (Util.getMillis() / 60L) & 1) == 0 ? 1.0F : 0.78F) : 1.0F;
-      float scale = 4.2F + 0.35F * beat + urgency * 0.4F;
+      float scale = 3.0F + 0.25F * beat + urgency * 0.3F;
       float split = 1.5F + urgency * 3.0F;
       float y = top + 28;
 
@@ -299,7 +299,7 @@ public final class NukeCountdownLayer implements HudElement {
       graphics.fill(0, 0, vw, vh, argb(0xFF1010, 0.16F * (1.0F - progress)));
 
       float appear = easeOutBack(progress * 4.0F);
-      float scale = 11.0F * (1.0F + 1.2F * (1.0F - Math.min(1.0F, appear)));
+      float scale = 7.0F * (1.0F + 1.2F * (1.0F - Math.min(1.0F, appear)));
       float alpha = Mth.clamp(progress * 8.0F, 0.0F, 1.0F) * (1.0F - 0.5F * smooth((progress - 0.8F) / 0.2F)) * 0.88F;
       String digit = Integer.toString(second);
 

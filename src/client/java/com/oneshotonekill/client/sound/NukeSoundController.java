@@ -1,13 +1,12 @@
 package com.oneshotonekill.client.sound;
 
-import static com.oneshotonekill.client.state.ClientStates.*;
-import com.oneshotonekill.client.state.ClientStates.*;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.resources.sounds.AbstractTickableSoundInstance;
 import net.minecraft.sounds.SoundEvent;
-import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.util.RandomSource;
+
+import static com.oneshotonekill.client.state.ClientStates.NukeState;
 
 /**
  * Die Tonspur des Matchendes.

@@ -1,25 +1,20 @@
 package com.oneshotonekill.client.hud;
 
-import static com.oneshotonekill.client.hud.HudFx.argb;
-import static com.oneshotonekill.client.hud.HudFx.clamp01;
-import static com.oneshotonekill.client.hud.HudFx.easeOutBack;
-import static com.oneshotonekill.client.hud.HudFx.easeOutCubic;
-import static com.oneshotonekill.client.hud.HudFx.rand;
-import static com.oneshotonekill.client.hud.HudFx.smooth;
-
 import com.oneshotonekill.client.screen.OsokWidgets;
 import com.oneshotonekill.client.state.ClientStates.NukeState;
 import com.oneshotonekill.network.OsokPayloads.NukeVictoryPayload;
 import com.oneshotonekill.nuke.NukeSequenceManager.NukePhase;
-import java.util.List;
-import java.util.Locale;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
+
+import java.util.List;
+import java.util.Locale;
+
+import static com.oneshotonekill.client.hud.HudFx.*;
 
 /**
  * Die Siegerehrung nach dem Einschlag.
@@ -285,7 +280,7 @@ public final class NukeVictoryLayer implements HudElement {
 
          String value;
          int colour = 0xF8FAFC;
-         float scale = 1.7F;
+         float scale = 1.25F;
          switch (i) {
             case 0 -> {
                int seconds = Math.round(victory.matchSeconds() * count);

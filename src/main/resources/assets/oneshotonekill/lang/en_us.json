@@ -8,7 +8,7 @@
   "subtitles.oneshotonekill.boogie_bomb": "Boogie Bomb: disco music",
 
   "hud.oneshotonekill.mantle": "Hold %2$s · Climb",
-  "hud.oneshotonekill.wall_climbing": "Hold %5$s to climb · %2$s down · %3$s/%4$s sideways",
+  "hud.oneshotonekill.wall_climbing": "Hold %5$s to grip · %1$s up · %2$s down · %3$s/%4$s sideways",
   "hud.oneshotonekill.mantling": "Mantling · %s to cancel",
 
   "death.attack.oneshotonekill.nuke_blast": "%1$s was erased by the tactical nuke",
