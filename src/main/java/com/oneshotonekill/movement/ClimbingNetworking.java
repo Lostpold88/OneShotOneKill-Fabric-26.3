@@ -20,6 +20,9 @@ import java.util.WeakHashMap;
 
 @SuppressWarnings("NullableProblems")
 public final class ClimbingNetworking {
+/** So lange nach dem Start zählt die Leertaste als gehalten, bis das Eingabepaket des Clients angekommen ist. */
+    private static final int JUMP_INPUT_GRACE_TICKS = 5;
+
 /**
      * Größte Strecke (quadriert), die ein Spieler zwischen zwei Server-Ticks klettern darf, ohne dass die Sitzung
      * abgebrochen wird. Großzügig: Bei Ping-Schwankungen treffen mehrere Positionspakete gebündelt ein, und ein zu
@@ -52,6 +55,14 @@ public final class ClimbingNetworking {
                 && !StatusAbilities.INSTANCE.isGliding(player)
                 && !GrapplingHookSystem.INSTANCE.isGrappleActive(player);
     }
+/**
+     * Ob die Leertaste für diese Sitzung als gehalten gilt: laut letztem Eingabepaket - oder in den ersten Ticks nach
+     * dem Start, in denen das Eingabepaket dem Client-Tick noch hinterherhinkt.
+     */
+    private static boolean jumpHeld(ServerPlayer player, Session session) {
+        return player.getLastClientInput().jump() || player.tickCount - session.startedAt <= JUMP_INPUT_GRACE_TICKS;
+    }
+
 
     private static void handle(ServerPlayer player, Request request) {
         Session session = SESSIONS.computeIfAbsent(player, ignored -> new Session());
@@ -94,7 +105,11 @@ public final class ClimbingNetworking {
         net.minecraft.core.Direction wall = null;
         Vec3 target = null;
         // Die Leertaste genügt: Greifen an der Wand und Aufsteigen über eine Kante brauchen keine zweite Taste.
-        if (allowed(player) && player.getLastClientInput().jump()) {
+        // Ob sie wirklich gedrückt ist, lässt sich hier noch nicht prüfen: Der Client schickt die Anfrage im selben
+        // Tick, in dem er die Taste erkennt, aber sein Eingabepaket folgt erst danach - der Server sähe "nicht
+        // gedrückt" und lehnte jeden ersten Versuch ab. Die Anfrage gilt deshalb als Beleg; geprüft wird erst
+        // nach der Schonfrist (siehe jumpHeld).
+        if (allowed(player)) {
             net.minecraft.core.Direction preferred = (request.wallId() >= 0 && request.wallId() < net.minecraft.core.Direction.values().length)
                     ? net.minecraft.core.Direction.from3DDataValue(request.wallId()) : null;
             wall = WallClimbing.findWall(player, preferred);
@@ -112,6 +127,7 @@ public final class ClimbingNetworking {
         session.start = player.position();
         session.lastPosition = player.position();
         session.requestId = request.requestId();
+        session.startedAt = player.tickCount;
         session.expiresAt = player.tickCount + 30;
         session.cornerGraceTicks = 8;
         if (session.mode == MANTLE) {
@@ -128,7 +144,7 @@ public final class ClimbingNetworking {
         if (session == null || session.mode == STOP) return;
         Vec3 position = player.position();
         if (player.tickCount >= session.expiresAt || !allowed(player)
-                || (session.mode == WALL && !player.getLastClientInput().jump())
+                || (session.mode == WALL && !jumpHeld(player, session))
                 || position.distanceToSqr(session.lastPosition) > MAX_STEP_DISTANCE_SQR) {
             stop(player, session);
             return;
@@ -136,7 +152,7 @@ public final class ClimbingNetworking {
         player.resetFallDistance();
         session.lastPosition = position;
         if (session.mode == WALL) {
-            if (!player.getLastClientInput().jump()) {
+            if (!jumpHeld(player, session)) {
                 stop(player, session);
                 return;
             }
@@ -181,7 +197,7 @@ public final class ClimbingNetworking {
             return false;
         }
         if (session.mode == WALL) {
-            return player.getLastClientInput().jump() && (WallClimbing.hasContact(player, session.wall)
+            return jumpHeld(player, session) && (WallClimbing.hasContact(player, session.wall)
                     || WallClimbing.isAtAnyCorner(player, session.wall)
                     || session.cornerGraceTicks > 0);
         }
@@ -236,6 +252,7 @@ public final class ClimbingNetworking {
     private static final class Session {
         private int nextRequestTick, requestId, expiresAt, mode, lastBroadcastTick, graceUntilTick, cornerGraceTicks;
         private int stoppedAt = Integer.MIN_VALUE / 2;
+        private int startedAt = Integer.MIN_VALUE / 2;
         private Vec3 start, target, lastPosition;
         private double apexY;
         private net.minecraft.core.Direction wall;
