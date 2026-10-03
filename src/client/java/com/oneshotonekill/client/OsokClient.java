@@ -12,6 +12,7 @@ import com.oneshotonekill.client.hud.MatchCountdownLayer;
 import com.oneshotonekill.client.hud.MatchHudLayers.MatchStartOverlayLayer;
 import com.oneshotonekill.client.hud.GrapplingHookHudLayer;
 import com.oneshotonekill.client.hud.NukeCountdownLayer;
+import com.oneshotonekill.client.hud.TiltedMinimapLayer;
 import com.oneshotonekill.client.hud.NukeFlashLayer;
 import com.oneshotonekill.client.hud.NukeVictoryLayer;
 import com.oneshotonekill.client.hud.TabScoreboardHudLayer;
