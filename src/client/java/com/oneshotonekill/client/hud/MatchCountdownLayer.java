@@ -213,7 +213,7 @@ public final class MatchCountdownLayer implements HudElement {
          return;
       }
       int centreX = width / 2;
-      float scale = Mth.clamp(width / 100.0F, 3.0F, 9.0F);
+      float scale = Mth.clamp(height / 85.0F, 2.0F, 9.0F);
       float lineHeight = 9.0F * scale;
       float middle = height * 0.42F - exit * height * 0.10F;
 
@@ -305,7 +305,7 @@ public final class MatchCountdownLayer implements HudElement {
                                           int second, float secondProgress, float elapsed, float punch, int accent) {
       int centreX = width / 2;
       int centreY = height / 2;
-      float base = Mth.clamp(width / 42.0F, 7.0F, 20.0F);
+      float base = Mth.clamp(height / 46.0F, 4.0F, 18.0F);
       float appear = easeOutBack(secondProgress * 5.0F);
       float scale = base * (1.0F + 1.6F * (1.0F - Math.min(1.0F, appear)));
       float alpha = Mth.clamp(secondProgress * 10.0F, 0.0F, 1.0F)
@@ -351,7 +351,7 @@ public final class MatchCountdownLayer implements HudElement {
    // ------------------------------------------------------------------
 
    private static float barMax(int height) {
-      return Mth.clamp(height * 0.10F, 20.0F, 56.0F);
+      return Mth.clamp(height * 0.075F, 15.0F, 44.0F);
    }
 
    /** Filmische Balken oben und unten, mit laufenden Warnstreifen und Telemetrie. */
@@ -445,7 +445,7 @@ public final class MatchCountdownLayer implements HudElement {
       if (visible <= 0.01F) {
          return;
       }
-      int segW = Math.max(30, width / 9);
+      int segW = Math.max(24, width / 12);
       int gap = 8;
       int total = segW * 3 + gap * 2;
       int left = width / 2 - total / 2;
@@ -529,7 +529,7 @@ public final class MatchCountdownLayer implements HudElement {
 
       // 5. Titel: rastet in horizontalen Scheiben von links und rechts ein
       String title = Component.translatable("hud.oneshotonekill.match.start").getString();
-      float scale = Mth.clamp(width / 90.0F, 3.5F, 10.0F);
+      float scale = Mth.clamp(height / 70.0F, 2.5F, 10.0F);
       float titleY = centreY - height * 0.04F;
       int slices = 8;
       float sliceH = 9.0F * scale / slices;

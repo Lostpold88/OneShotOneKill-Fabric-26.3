@@ -11,10 +11,13 @@ import org.jspecify.annotations.Nullable;
  */
 @SuppressWarnings("resource")
 public final class WallClimbing {
-    public static final double UP_SPEED = 0.19;
-    public static final double DOWN_SPEED = 0.14;
-    public static final double SIDE_SPEED = 0.13;
-    private static final double GRIP_REACH = 0.22;
+    public static final double UP_SPEED = 0.23;
+    public static final double DOWN_SPEED = 0.20;
+    public static final double SIDE_SPEED = 0.16;
+    /** Zug zur Wand je Tick; hält den Spieler am Block, auch wenn er mit etwas Abstand eingerastet ist. */
+    private static final double WALL_PULL = 0.06;
+    /** Wie weit vor der Körperkante noch ein Block als Griff zählt - großzügig, damit man im Sprung einrastet. */
+    private static final double GRIP_REACH = 0.32;
 
     private WallClimbing() {
     }
@@ -151,16 +154,24 @@ public final class WallClimbing {
     public static Vec3 movement(Direction normal, boolean up, boolean down, boolean left, boolean right) {
         double vertical = up == down ? 0 : up ? UP_SPEED : -DOWN_SPEED;
         if (left == right) {
-            return new Vec3(-normal.getStepX() * 0.04, vertical, -normal.getStepZ() * 0.04);
+            return new Vec3(-normal.getStepX() * WALL_PULL, vertical, -normal.getStepZ() * WALL_PULL);
         }
         Direction rightDir = normal.getCounterClockWise();
         double sideways = (right ? 1.0 : -1.0) * SIDE_SPEED;
         return new Vec3(
-                rightDir.getStepX() * sideways - normal.getStepX() * 0.04,
+                rightDir.getStepX() * sideways - normal.getStepX() * WALL_PULL,
                 vertical,
-                rightDir.getStepZ() * sideways - normal.getStepZ() * 0.04
+                rightDir.getStepZ() * sideways - normal.getStepZ() * WALL_PULL
         );
     }
+/**
+     * Ob die Eingabe nach oben klettern will: Vorwärts <em>oder</em> keine Rückwärtstaste. Die Leertaste allein
+     * klettert also hinauf; Rückwärts allein klettert hinunter; beide zusammen halten den Griff.
+     */
+    public static boolean wantsUp(boolean forward, boolean backward) {
+        return forward || !backward;
+    }
+
 
     /**
      * Normal components are transmitted as exact small integers, never as arbitrary movement vectors.

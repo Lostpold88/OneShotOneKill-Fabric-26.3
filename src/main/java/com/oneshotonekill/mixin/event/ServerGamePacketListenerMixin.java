@@ -98,7 +98,7 @@ public abstract class ServerGamePacketListenerMixin {
             at = @At(value = "INVOKE", target = "Lnet/minecraft/server/level/ServerPlayer;move(Lnet/minecraft/world/entity/MoverType;Lnet/minecraft/world/phys/Vec3;)V")
     )
     private void osok$wrapClimbingMovement(ServerPlayer player, MoverType type, Vec3 delta, Operation<Void> original) {
-        if (ClimbingNetworking.isClimbing(player)) {
+        if (ClimbingNetworking.usesClimbingMovement(player)) {
             Vec3 originalPos = player.position();
             player.move(type, new Vec3(delta.x, delta.y, 0));
             player.move(type, new Vec3(0, 0, delta.z));

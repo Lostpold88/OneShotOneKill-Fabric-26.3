@@ -20,6 +20,18 @@ import java.util.WeakHashMap;
 
 @SuppressWarnings("NullableProblems")
 public final class ClimbingNetworking {
+/**
+     * Größte Strecke (quadriert), die ein Spieler zwischen zwei Server-Ticks klettern darf, ohne dass die Sitzung
+     * abgebrochen wird. Großzügig: Bei Ping-Schwankungen treffen mehrere Positionspakete gebündelt ein, und ein zu
+     * strenger Wert bricht ehrliches Klettern ab - was der Spieler als Rücksetzer erlebt.
+     */
+    private static final double MAX_STEP_DISTANCE_SQR = 6.25;
+    /** So lange nach dem Ende einer Sitzung gelten noch unterwegs befindliche Kletterpakete als Klettern. */
+    private static final int STOP_GRACE_TICKS = 4;
+
+/** Mindestabstand zwischen zwei neuen Kletteranfragen in Ticks (Schutz gegen Paketflut, kein Spielgefühl). */
+    private static final int REQUEST_COOLDOWN_TICKS = 2;
+
     public static final int STOP = 0, WALL = 1, MANTLE = 2;
     private static final Map<ServerPlayer, Session> SESSIONS = new WeakHashMap<>();
 
@@ -47,36 +59,49 @@ public final class ClimbingNetworking {
             if (session.mode != STOP && session.requestId == request.requestId()) stop(player, session);
             return;
         }
-        if (player.tickCount < session.nextRequestTick) return;
-        session.nextRequestTick = player.tickCount + 6;
-        if (session.mode != STOP) {
-            if (session.requestId == request.requestId()) {
-                session.expiresAt = player.tickCount + 30;
-                if (session.mode == WALL && request.wallId() >= 0 && request.wallId() < net.minecraft.core.Direction.values().length) {
-                    net.minecraft.core.Direction reqWall = net.minecraft.core.Direction.from3DDataValue(request.wallId());
-                    if (reqWall.getAxis().isHorizontal() && (WallClimbing.hasContact(player, reqWall)
-                            || WallClimbing.isAtAnyCorner(player, reqWall)
-                            || WallClimbing.findAdjacentWall(player, session.wall) == reqWall
-                            || session.cornerGraceTicks > 0)) {
-                        if (session.wall != reqWall) {
-                            session.wall = reqWall;
-                            session.cornerGraceTicks = 8;
-                            sendMotion(player, session);
-                        }
+
+        // Herzschlag der laufenden Sitzung: verlängert sie und führt die Wand nach.
+        if (session.mode != STOP && session.requestId == request.requestId()) {
+            session.expiresAt = player.tickCount + 30;
+            if (session.mode == WALL && request.wallId() >= 0 && request.wallId() < net.minecraft.core.Direction.values().length) {
+                net.minecraft.core.Direction reqWall = net.minecraft.core.Direction.from3DDataValue(request.wallId());
+                if (reqWall.getAxis().isHorizontal() && (WallClimbing.hasContact(player, reqWall)
+                        || WallClimbing.isAtAnyCorner(player, reqWall)
+                        || WallClimbing.findAdjacentWall(player, session.wall) == reqWall
+                        || session.cornerGraceTicks > 0)) {
+                    if (session.wall != reqWall) {
+                        session.wall = reqWall;
+                        session.cornerGraceTicks = 8;
+                        sendMotion(player, session);
                     }
                 }
             }
             return;
         }
+
+        // Eine neue Anfrage löst eine ältere Sitzung ab, die der Client schon verlassen hat. Früher wurde sie still
+        // verworfen - der Client wartete dann zwölf Ticks auf eine Antwort, die nie kam.
+        // Zu schnell hintereinander: ausdrücklich ablehnen, damit der Client sofort neu ansetzen kann. Geprüft wird
+        // vor dem Beenden der alten Sitzung - stop() setzt selbst eine Sperre, die sonst jede Ablösung blockierte.
+        if (player.tickCount < session.nextRequestTick) {
+            session.stoppedAt = player.tickCount;
+            ServerPlayNetworking.send(player, new Motion(player.getId(), request.requestId(), STOP, 0, 0, 0));
+            return;
+        }
+        if (session.mode != STOP) stop(player, session);
+        session.nextRequestTick = player.tickCount + REQUEST_COOLDOWN_TICKS;
+
         net.minecraft.core.Direction wall = null;
         Vec3 target = null;
-        if (allowed(player) && player.getLastClientInput().jump() && player.getLastClientInput().forward()) {
+        // Die Leertaste genügt: Greifen an der Wand und Aufsteigen über eine Kante brauchen keine zweite Taste.
+        if (allowed(player) && player.getLastClientInput().jump()) {
             net.minecraft.core.Direction preferred = (request.wallId() >= 0 && request.wallId() < net.minecraft.core.Direction.values().length)
                     ? net.minecraft.core.Direction.from3DDataValue(request.wallId()) : null;
             wall = WallClimbing.findWall(player, preferred);
             if (wall == null) target = MantleGeometry.findTarget(player);
         }
         if (wall == null && target == null) {
+            session.stoppedAt = player.tickCount;
             ServerPlayNetworking.send(player, new Motion(player.getId(), request.requestId(), STOP, 0, 0, 0));
             return;
         }
@@ -104,7 +129,7 @@ public final class ClimbingNetworking {
         Vec3 position = player.position();
         if (player.tickCount >= session.expiresAt || !allowed(player)
                 || (session.mode == WALL && !player.getLastClientInput().jump())
-                || position.distanceToSqr(session.lastPosition) > 2.25) {
+                || position.distanceToSqr(session.lastPosition) > MAX_STEP_DISTANCE_SQR) {
             stop(player, session);
             return;
         }
@@ -131,7 +156,7 @@ public final class ClimbingNetworking {
                 }
             }
             // A small lift onto the roof replaces wall climbing only once the edge is near the feet.
-            Vec3 landing = player.getLastClientInput().forward()
+            Vec3 landing = WallClimbing.wantsUp(player.getLastClientInput().forward(), player.getLastClientInput().backward())
                     ? MantleGeometry.findTarget(player, session.wall) : null;
             if (landing != null && landing.y - player.getY() <= 1.85) {
                 session.mode = MANTLE;
@@ -162,6 +187,18 @@ public final class ClimbingNetworking {
         }
         return session.mode == MANTLE && MantleGeometry.hasSupport(player, session.target);
     }
+/**
+     * Ob Positionspakete dieses Spielers gerade als Klettern auszuwerten sind: während einer Sitzung und für wenige
+     * Ticks danach. Der Client hat die letzten Schritte schon gesendet, bevor der Abbruch bei ihm ankam; würden sie
+     * als normale Bewegung geprüft, setzte der Server den Spieler zurück.
+     */
+    public static boolean usesClimbingMovement(ServerPlayer player) {
+        if (isClimbing(player)) return true;
+        Session session = SESSIONS.get(player);
+        return session != null && session.mode == STOP && player.tickCount - session.stoppedAt <= STOP_GRACE_TICKS
+                && allowed(player);
+    }
+
 
     public static boolean shouldNegateFallDamage(ServerPlayer player) {
         Session session = SESSIONS.get(player);
@@ -175,9 +212,10 @@ public final class ClimbingNetworking {
         session.target = null;
         session.wall = null;
         session.apexY = 0;
+        session.stoppedAt = player.tickCount;
         session.graceUntilTick = player.tickCount + 30;
         player.resetFallDistance();
-        session.nextRequestTick = player.tickCount + 6;
+        session.nextRequestTick = player.tickCount + REQUEST_COOLDOWN_TICKS;
         broadcast(player, new Motion(player.getId(), session.requestId, STOP, 0, 0, 0));
     }
 
@@ -197,6 +235,7 @@ public final class ClimbingNetworking {
 
     private static final class Session {
         private int nextRequestTick, requestId, expiresAt, mode, lastBroadcastTick, graceUntilTick, cornerGraceTicks;
+        private int stoppedAt = Integer.MIN_VALUE / 2;
         private Vec3 start, target, lastPosition;
         private double apexY;
         private net.minecraft.core.Direction wall;

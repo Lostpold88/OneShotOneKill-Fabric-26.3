@@ -7,8 +7,8 @@
   "tooltip.oneshotonekill.boogie_bomb_warning": "Auch du kannst getroffen werden. Schaden beendet den Tanz.",
   "subtitles.oneshotonekill.boogie_bomb": "Boogie-Bomb: Discomusik",
 
-  "hud.oneshotonekill.mantle": "%s + %s halten · Klettern",
-  "hud.oneshotonekill.wall_climbing": "%s/%s hoch/runter · %s/%s seitlich · %s halten",
+  "hud.oneshotonekill.mantle": "%2$s halten · Klettern",
+  "hud.oneshotonekill.wall_climbing": "%5$s halten: hoch · %2$s runter · %3$s/%4$s seitlich",
   "hud.oneshotonekill.mantling": "Hochziehen · %s zum Abbrechen",
 
   "death.attack.oneshotonekill.nuke_blast": "%1$s wurde von der taktischen Nuke ausgelöscht",

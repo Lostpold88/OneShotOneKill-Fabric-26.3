@@ -10,6 +10,7 @@ import com.oneshotonekill.client.hud.MatchHudLayers.GunGameHudLayer;
 import com.oneshotonekill.client.hud.MatchHudLayers.MatchBannerLayer;
 import com.oneshotonekill.client.hud.MatchCountdownLayer;
 import com.oneshotonekill.client.hud.MatchHudLayers.MatchStartOverlayLayer;
+import com.oneshotonekill.client.hud.GrapplingHookHudLayer;
 import com.oneshotonekill.client.hud.NukeCountdownLayer;
 import com.oneshotonekill.client.hud.NukeFlashLayer;
 import com.oneshotonekill.client.hud.NukeVictoryLayer;

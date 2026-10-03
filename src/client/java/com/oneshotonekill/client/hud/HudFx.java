@@ -70,11 +70,12 @@ final class HudFx {
       return value < 10 ? "0" + value : Integer.toString(value);
    }
 /**
-    * Skalierung für Layouts, die auf einer festen Entwurfsgröße von 480 x 270 Einheiten gebaut sind.
-    * Ein HUD zeichnet dann in einem Koordinatenraum, der auf jeder Auflösung gleich aussieht.
+    * Skalierung für Layouts, die auf einer festen Entwurfsgröße von 720 x 405 Einheiten gebaut sind.
+    * Ein HUD zeichnet dann in einem Koordinatenraum, der auf jeder Auflösung gleich aussieht - der Entwurf
+    * füllt das Bild bewusst locker, damit Anzeigen das Spielfeld nicht erschlagen.
     */
    static float uiScale(int width, int height) {
-      return Math.max(0.75F, Math.min(width / 480.0F, height / 270.0F));
+      return Mth.clamp(Math.min(width / 720.0F, height / 405.0F), 0.4F, 3.0F);
    }
 
    /** Text, dessen noch nicht aufgelöster Rest aus flackernden Zeichen besteht (Entschlüsselungs-Effekt). */
@@ -90,6 +91,64 @@ final class HudFx {
       }
       return out.toString();
    }
+/**
+    * Ein Weltpunkt auf dem Bildschirm.
+    *
+    * @param x       Pixel von links (nur sinnvoll, wenn {@code inFront})
+    * @param y       Pixel von oben (nur sinnvoll, wenn {@code inFront})
+    * @param inFront ob der Punkt vor der Kamera liegt
+    * @param right   Anteil der Richtung zum Punkt entlang "rechts" der Kamera; auch für Punkte hinter dem Spieler
+    *                gültig - daraus lässt sich ein Pfeil am Bildschirmrand ableiten
+    * @param up      Anteil entlang "oben"
+    * @param depth   Abstand entlang der Blickrichtung
+    */
+   record Projection(float x, float y, boolean inFront, float right, float up, float depth) {
+   }
+
+   /**
+    * Projiziert einen Weltpunkt in Bildschirmkoordinaten.
+    * <p>
+    * Aus Augenposition, Blickwinkeln und senkrechtem Sichtfeld wird die Richtung zum Punkt in die
+    * Kamerabasis (vorne, rechts, oben) zerlegt und perspektivisch geteilt. Minecrafts Sichtfeld-Option ist
+    * das vertikale; das waagerechte folgt aus dem Seitenverhältnis.
+    *
+    * @return {@code null}, wenn es keinen Spieler gibt
+    */
+   static Projection project(net.minecraft.client.Minecraft client, net.minecraft.world.phys.Vec3 target,
+                             float partial, int width, int height) {
+      net.minecraft.client.player.LocalPlayer player = client.player;
+      if (player == null) {
+         return null;
+      }
+      net.minecraft.world.phys.Vec3 eye = player.getEyePosition(partial);
+      double dx = target.x - eye.x;
+      double dy = target.y - eye.y;
+      double dz = target.z - eye.z;
+
+      double yaw = Math.toRadians(player.getViewYRot(partial));
+      double pitch = Math.toRadians(player.getViewXRot(partial));
+      double fx = -Math.sin(yaw) * Math.cos(pitch);
+      double fy = -Math.sin(pitch);
+      double fz = Math.cos(yaw) * Math.cos(pitch);
+      double rx = -Math.cos(yaw);
+      double rz = -Math.sin(yaw);
+      double ux = -rz * fy;
+      double uy = rz * fx - rx * fz;
+      double uz = rx * fy;
+
+      double depth = dx * fx + dy * fy + dz * fz;
+      float right = (float) (dx * rx + dz * rz);
+      float up = (float) (dx * ux + dy * uy + dz * uz);
+      if (depth < 0.05) {
+         return new Projection(width / 2.0F, height / 2.0F, false, right, up, (float) depth);
+      }
+      double tanHalf = Math.tan(Math.toRadians(client.options.fov().get()) / 2.0);
+      double ndcX = right / depth / (tanHalf * width / (double) height);
+      double ndcY = up / depth / tanHalf;
+      return new Projection((float) (width / 2.0 + ndcX * width / 2.0), (float) (height / 2.0 - ndcY * height / 2.0),
+         true, right, up, (float) depth);
+   }
+
 
 
    // -- Formen ----------------------------------------------------------------------------------

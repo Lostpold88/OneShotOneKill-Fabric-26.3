@@ -24,6 +24,13 @@ import java.util.WeakHashMap;
 
 @SuppressWarnings({"resource", "BooleanMethodIsAlwaysInverted"})
 public final class ClientClimbing {
+/** Mindestabstand zwischen zwei Kletteranfragen in Ticks. */
+    private static final int REQUEST_COOLDOWN_TICKS = 2;
+    /** So lange darf der Server eine vorab gestartete Kletterei unbestätigt lassen, bevor sie abgebrochen wird. */
+    private static final int UNCONFIRMED_TIMEOUT_TICKS = 12;
+    /** Über wie viele Ticks der Schwung aus dem Sprung in den Aufstieg einfließt. */
+    private static final int ENTRY_BOOST_TICKS = 6;
+
     public static final ClientClimbing INSTANCE = new ClientClimbing();
     private final Map<Entity, Visual> visuals = new WeakHashMap<>();
     private LocalPlayer owner;
@@ -39,6 +46,9 @@ public final class ClientClimbing {
     private float cycle, previousCycle;
     private int cornerRollTicks, wallGrabTicks, mantleLandTicks;
     private float cornerRollAmount;
+/** Vertikaler Schwung beim Einrasten (aus dem Absprung), der in den ersten Ticks zusätzlich nach oben trägt. */
+    private float entryBoost;
+
 
     private ClientClimbing() {
     }
@@ -76,9 +86,6 @@ public final class ClientClimbing {
                 && !GrapplePullState.INSTANCE.isGrappleActive(player.getUUID());
     }
 
-    /**
-     * Runs after vanilla sends input and position, so the server validates the same tick.
-     */
     public void tick(LocalPlayer player) {
         if (owner != player || level != player.level()) {
             clear();
@@ -91,26 +98,32 @@ public final class ClientClimbing {
         if (wallGrabTicks > 0) wallGrabTicks--;
         if (mantleLandTicks > 0) mantleLandTicks--;
         canGrab = false;
+        boolean jump = player.input.keyPresses.jump();
         if (!allowed(player)) {
             cancel();
         } else if (isActive()) {
-            if ((wall != null && !player.input.keyPresses.jump()) || player.tickCount - lastServerTick > 30) cancel();
+            if (pendingSince >= 0 && player.tickCount - pendingSince > UNCONFIRMED_TIMEOUT_TICKS) cancel();
+            else if ((wall != null && !jump) || player.tickCount - lastServerTick > 30) cancel();
             else if (wall != null && player.tickCount - lastHeartbeat >= 10) {
                 outgoing = new ClimbingNetworking.Request(sequence, true, wall.get3DDataValue());
                 lastHeartbeat = player.tickCount;
             }
         } else {
-            if (pendingSince >= 0 && player.tickCount - pendingSince > 12) cancel();
             Direction grabWall = WallClimbing.findWall(player, null);
-            canGrab = grabWall != null || MantleGeometry.findTarget(player) != null;
-            if (pendingSince < 0 && player.tickCount >= nextRequestTick && canGrab
-                    && player.input.keyPresses.jump() && player.input.keyPresses.forward()
+            Vec3 ledge = grabWall == null ? MantleGeometry.findTarget(player) : null;
+            canGrab = grabWall != null || ledge != null;
+            // Die Leertaste genügt, und der Start passiert sofort: Der Server bestätigt erst im Nachhinein
+            // (siehe handle). Früher wartete der Client auf seine Antwort, bevor sich irgendetwas bewegte.
+            if (canGrab && jump && player.tickCount >= nextRequestTick
                     && ClientPlayNetworking.canSend(ClimbingNetworking.Request.TYPE)) {
-                sequence++;
-                pendingSince = player.tickCount;
-                nextRequestTick = player.tickCount + 8;
-                player.resetFallDistance();
-                outgoing = new ClimbingNetworking.Request(sequence, true, grabWall != null ? grabWall.get3DDataValue() : -1);
+                boolean started = grabWall != null ? beginWall(player, grabWall) : beginMantle(player, ledge);
+                if (started) {
+                    sequence++;
+                    pendingSince = player.tickCount;
+                    nextRequestTick = player.tickCount + REQUEST_COOLDOWN_TICKS;
+                    outgoing = new ClimbingNetworking.Request(sequence, true,
+                            grabWall != null ? grabWall.get3DDataValue() : -1);
+                }
             }
         }
         if (outgoing != null && ClientPlayNetworking.canSend(ClimbingNetworking.Request.TYPE)) {
@@ -145,6 +158,8 @@ public final class ClientClimbing {
             cancel();
             return;
         }
+        // Bestätigung einer vorab gestarteten Kletterei? Dann läuft sie bereits - nichts wird zurückgesetzt.
+        boolean confirmation = pendingSince >= 0;
         Vec3 data = new Vec3(motion.x(), motion.y(), motion.z());
         if (motion.mode() == ClimbingNetworking.WALL) {
             Direction normal = WallClimbing.decodeNormal(data);
@@ -155,42 +170,73 @@ public final class ClientClimbing {
                 cancel();
                 return;
             }
-            // Heartbeats refresh the authorization without resetting movement or animation.
-            if (wall == null) {
-                age = 0;
-                cycle = previousCycle = 0;
-                expectedPosition = owner.position();
-                owner.setDeltaMovement(Vec3.ZERO);
-                wallGrabTicks = 5;
-                playWallGrabSound(owner, normal);
-            }
+            // Heartbeats frischen die Freigabe auf, ohne Bewegung oder Animation zurückzusetzen.
+            if (wall == null) beginWall(owner, normal);
             wall = normal;
             target = null;
             owner.resetFallDistance();
         } else if (motion.mode() == ClimbingNetworking.MANTLE) {
-            if (!MantleGeometry.clearRoute(owner, owner.position(), data)) {
+            // Hat der Client seine Kante selbst schon gefunden und liegt der Server nah daran, bleibt es dabei.
+            boolean agrees = confirmation && target != null && target.distanceToSqr(data) < 0.36;
+            if (!agrees && !beginMantle(owner, data)) {
                 cancel();
                 return;
             }
-            wall = null;
-            start = owner.position();
-            target = data;
-            apexY = MantleGeometry.findApex(owner, start, target);
-            expectedPosition = start;
-            age = 0;
-            liftTicks = Math.max(3, (int) Math.ceil(Math.max(0.1, apexY - start.y) * 1.5 / 0.26));
-            acrossTicks = Math.max(4, (int) Math.ceil(new Vec3(target.x - start.x, 0, target.z - start.z).length() * 1.5 / 0.22));
-            owner.setDeltaMovement(Vec3.ZERO);
-            playMantleStartSound(owner);
         } else {
             cancel();
             return;
         }
-        if (pendingSince >= 0) lastHeartbeat = owner.tickCount;
+        if (confirmation) lastHeartbeat = owner.tickCount;
         pendingSince = -1;
         lastServerTick = owner.tickCount;
         owner.setSprinting(false);
     }
+/**
+     * Rastet an der Wand ein: Der Absprung-Schwung wird gemerkt, die Bewegung kurz stillgelegt, Griffgeräusch und
+     * Kameraruck laufen an. Gerufen sowohl beim sofortigen Start als auch, wenn der Server eine Wand zuweist.
+     */
+    private boolean beginWall(LocalPlayer player, Direction normal) {
+        wall = normal;
+        target = null;
+        age = 0;
+        cycle = previousCycle = 0;
+        expectedPosition = player.position();
+        // Nur ein Teil des Absprung-Schwungs: Größere Sprünge pro Tick würden den Server-Check überholen, bevor
+        // dessen Sitzung steht, und enden als Rücksetzer.
+        entryBoost = (float) Math.clamp(player.getDeltaMovement().y * 0.5, 0.0, 0.18);
+        player.setDeltaMovement(Vec3.ZERO);
+        wallGrabTicks = 5;
+        lastServerTick = player.tickCount;
+        lastHeartbeat = player.tickCount;
+        player.resetFallDistance();
+        player.setSprinting(false);
+        playWallGrabSound(player, normal);
+        return true;
+    }
+
+    /**
+     * Beginnt den Aufstieg über eine Kante zum Ziel {@code landing}.
+     *
+     * @return {@code false}, wenn der Weg dorthin nicht frei ist
+     */
+    private boolean beginMantle(LocalPlayer player, Vec3 landing) {
+        if (!MantleGeometry.clearRoute(player, player.position(), landing)) return false;
+        wall = null;
+        start = player.position();
+        target = landing;
+        apexY = MantleGeometry.findApex(player, start, target);
+        expectedPosition = start;
+        age = 0;
+        liftTicks = Math.max(3, (int) Math.ceil(Math.max(0.1, apexY - start.y) * 1.5 / 0.26));
+        acrossTicks = Math.max(4, (int) Math.ceil(new Vec3(target.x - start.x, 0, target.z - start.z).length() * 1.5 / 0.22));
+        player.setDeltaMovement(Vec3.ZERO);
+        lastServerTick = player.tickCount;
+        lastHeartbeat = player.tickCount;
+        player.setSprinting(false);
+        playMantleStartSound(player);
+        return true;
+    }
+
 
     /**
      * Player.travel HEAD. Only the local player gets custom motion; vanilla still handles collision and packets.
@@ -261,11 +307,19 @@ public final class ClientClimbing {
             }
         }
         age++;
-        Vec3 delta = WallClimbing.movement(activeWall, player.input.keyPresses.forward(),
-                player.input.keyPresses.backward(), left, right);
+        // Die Leertaste allein klettert hinauf; Rückwärts klettert hinunter; beide zusammen halten den Griff.
+        boolean up = WallClimbing.wantsUp(player.input.keyPresses.forward(), player.input.keyPresses.backward());
+        Vec3 delta = WallClimbing.movement(activeWall, up, player.input.keyPresses.backward(), left, right);
         Vec3 landing = delta.y > 0 ? MantleGeometry.findTarget(player, activeWall) : null;
         // Hold the grip at a reachable roof edge until the server confirms the transition.
         if (landing != null && landing.y - player.getY() <= 1.85) delta = new Vec3(delta.x, 0, delta.z);
+        // Sanftes Anfahren statt Vollgas aus dem Stand, dazu trägt der Schwung des Absprungs in den ersten Ticks mit.
+        double ramp = 0.55 + 0.45 * Math.min(1.0, age / 4.0);
+        double vertical = delta.y * ramp;
+        if (delta.y > 0 && entryBoost > 0 && age <= ENTRY_BOOST_TICKS) {
+            vertical += entryBoost * (1.0 - (double) age / ENTRY_BOOST_TICKS);
+        }
+        delta = new Vec3(delta.x * ramp, vertical, delta.z * ramp);
         if (!MantleGeometry.insideArena(player.position().add(delta))) delta = Vec3.ZERO;
         Vec3 before = player.position();
         player.setSprinting(false);
@@ -348,6 +402,7 @@ public final class ClientClimbing {
     public boolean hasLedge() {
         return canGrab && pendingSince < 0 && !isActive();
     }
+
 
     public boolean isActive() {
         return wall != null || target != null;
@@ -439,9 +494,10 @@ public final class ClientClimbing {
     private void cancel() {
         if (isActive() || pendingSince >= 0) {
             outgoing = new ClimbingNetworking.Request(sequence, false, -1);
-            nextRequestTick = owner == null ? 0 : owner.tickCount + 6;
+            nextRequestTick = owner == null ? 0 : owner.tickCount + REQUEST_COOLDOWN_TICKS;
         }
         if (owner != null) owner.resetFallDistance();
+        entryBoost = 0.0F;
         wall = null;
         target = null;
         apexY = 0;

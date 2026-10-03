@@ -13,7 +13,6 @@ import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.Font;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.network.chat.Component;
 import net.minecraft.client.gui.navigation.ScreenRectangle;
 import net.minecraft.client.gui.render.pip.PictureInPictureRenderer;
 import net.minecraft.client.multiplayer.ClientLevel;
@@ -32,24 +31,21 @@ import net.minecraft.client.renderer.state.level.CameraRenderState;
 import net.minecraft.client.renderer.texture.OverlayTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.SectionPos;
-import net.minecraft.core.component.DataComponents;
+import net.minecraft.network.chat.Component;
 import net.minecraft.util.LightCoordsUtil;
 import net.minecraft.util.Mth;
 import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
-import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.ClipContext;
 import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.level.chunk.ChunkAccess;
 import net.minecraft.world.level.chunk.status.ChunkStatus;
 import net.minecraft.world.level.levelgen.Heightmap;
-import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Quaternionf;
 import org.joml.Quaternionfc;
 import org.joml.Vector3f;
@@ -509,509 +505,6 @@ public final class CombatHudLayers {
     // =========================================================================
     // GrapplingHookHudLayer.java
     // =========================================================================
-
-    /**
-     * Instrumenten-HUD des Grappling Hooks. Asymmetrische Optikbögen,
-     * Distanz-/Zugkraft-Rails und der kinetische Zugkorridor bilden ein ruhiges,
-     * hochwertiges Interface statt eines klassischen Fadenkreuzes.
-     */
-    public static final class GrapplingHookHudLayer implements HudElement {
-        private static final double MAX_GRAPPLE_RANGE = 512.0;
-        private static final double RELEASE_DISTANCE = 2.35;
-        private static final float MAX_PULL_SPEED = 1.15F;
-        private static final long APPEAR_NANOS = 160_000_000L;
-        private static final long LATCH_FLASH_NANOS = 360_000_000L;
-        private static final long RELEASE_FADE_NANOS = 250_000_000L;
-        private static final int CORRIDOR_STREAKS = 10;
-        private static final float TWO_PI = (float) (Math.PI * 2.0);
-        private static final int COLOR_RED_PRIMARY = 0xFFFF2A4D;
-        private static final int COLOR_RED_BRIGHT = 0xFFFF4D6D;
-        private static final int COLOR_RED_PULL = 0xFFFF6600;
-        private static final int COLOR_RED_DIM = 0x88993344;
-        private static final int COLOR_RED_EMPTY = 0x33661122;
-        private static final int COLOR_WHITE = 0xFFFFFFFF;
-        private static final int COLOR_HAIRLINE = 0x667C2438;
-
-        private boolean previousActive;
-        private boolean previousPulling;
-        private long activationStartedAt = -1L;
-        private long latchStartedAt = -1L;
-        private long releaseStartedAt = -1L;
-        private double lastHookDistance = MAX_GRAPPLE_RANGE;
-        private float lastPullSpeed;
-
-        private static void drawGrappleInterface(GuiGraphicsExtractor graphics, Font font,
-                                                 LocalPlayer player, int cx, int cy,
-                                                 double distance, boolean inRange,
-                                                 boolean active, boolean pulling, boolean retracting,
-                                                 float pullSpeed, int charges, int maxCharges,
-                                                 boolean isInfinite, float partialTick) {
-            float time = player.tickCount + partialTick;
-            float pulse = 0.5F + 0.5F * Mth.sin(time * 0.34F);
-            float speedFactor = Mth.clamp(pullSpeed / MAX_PULL_SPEED, 0.0F, 1.0F);
-            float proximity = Mth.clamp((float) ((8.0 - distance) / (8.0 - RELEASE_DISTANCE)), 0.0F, 1.0F);
-            float tension = pulling
-                    ? Mth.clamp(speedFactor * 0.72F + proximity * 0.28F, 0.08F, 1.0F)
-                    : (active ? Mth.clamp((float) (distance / MAX_GRAPPLE_RANGE) * 0.55F, 0.08F, 0.55F) : 0.0F);
-            int accentColor = pulling ? MinigunHudLayer.lerpColor(COLOR_RED_PULL, COLOR_WHITE, proximity * 0.72F)
-                    : (active ? COLOR_RED_BRIGHT : (inRange ? COLOR_RED_PRIMARY : COLOR_RED_DIM));
-
-            String statusText;
-            int statusColor;
-            if (pulling) {
-                statusText = "GRPL // ANKER FEST";
-                statusColor = accentColor;
-            } else if (retracting) {
-                statusText = "GRPL // SEILRÜCKLAUF";
-                statusColor = COLOR_RED_PRIMARY;
-            } else if (active) {
-                statusText = "GRPL // HAKEN FLIEGT";
-                statusColor = COLOR_RED_BRIGHT;
-            } else if (inRange) {
-                statusText = "GRPL // ZIEL BEREIT";
-                statusColor = COLOR_RED_BRIGHT;
-            } else {
-                statusText = "GRPL // BEREIT";
-                statusColor = COLOR_RED_DIM;
-            }
-
-            drawStatusHeader(graphics, font, cx, cy - 58, statusText, statusColor, active || inRange);
-            drawCentralOptics(graphics, cx, cy, time, accentColor, active, pulling, inRange);
-            drawDistanceRail(graphics, font, cx - 62, cy, distance, active || inRange, accentColor);
-            drawTensionRail(graphics, font, cx + 62, cy, tension, active, accentColor);
-            drawPressureRail(graphics, font, cx, cy + 45, charges, maxCharges, isInfinite, pulse);
-        }
-
-        private static void drawStatusHeader(GuiGraphicsExtractor graphics, Font font, int cx, int y,
-                                             String status, int color, boolean live) {
-            int textWidth = font.width(status);
-            int left = cx - textWidth / 2;
-            int right = cx + (textWidth + 1) / 2;
-            int lineColor = MinigunHudLayer.withAlpha(color, live ? 185 : 85);
-            graphics.centeredText(font, status, cx, y, color);
-            graphics.horizontalLine(left + 8, right - 8, y + 11, lineColor);
-            drawLine(graphics, left, y + 8, left + 5, y + 11, lineColor);
-            drawLine(graphics, right, y + 8, right - 5, y + 11, lineColor);
-        }
-
-        private static void drawCentralOptics(GuiGraphicsExtractor graphics, int cx, int cy,
-                                              float time, int color, boolean active,
-                                              boolean pulling, boolean inRange) {
-            float breathing = active ? Mth.sin(time * 0.18F) * 0.8F : 0.0F;
-            float rotation = pulling ? -time * 0.025F : time * 0.009F;
-            float radius = 17.0F + breathing;
-
-            drawArc(graphics, cx, cy, radius, rotation + 0.40F, rotation + 1.54F, 9,
-                    MinigunHudLayer.withAlpha(color, 205));
-            drawArc(graphics, cx, cy, radius, rotation + 2.78F, rotation + 3.62F, 7,
-                    MinigunHudLayer.withAlpha(color, 150));
-            drawArc(graphics, cx, cy, radius, rotation + 4.36F, rotation + 5.82F, 11,
-                    MinigunHudLayer.withAlpha(color, 205));
-
-            int coreColor = active || inRange ? COLOR_WHITE : COLOR_RED_DIM;
-            graphics.fill(cx, cy - 1, cx + 1, cy + 2, coreColor);
-            graphics.horizontalLine(cx - 1, cx + 1, cy, coreColor);
-
-            graphics.horizontalLine(cx - 11, cx - 6, cy, MinigunHudLayer.withAlpha(color, 185));
-            graphics.horizontalLine(cx + 6, cx + 11, cy, MinigunHudLayer.withAlpha(color, 185));
-            graphics.verticalLine(cx, cy - 11, cy - 7, MinigunHudLayer.withAlpha(color, 135));
-            graphics.verticalLine(cx, cy + 7, cy + 11, MinigunHudLayer.withAlpha(color, 135));
-
-            if (pulling) {
-                drawArc(graphics, cx, cy, 11.0F, -time * 0.045F, -time * 0.045F + 2.15F, 13,
-                        MinigunHudLayer.withAlpha(COLOR_WHITE, 155));
-            }
-        }
-
-        private static void drawDistanceRail(GuiGraphicsExtractor graphics, Font font,
-                                             int x, int cy, double distance,
-                                             boolean live, int color) {
-            int top = cy - 24;
-            int bottom = cy + 24;
-            float range = live ? Mth.clamp((float) (distance / MAX_GRAPPLE_RANGE), 0.0F, 1.0F) : 1.0F;
-            int markerY = bottom - Math.round(range * (bottom - top));
-            int railColor = live ? MinigunHudLayer.withAlpha(color, 190) : COLOR_HAIRLINE;
-
-            graphics.verticalLine(x, top, bottom, COLOR_HAIRLINE);
-            for (int i = 0; i <= 4; i++) {
-                int tickY = top + i * (bottom - top) / 4;
-                graphics.horizontalLine(x, x + (i % 2 == 0 ? 5 : 3), tickY, COLOR_HAIRLINE);
-            }
-            graphics.horizontalLine(x - 2, x + 6, markerY, railColor);
-            graphics.fill(x - 2, markerY - 1, x, markerY + 2, railColor);
-
-            String value = live ? String.format(Locale.ROOT, "%.1f M", distance) : "--.- M";
-            String distLabel = Component.translatable("hud.oneshotonekill.grappler.distance").getString();
-            int textX = x - font.width(distLabel) - 8;
-            graphics.text(font, distLabel, textX, top, live ? COLOR_RED_BRIGHT : COLOR_RED_DIM);
-            graphics.text(font, value, x - font.width(value) - 8, bottom - 8,
-                    live ? COLOR_WHITE : COLOR_RED_DIM);
-        }
-
-        private static void drawTensionRail(GuiGraphicsExtractor graphics, Font font,
-                                            int x, int cy, float tension,
-                                            boolean active, int color) {
-            int top = cy - 24;
-            int bottom = cy + 24;
-            int fillTop = bottom - Math.round(tension * (bottom - top));
-            int meterColor = active ? color : COLOR_RED_DIM;
-
-            graphics.verticalLine(x, top, bottom, COLOR_HAIRLINE);
-            for (int i = 0; i <= 4; i++) {
-                int tickY = top + i * (bottom - top) / 4;
-                graphics.horizontalLine(x - (i % 2 == 0 ? 5 : 3), x, tickY, COLOR_HAIRLINE);
-            }
-            if (active && tension > 0.0F) {
-                graphics.fillGradient(x - 2, fillTop, x, bottom + 1,
-                        MinigunHudLayer.withAlpha(COLOR_WHITE, 225), MinigunHudLayer.withAlpha(meterColor, 190));
-                graphics.horizontalLine(x - 6, x + 2, fillTop, MinigunHudLayer.withAlpha(meterColor, 230));
-            }
-
-            String value = active
-                    ? String.format(Locale.ROOT, "%d%%", Math.round(tension * 100.0F)) : "---%";
-            String tensionLabel = Component.translatable("hud.oneshotonekill.grappler.tension").getString();
-            graphics.text(font, tensionLabel, x + 8, top,
-                    active ? COLOR_RED_BRIGHT : COLOR_RED_DIM);
-            graphics.text(font, value, x + 8, bottom - 8,
-                    active ? COLOR_WHITE : COLOR_RED_DIM);
-        }
-
-        private static void drawPressureRail(GuiGraphicsExtractor graphics, Font font,
-                                             int cx, int y, int charges, int maxCharges,
-                                             boolean isInfinite, float pulse) {
-            if (maxCharges <= 0) {
-                return;
-            }
-
-            int cellWidth = 5;
-            int gap = 3;
-            int totalWidth = maxCharges * cellWidth + (maxCharges - 1) * gap;
-            int startX = cx - totalWidth / 2;
-
-            for (int i = 0; i < maxCharges; i++) {
-                int x = startX + i * (cellWidth + gap);
-                boolean filled = isInfinite || i < charges;
-                int cellColor = filled
-                        ? (isInfinite ? MinigunHudLayer.lerpColor(COLOR_RED_PRIMARY, COLOR_RED_BRIGHT, pulse * 0.35F)
-                        : (charges == 1 ? MinigunHudLayer.lerpColor(COLOR_RED_PRIMARY, COLOR_WHITE, pulse)
-                        : (charges <= 3 ? COLOR_RED_PULL : COLOR_RED_PRIMARY)))
-                        : COLOR_RED_EMPTY;
-                drawLine(graphics, x, y + 3, x + cellWidth - 1, y - 1, cellColor);
-                drawLine(graphics, x + 1, y + 4, x + cellWidth, y, MinigunHudLayer.withAlpha(cellColor, filled ? 155 : 70));
-            }
-
-            String label = isInfinite ? "DRUCK  ∞ / ∞" : String.format(Locale.ROOT, "DRUCK  %02d/%02d", charges, maxCharges);
-            int labelColor = isInfinite ? COLOR_RED_BRIGHT
-                    : (charges == 0 ? COLOR_RED_DIM
-                    : (charges <= 3 ? MinigunHudLayer.lerpColor(COLOR_RED_PULL, COLOR_WHITE,
-                    charges == 1 ? pulse * 0.55F : 0.0F) : COLOR_RED_BRIGHT));
-            graphics.centeredText(font, label, cx, y + 7, labelColor);
-        }
-
-        private static void drawArc(GuiGraphicsExtractor graphics, int cx, int cy, float radius,
-                                    float start, float end, int segments, int color) {
-            float previous = start;
-            for (int i = 1; i <= segments; i++) {
-                float angle = start + (end - start) * i / segments;
-                drawLine(graphics,
-                        Math.round(cx + Mth.cos(previous) * radius),
-                        Math.round(cy + Mth.sin(previous) * radius),
-                        Math.round(cx + Mth.cos(angle) * radius),
-                        Math.round(cy + Mth.sin(angle) * radius), color);
-                previous = angle;
-            }
-        }
-
-        private static void drawCorridorStreaks(GuiGraphicsExtractor graphics, int cx, int cy,
-                                                int width, int height, float time,
-                                                float speed, float proximity, float blend, int color) {
-            float minDimension = Math.min(width, height);
-            float innerRadius = minDimension * 0.20F;
-            float outerRadius = minDimension * 0.52F;
-            float travelRange = outerRadius - innerRadius;
-            float intensity = blend * (0.30F + speed * 0.70F);
-
-            for (int i = 0; i < CORRIDOR_STREAKS; i++) {
-                float angle = i * TWO_PI / CORRIDOR_STREAKS
-                        + Mth.sin(time * 0.012F + i * 1.7F) * 0.025F;
-                float travel = fraction(time * (0.035F + speed * 0.085F) + i * 0.173F);
-                float headRadius = outerRadius - travel * travelRange;
-                float length = 4.0F + speed * 12.0F + proximity * 5.0F;
-                float tailRadius = Math.min(outerRadius, headRadius + length);
-                float visibility = Mth.sin(travel * (float) Math.PI);
-                int alpha = (int) ((45.0F + visibility * 155.0F) * intensity);
-                int streakColor = MinigunHudLayer.withAlpha(color, alpha);
-                int x1 = Math.round(cx + Mth.cos(angle) * tailRadius);
-                int y1 = Math.round(cy + Mth.sin(angle) * tailRadius);
-                int x2 = Math.round(cx + Mth.cos(angle) * headRadius);
-                int y2 = Math.round(cy + Mth.sin(angle) * headRadius);
-                drawLine(graphics, x1, y1, x2, y2, streakColor);
-
-                if (intensity > 0.82F && visibility > 0.45F) {
-                    int offsetX = Math.round(-Mth.sin(angle));
-                    int offsetY = Math.round(Mth.cos(angle));
-                    drawLine(graphics, x1 + offsetX, y1 + offsetY, x2 + offsetX, y2 + offsetY,
-                            MinigunHudLayer.withAlpha(color, alpha / 2));
-                }
-            }
-        }
-
-        private static void drawCorridorFrame(GuiGraphicsExtractor graphics, int width, int height,
-                                              float speed, float proximity, float blend, int color) {
-            int inset = 12 + Math.round((1.0F - speed) * 8.0F);
-            int upper = height / 3;
-            int lower = height * 2 / 3;
-            int reach = 7 + Math.round(speed * 8.0F);
-            int alpha = (int) ((45.0F + speed * 90.0F + proximity * 55.0F) * blend);
-            int frameColor = MinigunHudLayer.withAlpha(color, alpha);
-            int innerColor = MinigunHudLayer.withAlpha(COLOR_WHITE, alpha / 2);
-
-            drawLine(graphics, inset, upper - reach, inset, upper, frameColor);
-            drawLine(graphics, inset, upper, inset + reach, upper + reach / 2, frameColor);
-            drawLine(graphics, inset, lower + reach, inset, lower, frameColor);
-            drawLine(graphics, inset, lower, inset + reach, lower - reach / 2, frameColor);
-
-            int right = width - inset - 1;
-            drawLine(graphics, right, upper - reach, right, upper, frameColor);
-            drawLine(graphics, right, upper, right - reach, upper + reach / 2, frameColor);
-            drawLine(graphics, right, lower + reach, right, lower, frameColor);
-            drawLine(graphics, right, lower, right - reach, lower - reach / 2, frameColor);
-
-            if (proximity > 0.58F) {
-                graphics.fill(inset + 2, upper - reach, inset + 3, upper - 2, innerColor);
-                graphics.fill(right - 2, upper - reach, right - 1, upper - 2, innerColor);
-                graphics.fill(inset + 2, lower + 2, inset + 3, lower + reach, innerColor);
-                graphics.fill(right - 2, lower + 2, right - 1, lower + reach, innerColor);
-            }
-        }
-
-        private static void drawLatchImpulse(GuiGraphicsExtractor graphics, int cx, int cy,
-                                             int width, int height, float progress, int color) {
-            float eased = easeOut(progress);
-            float edgeRadius = Math.min(width, height) * 0.24F;
-            float radius = edgeRadius + (20.0F - edgeRadius) * eased;
-            int alpha = (int) (Mth.sin(progress * (float) Math.PI) * 235.0F);
-            int impulseColor = MinigunHudLayer.withAlpha(color, alpha);
-
-            for (int i = 0; i < 4; i++) {
-                float angle = (i + 0.5F) * TWO_PI / 4.0F;
-                float tangent = angle + (float) Math.PI / 2.0F;
-                int anchorX = Math.round(cx + Mth.cos(angle) * radius);
-                int anchorY = Math.round(cy + Mth.sin(angle) * radius);
-                int halfWidth = 4;
-                drawLine(graphics,
-                        anchorX + Math.round(Mth.cos(tangent) * halfWidth),
-                        anchorY + Math.round(Mth.sin(tangent) * halfWidth),
-                        anchorX - Math.round(Mth.cos(tangent) * halfWidth),
-                        anchorY - Math.round(Mth.sin(tangent) * halfWidth), impulseColor);
-            }
-
-            drawArc(graphics, cx, cy, 13.0F + progress * 24.0F,
-                    progress * 0.55F, progress * 0.55F + 4.9F, 24,
-                    MinigunHudLayer.withAlpha(COLOR_WHITE, (int) ((1.0F - progress) * 195.0F)));
-        }
-
-        private static void drawSegmentedRing(GuiGraphicsExtractor graphics, int cx, int cy,
-                                              float radius, float rotation, int color) {
-            int segments = 32;
-            for (int segment = 0; segment < segments; segment += 2) {
-                float from = rotation + segment * TWO_PI / segments;
-                float to = rotation + (segment + 0.72F) * TWO_PI / segments;
-                drawLine(graphics,
-                        Math.round(cx + Mth.cos(from) * radius),
-                        Math.round(cy + Mth.sin(from) * radius),
-                        Math.round(cx + Mth.cos(to) * radius),
-                        Math.round(cy + Mth.sin(to) * radius), color);
-            }
-        }
-
-        private static void drawLine(GuiGraphicsExtractor graphics, int x1, int y1,
-                                     int x2, int y2, int color) {
-            int dx = Math.abs(x2 - x1);
-            int stepX = x1 < x2 ? 1 : -1;
-            int dy = -Math.abs(y2 - y1);
-            int stepY = y1 < y2 ? 1 : -1;
-            int error = dx + dy;
-
-            while (true) {
-                graphics.fill(x1, y1, x1 + 1, y1 + 1, color);
-                if (x1 == x2 && y1 == y2) {
-                    return;
-                }
-                int doubledError = error * 2;
-                if (doubledError >= dy) {
-                    error += dy;
-                    x1 += stepX;
-                }
-                if (doubledError <= dx) {
-                    error += dx;
-                    y1 += stepY;
-                }
-            }
-        }
-
-        private static float elapsedProgress(long now, long startedAt, long duration) {
-            if (startedAt < 0L) {
-                return 1.0F;
-            }
-            return Mth.clamp((float) (now - startedAt) / duration, 0.0F, 1.0F);
-        }
-
-        private static float easeOut(float value) {
-            float inverse = 1.0F - Mth.clamp(value, 0.0F, 1.0F);
-            return 1.0F - inverse * inverse * inverse;
-        }
-
-        private static float fraction(float value) {
-            return value - (float) Math.floor(value);
-        }
-
-        @Override
-        public void extractRenderState(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
-            Minecraft client = Minecraft.getInstance();
-            LocalPlayer player = client.player;
-            if (player == null || !client.options.getCameraType().isFirstPerson()) {
-                resetEffectState();
-                return;
-            }
-
-            boolean holdingHook = player.getMainHandItem().is(ModItems.GRAPPLING_HOOK)
-                    || player.getOffhandItem().is(ModItems.GRAPPLING_HOOK);
-            if (!holdingHook) {
-                resetEffectState();
-                return;
-            }
-
-            int centerX = (graphics.guiWidth() - 1) / 2;
-            int centerY = (graphics.guiHeight() - 1) / 2;
-            float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
-
-            // Live-Raycast zur Zieloberfläche
-            Vec3 eye = player.getEyePosition(partialTick);
-            Vec3 look = player.getViewVector(partialTick);
-            Vec3 end = eye.add(look.scale(MAX_GRAPPLE_RANGE));
-            BlockHitResult hit = player.level().clip(new ClipContext(
-                    eye, end, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
-                    CollisionContext.empty()));
-
-            boolean hitSolid = hit.getType() != HitResult.Type.MISS;
-            double targetDistance = hitSolid ? eye.distanceTo(hit.getLocation()) : MAX_GRAPPLE_RANGE;
-            boolean inRange = hitSolid && targetDistance <= MAX_GRAPPLE_RANGE;
-
-            GrapplePullState grappleState = GrapplePullState.INSTANCE;
-            boolean active = grappleState.isGrappleActive(player.getUUID());
-            boolean pulling = grappleState.isPulling(player.getUUID());
-            boolean retracting = grappleState.isRetracting(player.getUUID());
-            Vec3 hook = grappleState.hookPosition(player.getUUID(), partialTick);
-            double distance = active && hook != null ? eye.distanceTo(hook) : targetDistance;
-            float pullSpeed = (float) player.getDeltaMovement().length();
-            long now = System.nanoTime();
-            float corridorBlend = updateEffectState(now, active, pulling, distance, pullSpeed);
-
-            ItemStack hookItem = player.getMainHandItem().is(ModItems.GRAPPLING_HOOK)
-                    ? player.getMainHandItem() : player.getOffhandItem();
-            boolean isInfinite = hookItem.has(DataComponents.UNBREAKABLE);
-            int maxCharges = hookItem.getMaxDamage();
-            int remainingCharges = isInfinite ? maxCharges : Math.max(0, maxCharges - hookItem.getDamageValue());
-
-            drawKineticCorridor(graphics, centerX, centerY, graphics.guiWidth(), graphics.guiHeight(),
-                    player.tickCount + partialTick, active, pulling, retracting,
-                    active ? distance : lastHookDistance,
-                    active ? pullSpeed : lastPullSpeed, corridorBlend, now);
-            drawGrappleInterface(graphics, client.font, player, centerX, centerY,
-                    distance, inRange, active, pulling, retracting, pullSpeed,
-                    remainingCharges, maxCharges, isInfinite, partialTick);
-
-            previousActive = active;
-            previousPulling = pulling;
-        }
-
-        private float updateEffectState(long now, boolean active, boolean pulling,
-                                        double hookDistance, float pullSpeed) {
-            if (active && !previousActive) {
-                activationStartedAt = now;
-            }
-            if (pulling && !previousPulling) {
-                latchStartedAt = now;
-            }
-            if (!active && previousActive) {
-                releaseStartedAt = now;
-            }
-
-            if (active) {
-                releaseStartedAt = -1L;
-                lastHookDistance = hookDistance;
-                lastPullSpeed = pullSpeed;
-                return easeOut(elapsedProgress(now, activationStartedAt, APPEAR_NANOS));
-            }
-            if (releaseStartedAt >= 0L) {
-                float blend = 1.0F - elapsedProgress(now, releaseStartedAt, RELEASE_FADE_NANOS);
-                if (blend > 0.0F) {
-                    return blend;
-                }
-                releaseStartedAt = -1L;
-            }
-            return 0.0F;
-        }
-
-        private void resetEffectState() {
-            previousActive = false;
-            previousPulling = false;
-            activationStartedAt = -1L;
-            latchStartedAt = -1L;
-            releaseStartedAt = -1L;
-            lastHookDistance = MAX_GRAPPLE_RANGE;
-            lastPullSpeed = 0.0F;
-        }
-
-        private void drawKineticCorridor(GuiGraphicsExtractor graphics, int cx, int cy,
-                                         int width, int height, float time,
-                                         boolean active, boolean pulling, boolean retracting,
-                                         double distance, float speed, float blend, long now) {
-            if (blend <= 0.001F) {
-                return;
-            }
-
-            float speedFactor = Mth.clamp(speed / MAX_PULL_SPEED, 0.0F, 1.0F);
-            float proximity = Mth.clamp((float) ((8.0 - distance) / (8.0 - RELEASE_DISTANCE)), 0.0F, 1.0F);
-            int kineticColor = MinigunHudLayer.lerpColor(COLOR_RED_PRIMARY, COLOR_RED_PULL, speedFactor);
-            kineticColor = MinigunHudLayer.lerpColor(kineticColor, COLOR_WHITE, proximity * 0.78F);
-
-            if (pulling || (!active && lastPullSpeed > 0.05F)) {
-                drawCorridorStreaks(graphics, cx, cy, width, height, time,
-                        speedFactor, proximity, blend, kineticColor);
-                drawCorridorFrame(graphics, width, height, speedFactor, proximity, blend, kineticColor);
-            }
-
-            float pulse = 0.5F + 0.5F * Mth.sin(time * 0.62F);
-            if (pulling) {
-                float radius = 14.0F - proximity * 4.0F + pulse * 1.5F;
-                drawSegmentedRing(graphics, cx, cy, radius, time * 0.04F,
-                        MinigunHudLayer.withAlpha(kineticColor, (int) (205.0F * blend)));
-            } else if (retracting) {
-                float phase = fraction(time * 0.09F);
-                drawSegmentedRing(graphics, cx, cy, 28.0F - phase * 14.0F, -time * 0.05F,
-                        MinigunHudLayer.withAlpha(COLOR_RED_PRIMARY, (int) ((1.0F - phase * 0.45F) * 175.0F * blend)));
-            } else if (active) {
-                float phase = fraction(time * 0.07F);
-                drawSegmentedRing(graphics, cx, cy, 17.0F + phase * 12.0F, time * 0.035F,
-                        MinigunHudLayer.withAlpha(COLOR_RED_BRIGHT, (int) ((1.0F - phase) * 190.0F * blend)));
-            } else {
-                drawSegmentedRing(graphics, cx, cy, 10.0F + (1.0F - blend) * 22.0F, time * 0.03F,
-                        MinigunHudLayer.withAlpha(kineticColor, (int) (155.0F * blend)));
-            }
-
-            if (latchStartedAt >= 0L) {
-                float latchProgress = elapsedProgress(now, latchStartedAt, LATCH_FLASH_NANOS);
-                if (latchProgress < 1.0F) {
-                    drawLatchImpulse(graphics, cx, cy, width, height, latchProgress, kineticColor);
-                } else {
-                    latchStartedAt = -1L;
-                }
-            }
-        }
-
-    }
 
     // =========================================================================
     // AirstrikeAlarmLayer.java
@@ -2695,6 +2188,9 @@ public final class CombatHudLayers {
     // =========================================================================
 
     public static final class TiltedMinimapLayer implements HudElement {
+/** So lange (Sekunden seit Start der Nuke-Sequenz) flackert die Minimap noch, bevor sie ganz verschwindet. */
+        private static final float SIGNAL_LOSS_SECONDS = 1.1F;
+
         private static final double SCALE = 1.0;
 
         private static final int BORDER_CYAN = 0xFF00F0FF;
@@ -2880,6 +2376,14 @@ public final class CombatHudLayers {
 
             float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
 
+            // Endgame: Die Funkverbindung zur Karte reißt ab - kurzer Signalverlust, danach bleibt sie bis zum
+            // Match-Stopp weg. Der Server meldet beim Stopp den leeren Nuke-Zustand, dann kehrt sie zurück.
+            NukeState nuke = NukeState.INSTANCE;
+            float lostSeconds = nuke.isRunning() ? nuke.seconds(partialTick) : -1.0F;
+            if (lostSeconds >= SIGNAL_LOSS_SECONDS) {
+                return;
+            }
+
             MinimapConfig config = MinimapConfig.INSTANCE;
             int radius = config.getRadius();
             int cx = config.getCenterX(graphics.guiWidth(), radius);
@@ -2919,6 +2423,33 @@ public final class CombatHudLayers {
 
             // 7. Eigener Spielerpfeil (Mitte)
             drawPlayerMarker(graphics, cx, cy);
+
+            // 8. Signalverlust beim Start des Endgames
+            if (lostSeconds >= 0.0F) {
+                drawSignalLoss(graphics, client.font, cx, cy, radius, lostSeconds / SIGNAL_LOSS_SECONDS);
+            }
+        }
+
+        /**
+         * Die Karte stirbt: Zeilenversatz wie bei einem defekten Bildsignal, Rauschbalken, dann wird die Scheibe
+         * schwarz und "KEIN SIGNAL" blinkt, bevor sie verschwindet.
+         */
+        private static void drawSignalLoss(GuiGraphicsExtractor graphics, Font font, int cx, int cy, int radius, float progress) {
+            float k = Math.min(1.0F, progress);
+            int frame = (int) (net.minecraft.util.Util.getMillis() / 45L);
+            int top = cy - radius;
+            for (int i = 0; i < 16; i++) {
+                float row = HudFx.rand(frame * 31 + i * 7);
+                int y = top + Math.round(row * radius * 2);
+                int h = 1 + Math.round(HudFx.rand(frame * 17 + i) * 4.0F);
+                int shift = Math.round((HudFx.rand(frame * 13 + i * 3) - 0.5F) * 22.0F * k);
+                int colour = HudFx.rand(frame + i * 5) > 0.5F ? 0xFFFFFF : 0x0A0F14;
+                graphics.fill(cx - radius + shift, y, cx + radius + shift, y + h, HudFx.argb(colour, 0.35F + 0.4F * k));
+            }
+            HudFx.disc(graphics, cx, cy, radius, HudFx.argb(0x05080A, k * k * 0.95F));
+            if (k > 0.4F && ((frame / 4) & 1) == 0) {
+                HudFx.smallText(graphics, font, "KEIN SIGNAL", cx, cy - 4, 0.9F, HudFx.argb(0xFF3C28, 0.95F));
+            }
         }
     }
 }

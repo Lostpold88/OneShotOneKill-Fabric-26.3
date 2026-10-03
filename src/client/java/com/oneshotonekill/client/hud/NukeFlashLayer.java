@@ -1,21 +1,16 @@
 package com.oneshotonekill.client.hud;
 
-import static com.oneshotonekill.client.hud.HudFx.argb;
-import static com.oneshotonekill.client.hud.HudFx.clamp01;
-import static com.oneshotonekill.client.hud.HudFx.easeOutCubic;
-import static com.oneshotonekill.client.hud.HudFx.rand;
-import static com.oneshotonekill.client.hud.HudFx.smooth;
-
 import com.oneshotonekill.client.state.ClientStates.CameraShakeState;
 import com.oneshotonekill.client.state.ClientStates.NukeState;
 import net.fabricmc.fabric.api.client.rendering.v1.hud.HudElement;
 import net.minecraft.client.DeltaTracker;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.gui.GuiGraphicsExtractor;
-import net.minecraft.client.player.LocalPlayer;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 import net.minecraft.world.phys.Vec3;
+
+import static com.oneshotonekill.client.hud.HudFx.*;
 
 /**
  * Der Einschlag und alles danach.
@@ -61,10 +56,13 @@ public final class NukeFlashLayer implements HudElement {
          aftershockTriggered = true;
       }
 
-      float[] glare = project(client, state, partial, width, height);
-      float gx = glare == null ? width / 2.0F : glare[0];
-      float gy = glare == null ? height / 2.0F : glare[1];
-      boolean visible = glare != null;
+      // Ground Zero (etwas über dem Boden, wo der Feuerball steht) auf den Bildschirm projiziert; liegt er hinter dem
+      // Spieler, bleibt der Glare in der Bildmitte.
+      HudFx.Projection glare = HudFx.project(client,
+         new Vec3(state.centreX(), state.centreY() + 8.0, state.centreZ()), partial, width, height);
+      boolean visible = glare != null && glare.inFront();
+      float gx = visible ? glare.x() : width / 2.0F;
+      float gy = visible ? glare.y() : height / 2.0F;
 
       // 1. Feuerschleier unter allem anderen
       if (since < 4.0F) {
@@ -183,43 +181,4 @@ public final class NukeFlashLayer implements HudElement {
       }
    }
 
-   /**
-    * Projiziert Ground Zero in Bildschirmkoordinaten.
-    * <p>
-    * Aus Augenposition, Blickwinkeln und senkrechtem Sichtfeld wird die Richtung zum Pilz in die
-    * Kamerabasis (vorne, rechts, oben) zerlegt und perspektivisch geteilt. Minecrafts Sichtfeld-Option ist
-    * das vertikale; das waagerechte folgt aus dem Seitenverhältnis.
-    *
-    * @return {x, y} in Pixeln oder {@code null}, wenn der Punkt hinter dem Spieler liegt.
-    */
-   private static float[] project(Minecraft client, NukeState state, float partial, int width, int height) {
-      LocalPlayer player = client.player;
-      if (player == null) {
-         return null;
-      }
-      Vec3 eye = player.getEyePosition(partial);
-      double dx = state.centreX() - eye.x;
-      double dy = state.centreY() + 8.0 - eye.y;
-      double dz = state.centreZ() - eye.z;
-
-      double yaw = Math.toRadians(player.getViewYRot(partial));
-      double pitch = Math.toRadians(player.getViewXRot(partial));
-      double fx = -Math.sin(yaw) * Math.cos(pitch);
-      double fy = -Math.sin(pitch);
-      double fz = Math.cos(yaw) * Math.cos(pitch);
-      double rx = -Math.cos(yaw);
-      double rz = -Math.sin(yaw);
-      double ux = -rz * fy;
-      double uy = rz * fx - rx * fz;
-      double uz = rx * fy;
-
-      double depth = dx * fx + dy * fy + dz * fz;
-      if (depth < 0.5) {
-         return null;
-      }
-      double tanHalf = Math.tan(Math.toRadians(client.options.fov().get()) / 2.0);
-      double ndcX = (dx * rx + dz * rz) / depth / (tanHalf * width / (double) height);
-      double ndcY = (dx * ux + dy * uy + dz * uz) / depth / tanHalf;
-      return new float[]{(float) (width / 2.0 + ndcX * width / 2.0), (float) (height / 2.0 - ndcY * height / 2.0)};
-   }
 }
