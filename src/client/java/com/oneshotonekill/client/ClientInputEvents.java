@@ -157,8 +157,15 @@ public final class ClientInputEvents {
             modifier += BoogieBombClient.fovModifier();
         }
 
-        if (state.isCountdownActive() && client.options.getCameraType() != CameraType.THIRD_PERSON_FRONT) {
-            client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+        if (state.isCountdownActive()) {
+            if (client.options.getCameraType() != CameraType.THIRD_PERSON_FRONT) {
+                client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
+            }
+            modifier += state.cinematicFov();
+        }
+
+        if (NukeState.INSTANCE.isRunning()) {
+            modifier += NukeState.INSTANCE.fovOffset(0.0F);
         }
 
         float boost = state.getFovBoost();

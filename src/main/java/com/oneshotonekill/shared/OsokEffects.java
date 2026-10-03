@@ -50,6 +50,18 @@ public final class OsokEffects {
          double offsetZ = Math.sin(angle) * START_RING_RADIUS;
          level.sendParticles(ParticleTypes.SOUL_FIRE_FLAME, pos.x + offsetX, pos.y + 0.1, pos.z + offsetZ, 3, 0.0, 0.2, 0.0, 0.03);
       }
+
+      // Konfetti-Burst: bunte Funken schießen in alle Richtungen, Feuerwerk steigt auf
+      int[] confetti = {0xFFD700, 0x00F0FF, 0xFF2244, 0xFFFFFF, 0x00E676, 0xBD00FF};
+      for (int i = 0; i < 36; i++) {
+         double angle = i * Math.PI * 2.0 / 36.0;
+         level.sendParticles(new net.minecraft.core.particles.DustParticleOptions(confetti[i % confetti.length], 1.5F),
+            pos.x + Math.cos(angle) * 0.6, pos.y + 1.0, pos.z + Math.sin(angle) * 0.6,
+            3, 0.25, 0.25, 0.25, 0.0);
+         level.sendParticles(ParticleTypes.END_ROD, pos.x, pos.y + 1.0, pos.z,
+            0, Math.cos(angle), 0.35, Math.sin(angle), 0.45);
+      }
+      level.sendParticles(ParticleTypes.FIREWORK, pos.x, pos.y + 1.5, pos.z, 60, 0.9, 0.9, 0.9, 0.18);
    }
 
    public void playResumeMatchEffect(ServerPlayer player) {

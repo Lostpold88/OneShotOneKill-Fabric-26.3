@@ -19,6 +19,18 @@ public final class ModSounds {
     * clientseitig ohne Abstandsdämpfung, siehe {@code client/sound/NukeSoundController}.
     */
    public static final SoundEvent NUKE_INCOMING = register("endgame.tactical_nuke_incoming");
+   /**
+    * Das synthetisierte Bett unter der Ansage: Herzschlag, Sub-Drone, Sirenenheulen, Riser.
+    * Startet im selben Tick wie {@link #NUKE_INCOMING} und ist auf dieselben 12,05 Sekunden gelegt.
+    * Erzeugt von {@code tools/audio/generate_nuke_audio.py}.
+    */
+   public static final SoundEvent NUKE_BED = register("endgame.nuke_countdown_bed");
+   /** Der Einschlag selbst: Knall, Sub-Boom, Druckwelle, Trümmerregen, Tinnitus. */
+   public static final SoundEvent NUKE_IMPACT = register("endgame.nuke_impact");
+   /** Nahtloser Loop für den Nachlauf: Wind, Drone, Feuerknistern. */
+   public static final SoundEvent NUKE_FALLOUT = register("endgame.nuke_fallout_loop");
+   /** Fanfare zur Siegerehrung. */
+   public static final SoundEvent NUKE_VICTORY = register("endgame.nuke_victory");
 
    private ModSounds() {
    }

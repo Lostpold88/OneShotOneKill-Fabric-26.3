@@ -4,6 +4,26 @@
       { "name": "oneshotonekill:endgame/tactical_nuke_incoming", "stream": true }
     ]
   },
+  "endgame.nuke_countdown_bed": {
+    "sounds": [
+      { "name": "oneshotonekill:endgame/nuke_countdown_bed", "stream": true }
+    ]
+  },
+  "endgame.nuke_impact": {
+    "sounds": [
+      { "name": "oneshotonekill:endgame/nuke_impact", "stream": true }
+    ]
+  },
+  "endgame.nuke_fallout_loop": {
+    "sounds": [
+      { "name": "oneshotonekill:endgame/nuke_fallout_loop", "stream": true }
+    ]
+  },
+  "endgame.nuke_victory": {
+    "sounds": [
+      { "name": "oneshotonekill:endgame/nuke_victory", "stream": true }
+    ]
+  },
   "items.boogie_bomb": {
     "subtitle": "subtitles.oneshotonekill.boogie_bomb",
     "sounds": [{ "name": "oneshotonekill:items/boogie_bomb", "stream": true, "attenuation_distance": 48 }]

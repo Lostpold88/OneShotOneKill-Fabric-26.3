@@ -105,11 +105,11 @@ public final class NukeSequenceManager {
     * nicht geladenen Chunk wird niemandem geschickt, und der Bomber tauchte dann erst mitten
     * über der Karte aus dem Nichts auf.
     */
-   private static final int BOMBER_ENTER_TICK = 141;
+   public static final int BOMBER_ENTER_TICK = 141;
    /** Tick des Abwurfs – von hier an faellt die Bombe bis zum Einschlag. */
-   private static final int BOMB_RELEASE_TICK = 181;
+   public static final int BOMB_RELEASE_TICK = 181;
    /** Geschwindigkeit des Bombers in Blöcken je Tick. */
-   private static final double BOMBER_SPEED = 1.6;
+   public static final double BOMBER_SPEED = 1.6;
    /**
     * Flughöhe über dem Einschlagspunkt.
     * <p>
@@ -228,6 +228,9 @@ public final class NukeSequenceManager {
          // der Zeit bewegt sich jeder. An eine Weltposition gebunden wuerde sie beim
          // Weglaufen leiser – ausgerechnet die Ansage, die allen gleich gilt.
          OsokEffects.INSTANCE.playOwnSound(player, ModSounds.NUKE_INCOMING, 1.0F, 1.0F);
+         // Darunter liegt das synthetisierte Bett (Herzschlag, Sub-Drone, Sirenenheulen, Riser). Es startet im
+         // selben Tick, ist 12,05 Sekunden lang und bricht wie die Ansage kurz vor dem Einschlag ab.
+         OsokEffects.INSTANCE.playOwnSound(player, ModSounds.NUKE_BED, 1.0F, 1.0F);
       }
       announce(server, Component.translatable("chat.oneshotonekill.nuke.armed").withStyle(ChatFormatting.RED, ChatFormatting.BOLD));
    }
@@ -258,6 +261,10 @@ public final class NukeSequenceManager {
          case VICTORY -> {
             if (phase.progress(tick) == 0) {
                sendVictory(server);
+               // Fanfare zur Siegerehrung - im selben Tick wie die Tafel, damit Bild und Ton zusammen einsetzen
+               for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+                  OsokEffects.INSTANCE.playOwnSound(player, ModSounds.NUKE_VICTORY, 0.9F, 1.0F);
+               }
             }
          }
          case CLEANUP -> {
@@ -309,6 +316,15 @@ public final class NukeSequenceManager {
          dustField(level, (10 - seconds) / 9.0F);
       }
 
+      // Sirenenring: rote Druckwelle läuft jede Sekunde vom Einschlagspunkt nach außen
+      if (tick % 2 == 0) {
+         warningRing(level, (tick % 20) / 20.0 * 44.0, seconds <= 4 ? 2.4F : 1.8F);
+      }
+      // Ab sechs Sekunden steht ein Lichtstrahl über dem Einschlagspunkt - ein Leuchtfeuer für den Bomber
+      if (seconds <= 6 && tick % 2 == 0) {
+         skyBeam(level, (7 - seconds) / 6.0);
+      }
+
       // Kurz vorher reisst der Himmel auf.
       if (seconds <= 3 && tick % 5 == 0) {
          level.sendParticles(ColorParticleOption.create(ParticleTypes.FLASH, 1.0F, 0.9F, 0.7F),
@@ -323,7 +339,33 @@ public final class NukeSequenceManager {
       tickFlight(server, level);
    }
 
-   /**
+
+/** Ein roter Ring aus Staubpartikeln um den Einschlagspunkt. */
+   private void warningRing(ServerLevel level, double radius, float size) {
+      if (radius < 1.0) {
+         return;
+      }
+      int points = (int) Math.clamp(radius * 1.6, 14.0, 44.0);
+      net.minecraft.core.particles.DustParticleOptions red = new net.minecraft.core.particles.DustParticleOptions(0xFF2020, size);
+      for (int index = 0; index < points; index++) {
+         double angle = index * 2.0 * Math.PI / points;
+         level.sendParticles(red, centre.x + Math.cos(angle) * radius, centre.y + 0.4, centre.z + Math.sin(angle) * radius,
+            1, 0.0, 0.0, 0.0, 0.0);
+      }
+   }
+
+   /** Senkrechter Strahl über dem Einschlagspunkt; je näher der Einschlag, desto heller und höher. */
+   private void skyBeam(ServerLevel level, double intensity) {
+      double height = 14.0 + 38.0 * intensity;
+      net.minecraft.core.particles.DustParticleOptions beam =
+         new net.minecraft.core.particles.DustParticleOptions(0xFF3A2A, 1.6F + (float) intensity);
+      for (double y = 0.0; y < height; y += 2.0) {
+         level.sendParticles(beam, centre.x, centre.y + y, centre.z, 1, 0.25, 0.0, 0.25, 0.0);
+      }
+      level.sendParticles(ParticleTypes.END_ROD, centre.x, centre.y + height, centre.z, 2, 0.4, 0.4, 0.4, 0.02);
+   }
+
+/**
     * Aufsteigender Staub ueber der Kampfzone.
     * <p>
     * Verteilt ueber den Grundriss statt um den Einschlag herum: Der Countdown soll ueberall
@@ -401,6 +443,16 @@ public final class NukeSequenceManager {
             // Kondensstreifen hinter den Triebwerken.
             level.sendParticles(ParticleTypes.CLOUD, at.x - 6.0, at.y - 1.0, at.z, 3, 1.2, 0.3, 1.6, 0.0);
          }
+         // Nachbrenner: glühende Flammen und Funken an den Triebwerken
+         level.sendParticles(ParticleTypes.FLAME, at.x - 5.5, at.y - 0.6, at.z - 1.6, 2, 0.15, 0.15, 0.15, 0.02);
+         level.sendParticles(ParticleTypes.FLAME, at.x - 5.5, at.y - 0.6, at.z + 1.6, 2, 0.15, 0.15, 0.15, 0.02);
+         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, at.x - 6.0, at.y - 0.6, at.z, 1, 0.5, 0.2, 0.5, 0.1);
+         // Positionslichter an den Flügelspitzen blinken im Wechsel: links rot, rechts grün
+         if ((tick / 5) % 2 == 0) {
+            level.sendParticles(new net.minecraft.core.particles.DustParticleOptions(0xFF1010, 1.8F), at.x, at.y + 0.2, at.z - 4.2, 2, 0.0, 0.0, 0.0, 0.0);
+         } else {
+            level.sendParticles(new net.minecraft.core.particles.DustParticleOptions(0x10FF40, 1.8F), at.x, at.y + 0.2, at.z + 4.2, 2, 0.0, 0.0, 0.0, 0.0);
+         }
       }
 
       if (tick == BOMB_RELEASE_TICK) {
@@ -420,6 +472,9 @@ public final class NukeSequenceManager {
          Vec3 at = new Vec3(centre.x, centre.y + altitude * (1.0 - share * share), centre.z);
          Hologram.move(bomb, at);
          level.sendParticles(ParticleTypes.SMOKE, at.x, at.y + 1.0, at.z, 2, 0.2, 0.2, 0.2, 0.01);
+         // Je tiefer sie fällt, desto mehr glüht der Mantel: Reibungshitze
+         level.sendParticles(ParticleTypes.FLAME, at.x, at.y + 2.4, at.z, 1 + (int) (share * 4), 0.35, 0.5, 0.35, 0.03);
+         level.sendParticles(ParticleTypes.LARGE_SMOKE, at.x, at.y + 3.2, at.z, 1, 0.3, 0.6, 0.3, 0.02);
       }
    }
 
@@ -491,6 +546,8 @@ public final class NukeSequenceManager {
 
       MushroomCloud.INSTANCE.detonate(level, centre, headroom);
       shockwave(level);
+      fireball(level);
+      shockRings(level);
       shake(server, level, 4.2F, 140);
 
       // Die Druckwelle setzt sich in Gang; sie frisst sich über die nächsten Ticks nach außen.
@@ -503,6 +560,9 @@ public final class NukeSequenceManager {
       }
 
       for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+         // Der synthetisierte Einschlag: Knall, Sub-Boom, Druckwelle, Trümmerregen und das Pfeifen in den Ohren.
+         // Er liegt auf den vanilla Schlägen, nicht an ihrer Stelle - die Wucht kommt aus der Schichtung.
+         OsokEffects.INSTANCE.playOwnSound(player, ModSounds.NUKE_IMPACT, 1.0F, 1.0F);
          OsokEffects.INSTANCE.sendPrivateSound(player, SoundEvents.GENERIC_EXPLODE.value(), 4.0F, 0.35F);
          OsokEffects.INSTANCE.sendPrivateSound(player, SoundEvents.WARDEN_SONIC_BOOM, 3.0F, 0.4F);
          OsokEffects.INSTANCE.sendPrivateSound(player, SoundEvents.LIGHTNING_BOLT_THUNDER, 3.0F, 0.5F);
@@ -567,6 +627,27 @@ public final class NukeSequenceManager {
     */
    private void tickAftermath(ServerLevel level) {
       tickWave(level);
+
+      // Fernes Grollen: alle zwei Sekunden rollt Donner über die Karte, dazwischen prasselt Glut
+      int sinceBlast = tick - NukePhase.DETONATION.from();
+      if (sinceBlast % 40 == 12) {
+         float pitch = 0.4F + level.getRandom().nextFloat() * 0.25F;
+         for (ServerPlayer player : level.getServer().getPlayerList().getPlayers()) {
+            OsokEffects.INSTANCE.sendPrivateSound(player, SoundEvents.LIGHTNING_BOLT_THUNDER, 1.1F, pitch);
+         }
+      }
+      if (tick % 2 == 0) {
+         var random = level.getRandom();
+         for (int index = 0; index < 6; index++) {
+            double angle = random.nextDouble() * 2.0 * Math.PI;
+            double radius = random.nextDouble() * 34.0;
+            double x = centre.x + Math.cos(angle) * radius;
+            double z = centre.z + Math.sin(angle) * radius;
+            level.sendParticles(ParticleTypes.LAVA, x, centre.y + 1.0 + random.nextDouble() * 3.0, z, 1, 0.3, 0.3, 0.3, 0.0);
+            level.sendParticles(ParticleTypes.SMALL_FLAME, x, centre.y + 0.6, z, 1, 0.3, 0.2, 0.3, 0.04);
+         }
+      }
+
       if (tick % 4 != 0) {
          return;
       }
@@ -631,7 +712,52 @@ public final class NukeSequenceManager {
       return Math.max(56.0, reach * 0.95 + 28.0);
    }
 
-   /** Die Schockwelle: Ringe, die nach außen laufen, statt einer Kugel aus Rauch. */
+
+/**
+    * Der Feuerball: Flammen, Rauch und Trümmer fliegen in alle Richtungen vom Einschlagspunkt.
+    * <p>
+    * Mit {@code count = 0} werden die Offsets zur Geschwindigkeit; so streut ein einziges Paket je Partikel
+    * in eine eigene Richtung, statt dass alle im selben Würfel stehen.
+    */
+   private void fireball(ServerLevel level) {
+      var random = level.getRandom();
+      net.minecraft.world.level.block.state.BlockState ground =
+         level.getBlockState(BlockPos.containing(centre).below());
+      for (int index = 0; index < 170; index++) {
+         double theta = random.nextDouble() * 2.0 * Math.PI;
+         double lift = -0.05 + random.nextDouble() * 1.05;
+         double flat = Math.sqrt(Math.max(0.0, 1.0 - lift * lift));
+         double dx = Math.cos(theta) * flat;
+         double dz = Math.sin(theta) * flat;
+         double speed = 0.45 + random.nextDouble() * 1.25;
+         level.sendParticles(ParticleTypes.FLAME, centre.x, centre.y + 2.0, centre.z, 0, dx, lift, dz, speed);
+         if (index % 3 == 0) {
+            level.sendParticles(ParticleTypes.LARGE_SMOKE, centre.x, centre.y + 2.0, centre.z, 0, dx, lift, dz, speed * 0.6);
+         }
+         if (index % 4 == 0) {
+            level.sendParticles(ParticleTypes.LAVA, centre.x, centre.y + 2.0, centre.z, 0, dx, lift, dz, speed * 0.5);
+         }
+         if (!ground.isAir() && index % 2 == 0) {
+            level.sendParticles(new net.minecraft.core.particles.BlockParticleOption(ParticleTypes.BLOCK, ground),
+               centre.x, centre.y + 1.0, centre.z, 0, dx, lift * 0.8, dz, speed * 0.8);
+         }
+      }
+   }
+
+   /** Schalldruckringe, die über den Boden laufen. */
+   private void shockRings(ServerLevel level) {
+      for (int ring = 1; ring <= 5; ring++) {
+         double radius = 8.0 * ring;
+         int points = 6 + ring * 3;
+         for (int index = 0; index < points; index++) {
+            double angle = index * 2.0 * Math.PI / points + ring * 0.4;
+            level.sendParticles(ParticleTypes.SONIC_BOOM, centre.x + Math.cos(angle) * radius, centre.y + 1.2,
+               centre.z + Math.sin(angle) * radius, 1, 0.0, 0.0, 0.0, 0.0);
+         }
+      }
+   }
+
+/** Die Schockwelle: Ringe, die nach außen laufen, statt einer Kugel aus Rauch. */
    private void shockwave(ServerLevel level) {
       level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, centre.x, centre.y + 2.0, centre.z, 12, 6.0, 3.0, 6.0, 0.0);
       level.sendParticles(ColorParticleOption.create(ParticleTypes.FLASH, 1.0F, 0.98F, 0.9F),

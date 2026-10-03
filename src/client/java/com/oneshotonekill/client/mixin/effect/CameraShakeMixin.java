@@ -3,6 +3,8 @@ package com.oneshotonekill.client.mixin.effect;
 import com.oneshotonekill.client.effect.BoogieBombClient;
 import com.oneshotonekill.client.state.ClientStates.CameraShakeState;
 import com.oneshotonekill.client.state.ClientStates.GrapplePullState;
+import com.oneshotonekill.client.state.ClientStates.MatchStartState;
+import com.oneshotonekill.client.state.ClientStates.NukeState;
 import net.minecraft.client.Camera;
 import net.minecraft.client.Minecraft;
 import org.joml.Quaternionf;
@@ -72,15 +74,20 @@ public abstract class CameraShakeMixin {
         float climbPitch = com.oneshotonekill.client.movement.ClientClimbing.INSTANCE.cameraPitch(partialTick);
         float climbRoll = com.oneshotonekill.client.movement.ClientClimbing.INSTANCE.cameraRoll(partialTick);
         float boogieRoll = BoogieBombClient.cameraRoll();
+        MatchStartState intro = MatchStartState.INSTANCE;
+        float introRoll = intro.isCountdownActive()
+                ? intro.cameraRoll(Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false)) : 0.0F;
+        float nukeRoll = NukeState.INSTANCE.isRunning()
+                ? NukeState.INSTANCE.cameraRoll(Minecraft.getInstance().getDeltaTracker().getGameTimeDeltaPartialTick(false)) : 0.0F;
         if (!shake.isShaking() && Math.abs(grapplePitch) < 0.001F && Math.abs(grappleRoll) < 0.001F
                 && Math.abs(climbPitch) < 0.001F && Math.abs(climbRoll) < 0.001F
-                && Math.abs(boogieRoll) < 0.001F) {
+                && Math.abs(boogieRoll) < 0.001F && Math.abs(introRoll) < 0.001F && Math.abs(nukeRoll) < 0.001F) {
             return;
         }
 
         float yaw = yRot + (shake.isShaking() ? shake.getYawOffset(partialTick) : 0.0F);
         float pitch = xRot + grapplePitch + climbPitch + (shake.isShaking() ? shake.getPitchOffset(partialTick) : 0.0F);
-        float roll = (shake.isShaking() ? shake.getRollOffset(partialTick) : 0.0F) + grappleRoll + climbRoll + boogieRoll;
+        float roll = (shake.isShaking() ? shake.getRollOffset(partialTick) : 0.0F) + grappleRoll + climbRoll + boogieRoll + introRoll + nukeRoll;
 
         this.rotation.rotationYXZ(
                 (float) Math.PI - yaw * (float) (Math.PI / 180.0),

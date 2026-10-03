@@ -725,18 +725,33 @@ public final class ClientStates {
      * Der Countdown läuft hier lokal weiter: der Server meldet den Stand in Ticks, herunterzählen und
      * zwischen den Ticks interpolieren macht der Client. Nur so lässt sich die Anzeige flüssig
      * animieren, statt einmal je Sekunde umzuspringen.
+     * <p>
+     * Die Sequenz ist eine kleine Kino-Szene: erst eine Titelkarte mit Kamerafahrt (Kran-Orbit um den
+     * Spieler, Dolly-Zoom, schiefer Horizont), dann 3-2-1 mit je einem Kamera-Punch und zuletzt der
+     * Startschuss.
      */
     public static final class MatchStartState {
         public static final MatchStartState INSTANCE = new MatchStartState();
 
         /**
-         * Länge des Countdowns; der Client kennt sie, um den Gesamtfortschritt zeichnen zu können.
+         * Gesamtlänge: Titelkarte plus Countdown. Der Server zählt mit derselben Länge
+         * ({@code MatchManager.Countdown}).
          */
-        public static final int COUNTDOWN_TICKS = 60;
+        public static final int COUNTDOWN_TICKS = 100;
+        /**
+         * Länge der Titelkarte vor dem eigentlichen 3-2-1.
+         */
+        public static final int INTRO_TICKS = 40;
         /**
          * So lange hallt der Startschuss auf dem Bildschirm nach.
          */
-        private static final int GO_TICKS = 22;
+        public static final int GO_TICKS = 36;
+
+        /**
+         * Zeitpunkte (in Ticks seit Sequenzbeginn), an denen die Titelkarte "einschlägt".
+         */
+        public static final int HIT_ONE_SHOT = 8;
+        public static final int HIT_ONE_KILL = 16;
 
         private static float fovBoost;
         private static float portalIntensity;
@@ -793,6 +808,59 @@ public final class ClientStates {
         }
 
         /**
+         * Vergangene Zeit der Sequenz in Ticks (0 bis {@link #COUNTDOWN_TICKS}), interpoliert.
+         */
+        public float elapsedTicks(float partialTick) {
+            return Math.clamp(COUNTDOWN_TICKS - getRemainingTicks(partialTick), 0.0F, (float) COUNTDOWN_TICKS);
+        }
+
+        /**
+         * Fortschritt der Titelkarte von 0 bis 1.
+         */
+        public float introProgress(float partialTick) {
+            return Math.clamp(elapsedTicks(partialTick) / INTRO_TICKS, 0.0F, 1.0F);
+        }
+
+        /**
+         * Aktuelle Ziffer 3, 2, 1 – oder 0, solange noch die Titelkarte läuft.
+         */
+        public int countdownSecond(float partialTick) {
+            float remaining = getRemainingTicks(partialTick);
+            if (remaining > COUNTDOWN_TICKS - INTRO_TICKS) {
+                return 0;
+            }
+            return Math.clamp(Mth.ceil(remaining / 20.0F), 1, 3);
+        }
+
+        /**
+         * Fortschritt innerhalb der aktuellen Ziffer von 0 (gerade eingeschlagen) bis 1.
+         */
+        public float secondProgress(float partialTick) {
+            float remaining = getRemainingTicks(partialTick);
+            if (remaining > COUNTDOWN_TICKS - INTRO_TICKS) {
+                return 0.0F;
+            }
+            return Math.clamp(1.0F - (remaining % 20.0F) / 20.0F, 0.0F, 1.0F);
+        }
+
+        /**
+         * Schlag-Impuls: 1,0 genau auf einem Beat, danach rasch abklingend. Beats sind die beiden
+         * Titel-Einschläge und der Beginn jeder Ziffer.
+         */
+        public float beatPunch(float partialTick) {
+            float elapsed = elapsedTicks(partialTick);
+            float punch = Math.max(hit(elapsed, HIT_ONE_SHOT, 3.0F), hit(elapsed, HIT_ONE_KILL, 3.0F));
+            for (int beat = 0; beat < 3; beat++) {
+                punch = Math.max(punch, hit(elapsed, INTRO_TICKS + beat * 20, 3.5F));
+            }
+            return punch;
+        }
+
+        private static float hit(float elapsed, float at, float decay) {
+            return elapsed < at ? 0.0F : (float) Math.exp(-(elapsed - at) / decay);
+        }
+
+        /**
          * Restlicher Nachhall des Startschusses von 1 (gerade eben) bis 0.
          */
         public float getGoProgress(float partialTick) {
@@ -800,18 +868,106 @@ public final class ClientStates {
         }
 
         /**
-         * Dynamischer Kamera-Abstand während des Countdowns:
-         * Gleitet von nah (1.15m) bei Sekunde 3 sanft zurück auf 1.85m bei Sekunde 1 mit feiner Atmung.
+         * Ticks seit dem Startschuss, interpoliert.
+         */
+        public float goElapsedTicks(float partialTick) {
+            return (1.0F - getGoProgress(partialTick)) * GO_TICKS;
+        }
+
+        /**
+         * Kamerafahrt: weich von weit weg (Kran-Perspektive) bis nah vors Gesicht, dazu ein kurzer
+         * Punch nach vorn auf jedem Beat.
          */
         public float getCameraDistance(float partialTick) {
             if (!isCountdownActive()) {
                 return 4.0F;
             }
-            float remaining = getRemainingTicks(partialTick);
-            float overall = Math.clamp(1.0F - remaining / (float) COUNTDOWN_TICKS, 0.0F, 1.0F);
-            float dolly = 1.15F + 0.70F * (float) (1.0 - Math.cos(overall * Math.PI * 0.5));
-            float breathing = (float) Math.sin((Util.getMillis() % 2400L) / 2400.0 * Math.PI * 2.0) * 0.025F;
-            return dolly + breathing;
+            float t = smoother(elapsedTicks(partialTick) / COUNTDOWN_TICKS);
+            float distance = Mth.lerp(t, 7.5F, 1.55F);
+            distance -= 0.45F * beatPunch(partialTick);
+            float breathing = (float) Math.sin((Util.getMillis() % 2400L) / 2400.0 * Math.PI * 2.0) * 0.03F;
+            return Math.max(1.0F, distance + breathing);
+        }
+
+        /**
+         * Gierwinkel-Versatz der Kamera um den Spieler: startet hinter ihm und schwingt nach vorn.
+         */
+        public float cameraOrbitYaw(float partialTick) {
+            float t = smoother(elapsedTicks(partialTick) / (COUNTDOWN_TICKS - 8.0F));
+            float sway = (float) Math.sin(elapsedTicks(partialTick) * 0.11F) * 2.2F * (1.0F - t);
+            return 165.0F * (1.0F - t) + sway;
+        }
+
+        /**
+         * Absoluter Kamera-Nickwinkel: hoch über dem Spieler und auf Augenhöhe herunter.
+         */
+        public float cameraPitch(float partialTick) {
+            float t = smoother(elapsedTicks(partialTick) / COUNTDOWN_TICKS);
+            return Mth.lerp(t, 28.0F, 4.0F) - 1.6F * beatPunch(partialTick);
+        }
+
+        /**
+         * Schiefer Horizont (Dutch Angle), der sich einpendelt, mit einem Kick auf jedem Beat.
+         */
+        public float cameraRoll(float partialTick) {
+            float elapsed = elapsedTicks(partialTick);
+            float tilt = -9.0F * (1.0F - smoother(elapsed / 70.0F));
+            float direction = ((int) (elapsed / 20.0F) & 1) == 0 ? 1.0F : -1.0F;
+            return tilt + direction * 2.6F * beatPunch(partialTick);
+        }
+
+        /**
+         * Dolly-Zoom: Je näher die Kamera rückt, desto weiter öffnet sich das Sichtfeld.
+         */
+        public float cinematicFov() {
+            float elapsed = COUNTDOWN_TICKS - remainingTicks;
+            float t = smoother(elapsed / COUNTDOWN_TICKS);
+            return Mth.lerp(t, -0.16F, 0.10F) + 0.07F * beatPunch(0.0F);
+        }
+
+        private static float smoother(float t) {
+            float x = Math.clamp(t, 0.0F, 1.0F);
+            return x * x * x * (x * (x * 6.0F - 15.0F) + 10.0F);
+        }
+
+        private static void ui(net.minecraft.sounds.SoundEvent sound, float pitch, float volume) {
+            Minecraft client = Minecraft.getInstance();
+            if (!client.isPaused()) {
+                client.getSoundManager().play(
+                        net.minecraft.client.resources.sounds.SimpleSoundInstance.forUI(sound, pitch, volume));
+            }
+        }
+
+        private static void playSequenceSounds(int elapsed) {
+            // Start der Kamerafahrt: Luftzug und Aufheulen
+            if (elapsed == 1) {
+                ui(net.minecraft.sounds.SoundEvents.ENDER_DRAGON_FLAP, 0.6F, 0.9F);
+                ui(net.minecraft.sounds.SoundEvents.FIREWORK_ROCKET_LAUNCH, 0.7F, 0.8F);
+            }
+            // Titel-Einschläge
+            if (elapsed == HIT_ONE_SHOT) {
+                ui(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_BASEDRUM.value(), 0.5F, 1.0F);
+                ui(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 0.7F, 0.6F);
+            }
+            if (elapsed == HIT_ONE_KILL) {
+                ui(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_BASEDRUM.value(), 0.62F, 1.0F);
+                ui(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 0.94F, 0.6F);
+            }
+            // Riser: steigende Töne bis zur ersten Ziffer
+            if (elapsed > 22 && elapsed < INTRO_TICKS && elapsed % 3 == 0) {
+                float rise = (elapsed - 22) / (float) (INTRO_TICKS - 22);
+                ui(net.minecraft.sounds.SoundEvents.NOTE_BLOCK_PLING.value(), 0.6F + rise * 1.3F, 0.3F);
+            }
+            // Ziffern: knackiger Klick; die Wucht kommt aus dem Server-Ton
+            if (elapsed == INTRO_TICKS) {
+                ui(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value(), 0.85F, 1.0F);
+            }
+            if (elapsed == INTRO_TICKS + 20) {
+                ui(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value(), 1.05F, 1.0F);
+            }
+            if (elapsed == INTRO_TICKS + 40) {
+                ui(net.minecraft.sounds.SoundEvents.UI_BUTTON_CLICK.value(), 1.4F, 1.0F);
+            }
         }
 
         public void handle(MatchCountdownPayload payload) {
@@ -839,10 +995,12 @@ public final class ClientStates {
                 CameraShakeState.INSTANCE.triggerDirect(0.55F, 18);
                 MinimapState.INSTANCE.setMatchRunning(true);
                 MinimapState.INSTANCE.markDirty();
+                ui(net.minecraft.sounds.SoundEvents.UI_TOAST_CHALLENGE_COMPLETE, 1.0F, 1.0F);
+                ui(net.minecraft.sounds.SoundEvents.FIREWORK_ROCKET_LARGE_BLAST, 1.0F, 0.9F);
             } else {
                 // Countdown: Kamera von vorn, damit man sich selbst im Startfeld stehen sieht.
                 client.options.setCameraType(CameraType.THIRD_PERSON_FRONT);
-                fovBoost = 0.12F;
+                fovBoost = 0.0F;
                 remainingTicks = payload.getRemainingTicks();
                 goTicks = 0;
                 MinimapState.INSTANCE.setMatchRunning(false);
@@ -852,6 +1010,7 @@ public final class ClientStates {
         public void tick() {
             if (remainingTicks > 0) {
                 remainingTicks--;
+                playSequenceSounds(COUNTDOWN_TICKS - remainingTicks);
                 if (remainingTicks == 0 && goTicks <= 0) {
                     Minecraft.getInstance().options.setCameraType(CameraType.FIRST_PERSON);
                 }
@@ -1224,6 +1383,70 @@ public final class ClientStates {
         public boolean wantsAftermathDrone() {
             return hasDetonated();
         }
+/**
+         * Sekunden seit Sequenzbeginn, samt Zwischenbild.
+         */
+        public float seconds(float partialTick) {
+            return (Math.max(tick, 0) + partialTick) / 20.0F;
+        }
+
+        /**
+         * Sekunden seit dem Einschlag; vor dem Einschlag null.
+         */
+        public float secondsSinceBlast(float partialTick) {
+            return hasDetonated() ? (tick - NukePhase.DETONATION.from() + partialTick) / 20.0F : 0.0F;
+        }
+
+        /**
+         * Restzeit bis zum Einschlag mit Nachkommastellen; nach dem Einschlag null.
+         */
+        public float secondsToImpactExact(float partialTick) {
+            return Math.max(0.0F, (NukePhase.DETONATION.from() - tick - partialTick) / 20.0F);
+        }
+
+        /**
+         * Anteil des Countdowns von 0 bis 1.
+         */
+        public float countdownProgress(float partialTick) {
+            return Math.clamp(seconds(partialTick) / (NukePhase.DETONATION.from() / 20.0F), 0.0F, 1.0F);
+        }
+
+        /**
+         * Schiefe des Horizonts: Vor dem Einschlag wächst ein nervöses Pendeln samt Herzschlag-Kick,
+         * danach schlägt die Druckwelle die Kamera kurz aus der Waage.
+         */
+        public float cameraRoll(float partialTick) {
+            if (!isRunning()) {
+                return 0.0F;
+            }
+            if (hasDetonated()) {
+                float since = secondsSinceBlast(partialTick);
+                return (float) (Math.sin(since * 11.0F) * Math.exp(-since * 1.6F) * 7.0);
+            }
+            float t = seconds(partialTick);
+            float intensity = countdownProgress(partialTick);
+            intensity *= intensity;
+            float beat = com.oneshotonekill.client.effect.HeartbeatClock.punch(t);
+            float side = (com.oneshotonekill.client.effect.HeartbeatClock.beatsSoFar(t) & 1) == 0 ? 1.0F : -1.0F;
+            return (float) Math.sin(t * 0.9F) * 1.6F * intensity + beat * side * 1.2F * intensity;
+        }
+
+        /**
+         * Sichtfeld-Versatz: Vor dem Einschlag zieht sich der Tunnelblick zu, im Rhythmus des Herzschlags
+         * pumpt er leicht. Der Einschlag selbst reißt das Bild kurz auf.
+         */
+        public float fovOffset(float partialTick) {
+            if (!isRunning()) {
+                return 0.0F;
+            }
+            if (hasDetonated()) {
+                return (float) (0.45 * Math.exp(-secondsSinceBlast(partialTick) * 3.2F));
+            }
+            float p = countdownProgress(partialTick);
+            float beat = com.oneshotonekill.client.effect.HeartbeatClock.punch(seconds(partialTick));
+            return -0.11F * p * p + 0.035F * beat * p;
+        }
+
 
         public double centreX() {
             return x;

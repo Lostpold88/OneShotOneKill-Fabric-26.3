@@ -34,9 +34,13 @@ import net.minecraft.util.RandomSource;
 public final class NukeSoundController {
    public static final NukeSoundController INSTANCE = new NukeSoundController();
 
-   /** Austauschpunkt fuer einen eigenen Nachhall-Track: Windrauschen des Fallouts. */
-   private static final SoundEvent AFTERMATH = SoundEvents.ELYTRA_FLYING;
-   private static final float AFTERMATH_VOLUME = 0.7F;
+   /**
+    * Der Nachlauf-Loop: Wind, tiefe Drone, Feuerknistern und fernes Grollen - ein nahtlos geschleifter,
+    * synthetisierter Track (siehe {@code tools/audio/generate_nuke_audio.py}), der unter dem Einschlag
+    * einblendet und bis zum Stopp des Matches stehen bleibt.
+    */
+   private static final SoundEvent AFTERMATH = com.oneshotonekill.registry.ModSounds.NUKE_FALLOUT;
+   private static final float AFTERMATH_VOLUME = 0.85F;
 
    private NukeLoopSound aftermath;
 
@@ -84,9 +88,12 @@ public final class NukeSoundController {
     */
    private static final class NukeLoopSound extends AbstractTickableSoundInstance {
       private static final int FADE_TICKS = 16;
+      /** Der Loop blendet unter dem Nachhall des Einschlags langsam ein - nicht hart nach dem Knall. */
+      private static final int FADE_IN_TICKS = 90;
 
       private final float peakVolume;
       private int fading = -1;
+      private int age;
 
       private NukeLoopSound(SoundEvent sound, float peakVolume) {
          super(sound, SoundSource.MASTER, RandomSource.create());
@@ -94,21 +101,22 @@ public final class NukeSoundController {
          this.looping = true;
          this.delay = 0;
          this.attenuation = Attenuation.NONE;
-         this.volume = peakVolume;
-         this.pitch = 0.55F;
+         this.volume = 0.0F;
+         this.pitch = 1.0F;
       }
 
       @Override
       public void tick() {
+         float fadeIn = Math.min(1.0F, ++age / (float) FADE_IN_TICKS);
          if (fading < 0) {
-            this.volume = peakVolume;
+            this.volume = peakVolume * fadeIn;
             return;
          }
          if (++fading >= FADE_TICKS) {
             stop();
             return;
          }
-         this.volume = peakVolume * (1.0F - fading / (float) FADE_TICKS);
+         this.volume = peakVolume * fadeIn * (1.0F - fading / (float) FADE_TICKS);
       }
 
       private void fadeOut() {

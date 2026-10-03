@@ -753,7 +753,10 @@ public final class MatchManager {
 
    public static final class Countdown {
       public static final Countdown INSTANCE = new Countdown();
-      private static final int COUNTDOWN_TICKS = 60;
+      /**
+       * Titelkarte (40 Ticks) plus 3-2-1 (60 Ticks); der Client rechnet mit {@code MatchStartState.COUNTDOWN_TICKS}.
+       */
+      private static final int COUNTDOWN_TICKS = 100;
       private static final int COUNTDOWN_CANCELLED = -1;
       /** Ab dieser Abweichung vom Startpunkt wird zurückgesetzt. */
       private static final double DRIFT_TOLERANCE = 0.35;
@@ -782,7 +785,7 @@ public final class MatchManager {
          }
          remainingTicks = COUNTDOWN_TICKS;
          broadcastCountdown();
-         playCountdownBeat(3);
+         playCountdownIntro();
       }
 
       public void cancelCountdown() {
@@ -809,6 +812,10 @@ public final class MatchManager {
          remainingTicks--;
          switch (remainingTicks) {
             case 0 -> finishCountdownAndStartMatch();
+            case 60 -> {
+               broadcastCountdown();
+               playCountdownBeat(3);
+            }
             case 20 -> {
                broadcastCountdown();
                playCountdownBeat(1);
@@ -874,7 +881,48 @@ public final class MatchManager {
          server.getPlayerList().getPlayers().forEach(player -> ServerPlayNetworking.send(player, payload));
       }
 
+
+/**
+       * Eröffnung der Sequenz: Funkensäule und Schockring um jeden Spieler, passend zur Kamerafahrt.
+       */
+      private void playCountdownIntro() {
+         MinecraftServer server = OneShotOneKill.INSTANCE.getServer();
+         if (server == null) {
+            return;
+         }
+         for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+            ServerLevel level = player.level();
+            Vec3 pos = player.position();
+            OsokEffects.INSTANCE.playOwnSound(player, SoundEvents.BEACON_ACTIVATE, 0.8F, 0.6F);
+            for (int i = 0; i < 24; i++) {
+               double angle = i * Math.PI * 2.0 / 24.0;
+               level.sendParticles(ParticleTypes.END_ROD, pos.x + Math.cos(angle) * 2.2, pos.y + 0.1, pos.z + Math.sin(angle) * 2.2,
+                  0, 0.0, 1.0, 0.0, 0.18);
+            }
+            level.sendParticles(ParticleTypes.REVERSE_PORTAL, pos.x, pos.y + 1.0, pos.z, 50, 0.6, 1.0, 0.6, 0.15);
+         }
+      }
+
       /**
+       * Doppelhelix aus Funken, die bei jeder Ziffer um den Spieler hochschraubt – je Sekunde dichter und höher.
+       */
+      private void countdownHelix(ServerLevel level, Vec3 pos, int seconds) {
+         int points = 14 + (4 - seconds) * 6;
+         double height = 1.2 + (4 - seconds) * 0.5;
+         for (int i = 0; i < points; i++) {
+            double progress = i / (double) points;
+            double angle = progress * Math.PI * 4.0;
+            for (int strand = 0; strand < 2; strand++) {
+               double a = angle + strand * Math.PI;
+               double radius = 1.3 - progress * 0.5;
+               level.sendParticles(ParticleTypes.END_ROD,
+                  pos.x + Math.cos(a) * radius, pos.y + progress * height, pos.z + Math.sin(a) * radius,
+                  0, 0.0, 0.25, 0.0, 0.05);
+            }
+         }
+      }
+
+/**
        * Mehrschichtiges Cyber-Audio-Design und Partikeleffekte für jede Sekunde.
        */
       private void playCountdownBeat(int seconds) {
@@ -886,6 +934,7 @@ public final class MatchManager {
          for (ServerPlayer player : server.getPlayerList().getPlayers()) {
             ServerLevel level = player.level();
             Vec3 pos = player.position();
+            countdownHelix(level, pos, seconds);
             switch (seconds) {
                case 3 -> {
                   // Sub-Bass & Initialisierung (Cyan)
