@@ -11,10 +11,10 @@ import net.minecraft.client.CameraType;
 import net.minecraft.client.Minecraft;
 import net.minecraft.client.multiplayer.ClientLevel;
 import net.minecraft.client.player.LocalPlayer;
-import net.minecraft.network.chat.Component;
 import net.minecraft.client.renderer.texture.DynamicTexture;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
+import net.minecraft.network.chat.Component;
 import net.minecraft.resources.Identifier;
 import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
@@ -759,7 +759,7 @@ public final class ClientStates {
         private static int remainingTicks = -1;
         private static int goTicks;
         private static String mapName = "Standard";
-        private static String gameModeName = "Klassisch";
+        private static String gameModeName = "CLASSIC";
 
         private MatchStartState() {
         }
@@ -793,7 +793,9 @@ public final class ClientStates {
         }
 
         public String getGameModeName() {
-            return gameModeName;
+            // Der Server schickt die Modus-Kennung, übersetzt wird hier in der Sprache des Spielers.
+            return net.minecraft.network.chat.Component.translatable("GUN_GAME".equals(gameModeName)
+                    ? "hud.oneshotonekill.mode.gungame" : "hud.oneshotonekill.mode.classic").getString();
         }
 
         public boolean isCountdownActive() {
@@ -1033,7 +1035,7 @@ public final class ClientStates {
             portalIntensity = 0.0F;
             confusionIntensity = 0.0F;
             mapName = "Standard";
-            gameModeName = "Klassisch";
+            gameModeName = "CLASSIC";
             Minecraft.getInstance().options.setCameraType(CameraType.FIRST_PERSON);
             MinimapState.INSTANCE.setMatchRunning(false);
         }
@@ -1824,18 +1826,17 @@ public final class ClientStates {
     // GunGameHudState.java
     // =========================================================================
 
-    /**
-     * Hält den aktuellen Fortschritt im Waffenspiel (Stufe, Kills, Waffenname, Farbton, Level-Up Animation).
-     */
     public static final class GunGameHudState {
         public static final GunGameHudState INSTANCE = new GunGameHudState();
         private static final int LEVEL_UP_DURATION = 50;
         private int currentTier = 1;
-        private int totalTiers = 13;
+        private int totalTiers = 1;
         private int tierKills = 0;
-        private int requiredKills = 3;
-        private String tierName = "OneShot Bogen";
-        private String colorName = "yellow";
+        private int requiredKills = 1;
+        private boolean conditionMet = true;
+        private int rank = 1;
+        private int playerCount = 1;
+        private int leaderTier = 1;
         private boolean active = false;
         private int levelUpEffectTicks = 0;
 
@@ -1862,12 +1863,23 @@ public final class ClientStates {
             return requiredKills;
         }
 
-        public String getTierName() {
-            return tierName;
+        /**
+         * Ob das Fenster der aktuellen Stufe gerade offen ist, der nächste Kill also zählen würde.
+         */
+        public boolean isConditionMet() {
+            return conditionMet;
         }
 
-        public String getColorName() {
-            return colorName;
+        public int getRank() {
+            return rank;
+        }
+
+        public int getPlayerCount() {
+            return playerCount;
+        }
+
+        public int getLeaderTier() {
+            return leaderTier;
         }
 
         public int getLevelUpEffectTicks() {
@@ -1889,8 +1901,10 @@ public final class ClientStates {
             this.totalTiers = payload.totalTiers();
             this.tierKills = payload.tierKills();
             this.requiredKills = payload.requiredKills();
-            this.tierName = payload.tierName();
-            this.colorName = payload.colorName();
+            this.conditionMet = payload.conditionMet();
+            this.rank = payload.rank();
+            this.playerCount = payload.playerCount();
+            this.leaderTier = payload.leaderTier();
             if (payload.isLevelUp()) {
                 this.levelUpEffectTicks = LEVEL_UP_DURATION;
             }
@@ -1905,11 +1919,13 @@ public final class ClientStates {
         public void clear() {
             active = false;
             currentTier = 1;
-            totalTiers = 13;
+            totalTiers = 1;
             tierKills = 0;
-            requiredKills = 3;
-            tierName = "OneShot Bogen";
-            colorName = "yellow";
+            requiredKills = 1;
+            conditionMet = true;
+            rank = 1;
+            playerCount = 1;
+            leaderTier = 1;
             levelUpEffectTicks = 0;
         }
     }

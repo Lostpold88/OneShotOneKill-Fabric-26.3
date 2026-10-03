@@ -3,22 +3,20 @@ package com.oneshotonekill.event;
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.arena.ArenaWorlds;
-import com.oneshotonekill.shared.OsokEffects;
+import com.oneshotonekill.arena.RandomTpSystem.RespawnSystem;
 import com.oneshotonekill.item.box.SpecialItemManager;
-import com.oneshotonekill.item.runtime.Deployables;
-import com.oneshotonekill.shared.Feedback;
-import com.oneshotonekill.item.runtime.GrapplingHookSystem;
-import com.oneshotonekill.item.runtime.MinigunRuntime;
-import com.oneshotonekill.item.runtime.StatusAbilities;
-import com.oneshotonekill.item.runtime.ThrownDevices;
+import com.oneshotonekill.item.runtime.*;
 import com.oneshotonekill.match.GunGameManager;
+import com.oneshotonekill.match.KillContext;
 import com.oneshotonekill.match.MatchManager;
 import com.oneshotonekill.match.MatchManager.GameMode;
 import com.oneshotonekill.match.MatchManager.MatchState;
+import com.oneshotonekill.match.ScoreboardManager;
 import com.oneshotonekill.nuke.NukeSequenceManager;
 import com.oneshotonekill.registry.ModItems;
-import com.oneshotonekill.match.ScoreboardManager;
-import com.oneshotonekill.arena.RandomTpSystem.RespawnSystem;
+import com.oneshotonekill.shared.Feedback;
+import com.oneshotonekill.shared.OsokEffects;
+import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
 import net.minecraft.server.level.ServerLevel;
@@ -33,7 +31,6 @@ import net.minecraft.world.entity.projectile.Projectile;
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.item.Items;
 import net.minecraft.world.phys.Vec3;
-import net.fabricmc.fabric.api.entity.event.v1.ServerLivingEntityEvents;
 
 @SuppressWarnings({"ConstantValue", "RedundantCast", "resource", "unused"})
 public final class CombatEvents {
@@ -113,33 +110,46 @@ public final class CombatEvents {
       public static final DamageListener INSTANCE = new DamageListener();
 
       private DamageListener() {}
-   
+
+
       public void eliminate(ServerPlayer attacker, ServerPlayer victim, Arena arena, KillFeed.Cause cause) {
-         // Das Reflektor-Schild sitzt zentral hier und wirkt damit gegen jede Todesursache –
-         // Sprengung, Railgun, Geschützturm und Bomber eingeschlossen.
-         if (StatusAbilities.INSTANCE.consumeShield(victim, attacker, cause)) {
-            return;
-         }
-         com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.clearFor(victim);
-   
-         // Beim Tod wird nur beendet, was ohne lebenden Spieler keinen Sinn ergibt. Ein scharf
-         // gemachter Schuss, ein Magnetfeld oder ein aufgestellter Turm bleiben bestehen – wer ein
-         // Spezial-Item eingesetzt hat, soll es nicht dadurch verlieren, dass er danach stirbt.
-         StatusAbilities.INSTANCE.clearOnDeath(victim);
-         ThrownDevices.INSTANCE.excludeFromFields(victim);
-         Deployables.INSTANCE.clearOnDeath(victim);
-   
-         recordAttackerKill(attacker, victim, cause, false);
-
-         SpecialItemManager.INSTANCE.tryDropVictimLoot(attacker, victim, cause, victim.position());
-
-         // Sofortige Treffer-Partikel am Sterbeort
-         ServerLevel victimLevel = (ServerLevel) victim.level();
-         Vec3 hitPos = victim.position().add(0.0, victim.getBbHeight() * 0.5, 0.0);
-         victimLevel.sendParticles(ParticleTypes.CRIT, hitPos.x, hitPos.y, hitPos.z, 12, 0.35, 0.35, 0.35, 0.2);
-         // Erst nach dem Zählen melden, damit die Serie in der Zeile schon stimmt.
-         recordVictimDeath(attacker, victim, cause, arena);
+         eliminate(attacker, victim, arena, cause, KillContext.DEFAULT);
       }
+
+      /**
+        * Beendet einen Spieler durch einen Abschuss. {@code context} trägt Angaben, die das
+        * Waffenspiel für seine Kill-Bedingungen braucht (Einschlagort, Primärziel).
+        */
+       public void eliminate(ServerPlayer attacker, ServerPlayer victim, Arena arena, KillFeed.Cause cause,
+                             KillContext context) {
+           // Das Reflektor-Schild sitzt zentral hier und wirkt damit gegen jede Todesursache –
+           // Sprengung, Railgun, Geschützturm und Bomber eingeschlossen.
+           if (StatusAbilities.INSTANCE.consumeShield(victim, attacker, cause)) {
+               return;
+           }
+           // Das Waffenspiel misst den Kill, bevor das Opfer aufgeräumt wird: Tanz, Eis und Sog
+           // des Opfers sind danach schon weg.
+           GunGameManager.Verdict verdict = GunGameManager.INSTANCE.evaluate(attacker, victim, cause, context);
+           com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.clearFor(victim);
+
+           // Beim Tod wird nur beendet, was ohne lebenden Spieler keinen Sinn ergibt. Ein scharf
+           // gemachter Schuss, ein Magnetfeld oder ein aufgestellter Turm bleiben bestehen – wer ein
+           // Spezial-Item eingesetzt hat, soll es nicht dadurch verlieren, dass er danach stirbt.
+           StatusAbilities.INSTANCE.clearOnDeath(victim);
+           ThrownDevices.INSTANCE.excludeFromFields(victim);
+           Deployables.INSTANCE.clearOnDeath(victim);
+
+           recordAttackerKill(attacker, victim, cause, false, verdict);
+
+           SpecialItemManager.INSTANCE.tryDropVictimLoot(attacker, victim, cause, victim.position());
+
+           // Sofortige Treffer-Partikel am Sterbeort
+           ServerLevel victimLevel = (ServerLevel) victim.level();
+           Vec3 hitPos = victim.position().add(0.0, victim.getBbHeight() * 0.5, 0.0);
+           victimLevel.sendParticles(ParticleTypes.CRIT, hitPos.x, hitPos.y, hitPos.z, 12, 0.35, 0.35, 0.35, 0.2);
+           // Erst nach dem Zählen melden, damit die Serie in der Zeile schon stimmt.
+           recordVictimDeath(attacker, victim, cause, arena);
+       }
    
       public static boolean allowDamage(LivingEntity entity, DamageSource source, float amount) {
          if (!(entity instanceof ServerPlayer victim)) {
@@ -190,6 +200,8 @@ public final class CombatEvents {
          if (StatusAbilities.INSTANCE.consumeShield(victim, attacker, hitCause)) {
             return false;
          }
+         // Das Waffenspiel misst den Kill, bevor das Opfer aufgeräumt wird.
+         GunGameManager.Verdict verdict = GunGameManager.INSTANCE.evaluate(attacker, victim, hitCause, KillContext.DEFAULT);
          // Beim Tod wird nur beendet, was ohne lebenden Spieler keinen Sinn ergibt. Ein scharf
          // gemachter Schuss, ein Magnetfeld oder ein aufgestellter Turm bleiben bestehen – wer ein
          // Spezial-Item eingesetzt hat, soll es nicht dadurch verlieren, dass er danach stirbt.
@@ -214,17 +226,18 @@ public final class CombatEvents {
             }
          }
 
-         recordAttackerKill(attacker, victim, hitCause, isMinigunShot);
+         recordAttackerKill(attacker, victim, hitCause, isMinigunShot, verdict);
          recordVictimDeath(attacker, victim, hitCause, arena);
          return false;
       }
 
-      private static void recordAttackerKill(ServerPlayer attacker, ServerPlayer victim, KillFeed.Cause cause, boolean isMinigunShot) {
+      private static void recordAttackerKill(ServerPlayer attacker, ServerPlayer victim, KillFeed.Cause cause,
+                                             boolean isMinigunShot, GunGameManager.Verdict verdict) {
          if (attacker.equals(victim)) {
             return;
          }
          if (MatchManager.INSTANCE.getCurrentGameMode() == GameMode.GUN_GAME) {
-            GunGameManager.INSTANCE.recordKill(attacker, victim, cause);
+            GunGameManager.INSTANCE.applyKill(attacker, victim, verdict);
             ScoreboardManager.INSTANCE.addKill(attacker.getUUID());
          } else {
             int newKills = ScoreboardManager.INSTANCE.addKill(attacker.getUUID());

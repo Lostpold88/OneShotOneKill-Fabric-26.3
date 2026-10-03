@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/master_dagger",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -3006660
+      }
+    ]
+  }
+}

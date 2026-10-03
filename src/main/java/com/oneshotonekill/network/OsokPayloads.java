@@ -1,25 +1,25 @@
 package com.oneshotonekill.network;
 
-import com.oneshotonekill.movement.ClimbingNetworking;
-import io.netty.buffer.ByteBuf;
-import net.minecraft.core.UUIDUtil;
-
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.item.runtime.AirstrikeSystem;
 import com.oneshotonekill.item.runtime.Deployables;
 import com.oneshotonekill.item.runtime.StatusAbilities;
 import com.oneshotonekill.item.runtime.StealthBomberSystem;
-import com.oneshotonekill.shared.SpecialItemRules;
 import com.oneshotonekill.match.MatchManager;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.UUID;
+import com.oneshotonekill.movement.ClimbingNetworking;
+import com.oneshotonekill.shared.SpecialItemRules;
+import io.netty.buffer.ByteBuf;
+import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.core.UUIDUtil;
+import net.minecraft.network.RegistryFriendlyByteBuf;
 import net.minecraft.network.codec.ByteBufCodecs;
 import net.minecraft.network.codec.StreamCodec;
 import net.minecraft.network.protocol.common.custom.CustomPacketPayload;
-import net.fabricmc.fabric.api.networking.v1.PayloadTypeRegistry;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-import net.minecraft.network.RegistryFriendlyByteBuf;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.UUID;
 
 /**
  * Meldet alle Pakete bei Fabric an.
@@ -1129,38 +1129,41 @@ public final class OsokPayloads {
       }
    }
 
-   // --- GunGameStatusPayload.java ---
-   public record GunGameStatusPayload(
-      boolean active,
-      int currentTier,
-      int totalTiers,
-      int tierKills,
-      int requiredKills,
-      String tierName,
-      String colorName,
-      boolean isLevelUp
-   ) implements CustomPacketPayload {
-      public static final Type<GunGameStatusPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("gun_game_status"));
-      public static final StreamCodec<ByteBuf, GunGameStatusPayload> STREAM_CODEC = StreamCodec.composite(
-         ByteBufCodecs.BOOL, GunGameStatusPayload::active,
-         ByteBufCodecs.VAR_INT, GunGameStatusPayload::currentTier,
-         ByteBufCodecs.VAR_INT, GunGameStatusPayload::totalTiers,
-         ByteBufCodecs.VAR_INT, GunGameStatusPayload::tierKills,
-         ByteBufCodecs.VAR_INT, GunGameStatusPayload::requiredKills,
-         ByteBufCodecs.STRING_UTF8, GunGameStatusPayload::tierName,
-         ByteBufCodecs.STRING_UTF8, GunGameStatusPayload::colorName,
-         ByteBufCodecs.BOOL, GunGameStatusPayload::isLevelUp,
-         GunGameStatusPayload::new);
+    public record GunGameStatusPayload(
+            boolean active,
+            int currentTier,
+            int totalTiers,
+            int tierKills,
+            int requiredKills,
+            boolean isLevelUp,
+            boolean conditionMet,
+            int rank,
+            int playerCount,
+            int leaderTier
+    ) implements CustomPacketPayload {
+        public static final Type<GunGameStatusPayload> TYPE = new Type<>(OneShotOneKill.INSTANCE.id("gun_game_status"));
+        public static final StreamCodec<ByteBuf, GunGameStatusPayload> STREAM_CODEC = StreamCodec.composite(
+                ByteBufCodecs.BOOL, GunGameStatusPayload::active,
+                ByteBufCodecs.VAR_INT, GunGameStatusPayload::currentTier,
+                ByteBufCodecs.VAR_INT, GunGameStatusPayload::totalTiers,
+                ByteBufCodecs.VAR_INT, GunGameStatusPayload::tierKills,
+                ByteBufCodecs.VAR_INT, GunGameStatusPayload::requiredKills,
+                ByteBufCodecs.BOOL, GunGameStatusPayload::isLevelUp,
+                ByteBufCodecs.BOOL, GunGameStatusPayload::conditionMet,
+                ByteBufCodecs.VAR_INT, GunGameStatusPayload::rank,
+                ByteBufCodecs.VAR_INT, GunGameStatusPayload::playerCount,
+                ByteBufCodecs.VAR_INT, GunGameStatusPayload::leaderTier,
+                GunGameStatusPayload::new);
 
-      public static GunGameStatusPayload inactive() {
-         return new GunGameStatusPayload(false, 1, 13, 0, 3, "", "yellow", false);
-      }
+        public static GunGameStatusPayload inactive() {
+            return new GunGameStatusPayload(false, 1, 1, 0, 1, false, true, 1, 1, 1);
+        }
 
-      @Override
-      public Type<GunGameStatusPayload> type() {
-         return TYPE;
-      }
-   }
+        @Override
+        public Type<GunGameStatusPayload> type() {
+            return TYPE;
+        }
+    }
 
    // --- MatchScoreboardPayload.java ---
    public record MatchScoreboardPayload(
@@ -1197,54 +1200,48 @@ public final class OsokPayloads {
       }
 
       public record PlayerEntry(
-         UUID playerId,
-         String name,
-         int kills,
-         int deaths,
-         int streak,
-         int highestStreak,
-         boolean isBounty,
-         boolean isAlive,
-         int ping,
-         int tier,
-         int tierKills,
-         int requiredKills,
-         String tierName,
-         String tierColor
+              UUID playerId,
+              String name,
+              int kills,
+              int deaths,
+              int streak,
+              int highestStreak,
+              boolean isBounty,
+              boolean isAlive,
+              int ping,
+              int tier,
+              int tierKills,
+              int requiredKills
       ) {
          public static final StreamCodec<RegistryFriendlyByteBuf, PlayerEntry> STREAM_CODEC = StreamCodec.of(
-            (buf, entry) -> {
-               UUIDUtil.STREAM_CODEC.encode(buf, entry.playerId);
-               ByteBufCodecs.STRING_UTF8.encode(buf, entry.name);
-               ByteBufCodecs.VAR_INT.encode(buf, entry.kills);
-               ByteBufCodecs.VAR_INT.encode(buf, entry.deaths);
-               ByteBufCodecs.VAR_INT.encode(buf, entry.streak);
-               ByteBufCodecs.VAR_INT.encode(buf, entry.highestStreak);
-               ByteBufCodecs.BOOL.encode(buf, entry.isBounty);
-               ByteBufCodecs.BOOL.encode(buf, entry.isAlive);
-               ByteBufCodecs.VAR_INT.encode(buf, entry.ping);
-               ByteBufCodecs.VAR_INT.encode(buf, entry.tier);
-               ByteBufCodecs.VAR_INT.encode(buf, entry.tierKills);
-               ByteBufCodecs.VAR_INT.encode(buf, entry.requiredKills);
-               ByteBufCodecs.STRING_UTF8.encode(buf, entry.tierName);
-               ByteBufCodecs.STRING_UTF8.encode(buf, entry.tierColor);
-            },
-            buf -> new PlayerEntry(
-               UUIDUtil.STREAM_CODEC.decode(buf),
-               ByteBufCodecs.STRING_UTF8.decode(buf),
-               ByteBufCodecs.VAR_INT.decode(buf),
-               ByteBufCodecs.VAR_INT.decode(buf),
-               ByteBufCodecs.VAR_INT.decode(buf),
-               ByteBufCodecs.VAR_INT.decode(buf),
-               ByteBufCodecs.BOOL.decode(buf),
-               ByteBufCodecs.BOOL.decode(buf),
-               ByteBufCodecs.VAR_INT.decode(buf),
-               ByteBufCodecs.VAR_INT.decode(buf),
-               ByteBufCodecs.VAR_INT.decode(buf),
-               ByteBufCodecs.VAR_INT.decode(buf),
-               ByteBufCodecs.STRING_UTF8.decode(buf),
-               ByteBufCodecs.STRING_UTF8.decode(buf)
-            )
+                 (buf, entry) -> {
+                    UUIDUtil.STREAM_CODEC.encode(buf, entry.playerId);
+                    ByteBufCodecs.STRING_UTF8.encode(buf, entry.name);
+                    ByteBufCodecs.VAR_INT.encode(buf, entry.kills);
+                    ByteBufCodecs.VAR_INT.encode(buf, entry.deaths);
+                    ByteBufCodecs.VAR_INT.encode(buf, entry.streak);
+                    ByteBufCodecs.VAR_INT.encode(buf, entry.highestStreak);
+                    ByteBufCodecs.BOOL.encode(buf, entry.isBounty);
+                    ByteBufCodecs.BOOL.encode(buf, entry.isAlive);
+                    ByteBufCodecs.VAR_INT.encode(buf, entry.ping);
+                    ByteBufCodecs.VAR_INT.encode(buf, entry.tier);
+                    ByteBufCodecs.VAR_INT.encode(buf, entry.tierKills);
+                    ByteBufCodecs.VAR_INT.encode(buf, entry.requiredKills);
+                 },
+                 buf -> new PlayerEntry(
+                         UUIDUtil.STREAM_CODEC.decode(buf),
+                         ByteBufCodecs.STRING_UTF8.decode(buf),
+                         ByteBufCodecs.VAR_INT.decode(buf),
+                         ByteBufCodecs.VAR_INT.decode(buf),
+                         ByteBufCodecs.VAR_INT.decode(buf),
+                         ByteBufCodecs.VAR_INT.decode(buf),
+                         ByteBufCodecs.BOOL.decode(buf),
+                         ByteBufCodecs.BOOL.decode(buf),
+                         ByteBufCodecs.VAR_INT.decode(buf),
+                         ByteBufCodecs.VAR_INT.decode(buf),
+                         ByteBufCodecs.VAR_INT.decode(buf),
+                         ByteBufCodecs.VAR_INT.decode(buf)
+                 )
          );
 
          public double kdRatio() {

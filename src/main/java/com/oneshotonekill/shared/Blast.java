@@ -5,6 +5,7 @@ import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.arena.ArenaWorlds;
 import com.oneshotonekill.event.KillFeed;
 import com.oneshotonekill.event.CombatEvents.DamageListener;
+import com.oneshotonekill.match.KillContext;
 import com.oneshotonekill.network.OsokPayloads.*;
 import java.util.List;
 import net.minecraft.core.particles.ParticleTypes;
@@ -95,7 +96,7 @@ public final class Blast {
       com.oneshotonekill.item.runtime.Deployables.INSTANCE.destroyInRadius(level, center, radius);
       for (ServerPlayer victim : List.copyOf(server.getPlayerList().getPlayers())) {
          if (worlds.arenaOf(victim) == arena && victim.position().distanceToSqr(center) <= radius * radius) {
-            DamageListener.INSTANCE.eliminate(attacker, victim, arena, cause);
+            DamageListener.INSTANCE.eliminate(attacker, victim, arena, cause, KillContext.at(center));
          }
       }
    }

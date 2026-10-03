@@ -53,6 +53,8 @@ public final class PlayerEvents {
       com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.clearFor(player);
       ArmedShots.INSTANCE.clearFor(player);
       StealthBomberSystem.INSTANCE.clearFor(player);
+      com.oneshotonekill.match.KillSignals.INSTANCE.clearFor(player);
+      player.setGlowingTag(false);
       ScoreboardManager.INSTANCE.updateAllScoreboards();
    }
 

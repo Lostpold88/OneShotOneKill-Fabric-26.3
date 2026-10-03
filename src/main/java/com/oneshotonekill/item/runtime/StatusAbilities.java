@@ -1,38 +1,31 @@
 package com.oneshotonekill.item.runtime;
-import com.oneshotonekill.network.OsokPayloads.*;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
-
-import com.oneshotonekill.shared.Hologram;
-import com.oneshotonekill.shared.Feedback;
-
-import com.oneshotonekill.event.KillFeed;
 
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
-import com.oneshotonekill.registry.ModItems;
 import com.oneshotonekill.arena.ArenaWorlds;
+import com.oneshotonekill.event.KillFeed;
+import com.oneshotonekill.network.OsokPayloads.AbilityStatusPayload;
+import com.oneshotonekill.network.OsokPayloads.DeployableMarkersPayload;
+import com.oneshotonekill.network.OsokPayloads.GlidingPlayersPayload;
+import com.oneshotonekill.network.OsokPayloads.MagnetFieldsPayload;
+import com.oneshotonekill.registry.ModItems;
+import com.oneshotonekill.shared.Feedback;
+import com.oneshotonekill.shared.Hologram;
 import com.oneshotonekill.shared.SpecialItemRules;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
-import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import net.minecraft.network.protocol.game.ClientboundSetEntityDataPacket;
+import net.minecraft.network.protocol.game.ClientboundSetEquipmentPacket;
 import net.minecraft.network.syncher.EntityDataSerializers;
 import net.minecraft.network.syncher.SynchedEntityData;
 import net.minecraft.server.MinecraftServer;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
-import net.minecraft.world.entity.Display;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
+import net.minecraft.world.entity.Display;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
@@ -41,6 +34,8 @@ import net.minecraft.world.phys.AABB;
 import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+
+import java.util.*;
 
 /**
  * Zeitlich begrenzte Zustände, die an einem Spieler hängen: Radar-Leuchten, Reflektor-Schild,
@@ -311,6 +306,7 @@ public final class StatusAbilities {
          Feedback.actionBar(attacker, "§b🛡 " + player.getGameProfile().name() + " HAT ABGEWEHRT");
       }
       KillFeed.blocked(player, attacker, cause);
+      com.oneshotonekill.match.KillSignals.INSTANCE.shieldBlocked(player);
       StatusAbilities.Broadcaster.INSTANCE.refresh(player);
       return true;
    }
@@ -319,7 +315,35 @@ public final class StatusAbilities {
       return shields.contains(player.getUUID());
    }
 
-   public boolean startVanish(ServerPlayer player) {
+    /**
+     * Läuft für diesen Spieler gerade ein Radar-Puls?
+     */
+    public boolean isRadarActive(ServerPlayer viewer) {
+        RadarView view = radarViews.get(viewer.getUUID());
+        return view != null && view.remainingTicks > 0;
+    }
+
+    /**
+     * Ist {@code target} vom Radar-Puls von {@code viewer} erfasst und läuft der Puls noch?
+     */
+    public boolean isRadarMarked(ServerPlayer viewer, ServerPlayer target) {
+        RadarView view = radarViews.get(viewer.getUUID());
+        return view != null && view.remainingTicks > 0 && view.targets.contains(target.getUUID());
+    }
+
+    /**
+     * Nimmt die Reflektor-Kugel ohne Abwehr zurück, etwa wenn sie im Waffenspiel zu lange ungenutzt steht.
+     */
+    public boolean dropShield(ServerPlayer player) {
+        if (!shields.remove(player.getUUID())) {
+            return false;
+        }
+        StatusAbilities.Broadcaster.INSTANCE.refresh(player);
+        return true;
+    }
+
+
+    public boolean startVanish(ServerPlayer player) {
       vanished.put(player.getUUID(), VANISH_TICKS);
       player.setInvisible(true);
       sendEmptyEquipment(player);

@@ -1,17 +1,13 @@
 package com.oneshotonekill.arena;
 
 import com.oneshotonekill.OneShotOneKill;
+import com.oneshotonekill.equipment.EquipmentManager;
+import com.oneshotonekill.match.GunGameManager;
+import com.oneshotonekill.match.MatchManager;
+import com.oneshotonekill.match.MatchManager.MatchState;
 import com.oneshotonekill.shared.ArenaDemolition;
 import com.oneshotonekill.shared.ArenaShape;
 import com.oneshotonekill.shared.OsokEffects;
-import com.oneshotonekill.equipment.EquipmentManager;
-import com.oneshotonekill.match.GunGameManager;
-import com.oneshotonekill.match.MatchManager.MatchState;
-import com.oneshotonekill.match.MatchManager;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Set;
-import java.util.concurrent.ThreadLocalRandom;
 import net.minecraft.core.BlockPos;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
@@ -22,6 +18,11 @@ import net.minecraft.world.level.block.Blocks;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.Vec3;
 import org.jspecify.annotations.Nullable;
+
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Set;
+import java.util.concurrent.ThreadLocalRandom;
 
 @SuppressWarnings({"RedundantCast", "RedundantTypeArguments", "SuspiciousIndentAfterControlStatement", "unused"})
 public final class RandomTpSystem {
@@ -215,29 +216,30 @@ public final class RandomTpSystem {
          || state.is(Blocks.NETHER_BRICK_WALL);
    }
 
-   public void checkVoidRescue(ServerPlayer player, Arena arena) {
-      if (player.getY() >= arena.getVoidRescueY()) {
-         return;
-      }
+    public void checkVoidRescue(ServerPlayer player, Arena arena) {
+        if (player.getY() >= arena.getVoidRescueY()) {
+            return;
+        }
 
-      MinecraftServer server = OneShotOneKill.INSTANCE.getServer();
-      if (server == null) {
-         return;
-      }
+        MinecraftServer server = OneShotOneKill.INSTANCE.getServer();
+        if (server == null) {
+            return;
+        }
 
-      ServerLevel level = server.getLevel(arena.getDimension());
-      if (level == null) {
-         level = player.level();
-      }
-      Vec3 location = getRandomArenaLocation(arena, server);
-      player.teleportTo(level, location.x, location.y, location.z, Set.of(), player.getYRot(), player.getXRot(), false);
-      player.fallDistance = 0.0;
-      if (MatchManager.INSTANCE.getCurrentMatchState() == MatchState.RUNNING) {
-         EquipmentManager.INSTANCE.giveOneShotEquipment(player);
-      } else {
-         EquipmentManager.INSTANCE.clearBaseEquipment(player);
-      }
-   }
+        ServerLevel level = server.getLevel(arena.getDimension());
+        if (level == null) {
+            level = player.level();
+        }
+        Vec3 location = getRandomArenaLocation(arena, server);
+        player.teleportTo(level, location.x, location.y, location.z, Set.of(), player.getYRot(), player.getXRot(), false);
+        player.fallDistance = 0.0;
+        if (MatchManager.INSTANCE.getCurrentMatchState() == MatchState.RUNNING) {
+            // Der Modus entscheidet über die Ausrüstung: im Waffenspiel bleibt es die Stufenwaffe.
+            MatchManager.INSTANCE.equipPlayerForCurrentMode(player);
+        } else {
+            EquipmentManager.INSTANCE.clearBaseEquipment(player);
+        }
+    }
 
 
    

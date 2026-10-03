@@ -110,20 +110,16 @@ public final class ScoreboardManager {
          int tier = 1;
          int tierKills = 0;
          int reqKills = 1;
-         String tierName = "";
-         String tierColor = "white";
          if (isGunGame) {
-            GunGameManager.Tier t = GunGameManager.INSTANCE.getTierFor(pid);
-            tier = t.getTierIndex();
+            GunGameTier t = GunGameManager.INSTANCE.getTierFor(pid);
+            tier = t.index();
             tierKills = GunGameManager.INSTANCE.getPlayerTierKills(pid);
-            reqKills = t.getRequiredKills();
-            tierName = t.getDisplayName();
-            tierColor = t.getColor().name();
+            reqKills = t.requiredKills();
          }
 
          entries.add(new PlayerEntry(
             pid, player.getScoreboardName(), k, d, s, hs, bounty, alive, ping,
-            tier, tierKills, reqKills, tierName, tierColor
+            tier, tierKills, reqKills
          ));
       }
 

@@ -6,7 +6,7 @@ import com.oneshotonekill.client.effect.TimeDistortionEffects;
 import com.oneshotonekill.client.hud.ChronoHudLayers.TimeDistortionLayer;
 import com.oneshotonekill.client.hud.CombatHudLayers;
 import com.oneshotonekill.client.hud.CombatHudLayers.*;
-import com.oneshotonekill.client.hud.MatchHudLayers.GunGameHudLayer;
+import com.oneshotonekill.client.hud.GunGameHudLayer;
 import com.oneshotonekill.client.hud.MatchHudLayers.MatchBannerLayer;
 import com.oneshotonekill.client.hud.MatchCountdownLayer;
 import com.oneshotonekill.client.hud.MatchHudLayers.MatchStartOverlayLayer;

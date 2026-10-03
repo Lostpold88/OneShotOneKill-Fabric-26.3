@@ -37,10 +37,16 @@ ausschließlich auf dem Client.
    * Ziel: Zeitlimit (z. B. 10 Min.) oder Kill-Limit (z. B. 25 Kills).
 
 2. **Waffenspiel (Gun Game):**
-   * Alle Spieler starten mit der ersten Waffenstufe.
-   * Jeder erzielte Kill schaltet unmittelbar die nächste Stufe frei.
-   * Individuelle Waffen-Tiers mit grafischem Fortschrittsbalken im Tab-Scoreboard.
-   * Wer die finale Stufe erfolgreich meistert, beendet die Runde siegreich.
+   * **23 Stufen in vier Akten, jedes Spezial-Item hat eine eigene Stufe.** Die Stufentabelle steht in `match/GunGameTier.java`.
+   * **Akt I, Hilfsmittel (Stufe 1–7):** Radar-Puls, Unsichtbarkeits-Mantel, Pfeil-Magnetfeld, Reflektor-Schild, Rauchbombe, Gleitflug, Grappling Hook. Diese Items töten nicht selbst, sondern öffnen ein Fenster, in dem ein Bogen- oder Dolch-Kill zählt.
+   * **Akt II, Direktwaffen (Stufe 8–13):** Explosiv-Schuss, Kettenblitz, Railgun, Minigun, Geschützturm, C4.
+   * **Akt III, kurze Fenster (Stufe 14–18):** Teleport-Granate, Boogie-Bomb, Frost-Falle, Singularität, Zeitverzerrer, je zwei Kills, fast alle nur mit dem Dolch.
+   * **Akt IV, Finale (Stufe 19–23):** Tarnkappenbomber, Luftangriff, Bogen, Dolch und zuletzt der Meisterdolch. Wer ihn trägt, leuchtet für alle Gegner durch Wände.
+   * **Kill-Bedingungen:** Ein Kill zählt nur, wenn Todesursache und Bedingung der Stufe passen, etwa Mindestentfernung (Fernkill), Rückenstich, Kill im selben Zeitfenster oder nur das direkt getroffene Ziel. Derselbe Gegner zählt nur einmal alle 20 Sekunden. Das HUD zeigt die aktuelle Bedingung und färbt sie grün, solange das Fenster offen ist.
+   * **Verbrauchte Stufen-Items** werden nach einer zur Wirkungsdauer passenden Wartezeit nachgeliefert.
+   * **Späte Beitritte** steigen auf der niedrigsten Stufe ein, auf der gerade jemand spielt.
+   * **Ende:** Wer die letzte Stufe schafft, gewinnt. Läuft die Zeit ab, gewinnt die höchste Stufe, dann der Fortschritt, dann die Kills; bei völligem Gleichstand gibt es ein Unentschieden.
+   * Der Meisterdolch hat ein eigenes 3D-Modell (`tools/models/generate_master_dagger_3d.py`). Es hängt als Komponente `ITEM_MODEL` an einem goldenen Schwert, deshalb ändert sich an der Trefferlogik nichts.
 
 ---
 
@@ -69,7 +75,7 @@ Jedes ist ein **eigenes registriertes Item mit individueller Textur oder echtem 
 | **Radar-Puls** | Rechtsklick | Alle Gegner leuchten 30 s lang durch Wände |
 | **Explosiv-Schuss** | Rechtsklick | Nächster Pfeil detoniert im Umkreis von 7 Blöcken |
 | **Reflektor-Schild** | Rechtsklick | Fängt den nächsten tödlichen Treffer ab und schützt den Träger |
-| **Rauchbombe** | Werfen | Blickdichte Nebelwand; der Werfer wird taktisch versetzt |
+| **Rauchbombe** | Werfen | Blickdichte Nebelwand (11 s, Radius 4,8 Blöcke); wer darin steht, ist geblendet |
 | **Frost-Falle** | Platzieren | Unsichtbar für Gegner; friert den ersten Auslöser 7 s bewegungsunfähig ein |
 | **Minigun** | Rechtsklick | 8 s Dauerfeuer mit rotierendem 3D-Laufbündel, Mündungsfeuer & Kamerarütteln |
 | **Teleport-Granate** | Werfen | Versetzt den Werfer zur Einschlagstelle und stößt Gegner weg |
@@ -105,7 +111,7 @@ Das alte Vanilla-Scoreboard wurde vollständig durch ein modernes, halbtranspare
 * **Flüssige Animationen:** Sanftes, synchrones Ein- und Ausblenden über Alpha-Interpolation (kein Nachblitzen von Schriften).
 * **Umfassende Match-Daten:**
   * Live-Spielerliste mit Rang, Team/Spielername, Ping, Kills, Toden, K/D-Rate und Killserien.
-  * Im **Waffenspiel-Modus**: Automatische Anzeige der aktuellen Waffenstufe und Fortschrittsbalken zum nächsten Tier.
+  * Im **Waffenspiel-Modus**: Sortierung nach Stufe, Fortschritt und Kills, dazu Item-Name, Kill-Punkte und ein Balken über den Weg durch alle Stufen.
   * Eigener Spieler wird mit markanter Umrandung und Cyan-Akzent hervorgehoben.
 * **Overlay-Priorität:** Rendert sauber über dem HUD, wird jedoch bei geöffneten GUIs (wie dem Admin-Menü) deaktiviert.
 
@@ -185,6 +191,7 @@ python tools/generate_field_gear_3d.py
 python tools/generate_railgun_3d.py
 python tools/generate_combat_abilities_3d.py
 python tools/generate_airstrike_nuke_3d.py
+python tools/models/generate_master_dagger_3d.py --preview vorschau.png
 ```
 
 ---

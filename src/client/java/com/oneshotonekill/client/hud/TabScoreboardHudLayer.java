@@ -178,7 +178,10 @@ public final class TabScoreboardHudLayer {
                                   MatchScoreboardPayload payload, List<PlayerEntry> players, int accent,
                                   boolean gunGame, boolean paused, boolean lobby, float a, float time) {
       // Modus-Chip
-      String mode = paused ? "PAUSED" : lobby ? "LOBBY // WARMUP" : gunGame ? "GUN GAME" : "DEATHMATCH";
+      String mode = Component.translatable(paused ? "hud.oneshotonekill.scoreboard.mode_paused"
+         : lobby ? "hud.oneshotonekill.scoreboard.mode_lobby"
+         : gunGame ? "hud.oneshotonekill.scoreboard.mode_gungame"
+         : "hud.oneshotonekill.scoreboard.mode_deathmatch").getString();
       float modeScale = 1.0F;
       int chipW = Math.round(font.width(mode) * modeScale) + 16;
       graphics.fill(left + 12, top + 10, left + 12 + chipW, top + 24, argb(accent, 0.18F * a));
@@ -285,7 +288,12 @@ public final class TabScoreboardHudLayer {
 
       // Zeilenhintergrund: Streifenmuster plus Balkendiagramm der Kills
       graphics.fill(rowLeft, y, rowRight, y + ROW_HEIGHT - 1, argb(0xFFFFFF, (rank % 2 == 0 ? 0.045F : 0.02F) * a));
-      int barWidth = Math.round((rowRight - rowLeft) * (entry.kills() / (float) maxKills));
+      // Im Waffenspiel zeigt der Balken den Weg durch die Stufen, sonst die Kills.
+      float fraction = gunGame
+         ? (entry.tier() - 1 + entry.tierKills() / (float) Math.max(1, entry.requiredKills()))
+            / (float) com.oneshotonekill.match.GunGameTier.count()
+         : entry.kills() / (float) maxKills;
+      int barWidth = Math.round((rowRight - rowLeft) * clamp01(fraction));
       if (barWidth > 0) {
          int barColour = local ? OsokWidgets.COLOR_CYAN & 0xFFFFFF : rank == 0 ? GOLD : accent;
          graphics.fillGradient(rowLeft, y + ROW_HEIGHT - 3, rowLeft + barWidth, y + ROW_HEIGHT - 2,
@@ -339,7 +347,8 @@ public final class TabScoreboardHudLayer {
       // Status oder Waffenspiel-Fortschritt
       int statusX = left + X_STATUS;
       if (gunGame) {
-         String tier = font.plainSubstrByWidth("S" + entry.tier() + " " + entry.tierName(), 92);
+         String tier = font.plainSubstrByWidth("S" + entry.tier() + " "
+            + Component.translatable(com.oneshotonekill.match.GunGameTier.byIndex(entry.tier()).nameKey()).getString(), 92);
          HudFx.leftText(graphics, font, tier, statusX, y + 6, 0.95F, argb(GOLD, a * dim));
          int pipX = statusX + Math.round(font.width(tier) * 0.95F) + 6;
          for (int k = 0; k < entry.requiredKills() && k < 8; k++) {
@@ -349,7 +358,7 @@ public final class TabScoreboardHudLayer {
       } else {
          int statusColour = dead ? RED : GREEN;
          statusDot(graphics, statusX + 3, y + 9, statusColour, a * (dead ? 0.8F : 1.0F));
-         HudFx.leftText(graphics, font, dead ? "DEAD" : Component.translatable("hud.oneshotonekill.scoreboard.alive").getString(),
+         HudFx.leftText(graphics, font, Component.translatable(dead ? "hud.oneshotonekill.scoreboard.dead" : "hud.oneshotonekill.scoreboard.alive").getString(),
             statusX + 11, y + 6, 0.9F, argb(statusColour, a * (dead ? 0.85F : 1.0F)));
       }
 

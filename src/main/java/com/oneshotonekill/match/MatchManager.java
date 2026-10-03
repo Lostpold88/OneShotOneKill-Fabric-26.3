@@ -1,15 +1,5 @@
 package com.oneshotonekill.match;
 
-import java.util.Arrays;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
-import java.util.LinkedHashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
-import java.util.function.Consumer;
-
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.arena.ArenaWorlds;
@@ -20,12 +10,13 @@ import com.oneshotonekill.equipment.EquipmentManager;
 import com.oneshotonekill.item.SpecialItem;
 import com.oneshotonekill.item.box.SpecialItemManager;
 import com.oneshotonekill.item.runtime.MinigunRuntime;
-import com.oneshotonekill.network.OsokPayloads.*;
+import com.oneshotonekill.network.OsokPayloads.AdjustSpecialItemWeightPayload;
+import com.oneshotonekill.network.OsokPayloads.ArenaMenuStatePayload;
+import com.oneshotonekill.network.OsokPayloads.MatchCountdownPayload;
 import com.oneshotonekill.nuke.NukeSequenceManager;
 import com.oneshotonekill.shared.ArenaDemolition;
 import com.oneshotonekill.shared.Feedback;
 import com.oneshotonekill.shared.OsokEffects;
-
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.particles.ParticleTypes;
@@ -43,6 +34,9 @@ import net.minecraft.world.entity.player.Inventory;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.level.GameType;
 import net.minecraft.world.phys.Vec3;
+
+import java.util.*;
+import java.util.function.Consumer;
 
 /**
  * Der Ablauf eines Matches: starten, pausieren, stoppen, Arena wechseln, Match-Ziele verwalten und zurücksetzen.
@@ -361,81 +355,74 @@ public final class MatchManager {
       }
    }
 
-   /**
-    * Das Match endet – aber nicht sofort.
-    * <p>
-    * <p>Frueher stand hier ein Titel, ein Klang und ein sofortiger Stopp. Das war korrekt und
-    * vollkommen unspektakulaer: Der Bildschirm sprang um, und die Runde war vorbei. Jetzt
-    * uebernimmt {@link NukeSequenceManager} die naechsten zweiundzwanzig Sekunden – Countdown,
-    * Einschlag, Nachlauf, Abschlusstafel – und ruft danach {@link #stopMatch} selbst auf.</p>
-    * <p>
-    * <p>Die Meldung im Chat bleibt hier, denn sie gehoert zum Match und nicht zur Inszenierung:
-    * Wer im Moment des Endes gerade wegsieht, soll sie im Verlauf nachlesen koennen.</p>
-    */
-   public void endMatchWithWinner(MinecraftServer server, String reason) {
-      if (currentMatchState == MatchState.STOPPED || decided || NukeSequenceManager.INSTANCE.isRunning()) {
-         return;
-      }
 
-      List<ServerPlayer> players = server.getPlayerList().getPlayers();
-      ServerPlayer winner;
-      if (currentGameMode == GameMode.GUN_GAME) {
-         winner = players.stream()
-            .max(Comparator.<ServerPlayer>comparingInt(p -> GunGameManager.INSTANCE.getPlayerTier(p.getUUID()))
-               .thenComparingInt(p -> GunGameManager.INSTANCE.getPlayerTierKills(p.getUUID()))
-               .thenComparingInt(p -> ScoreboardManager.INSTANCE.getKills(p.getUUID())))
-            .orElse(null);
-      } else {
-         winner = players.stream()
-            .max(Comparator.comparingInt(p -> ScoreboardManager.INSTANCE.getKills(p.getUUID())))
-            .orElse(null);
-      }
-
-      int topKills = winner != null ? ScoreboardManager.INSTANCE.getKills(winner.getUUID()) : 0;
-      int topTier = (winner != null && currentGameMode == GameMode.GUN_GAME) ? GunGameManager.INSTANCE.getPlayerTier(winner.getUUID()) : 0;
-      boolean isDraw = winner == null || (currentGameMode == GameMode.GUN_GAME ? topTier == 1 && topKills == 0 : topKills == 0);
-
-      Component title = isDraw
-         ? Component.translatable("chat.oneshotonekill.match_draw").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
-         : Component.translatable("chat.oneshotonekill.match_winner", winner.getScoreboardName()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
-
-      Component subtitle;
-      if (currentGameMode == GameMode.GUN_GAME && winner != null && !isDraw) {
-         subtitle = Component.literal("S" + topTier + " (" + topKills + " Kills) · " + reason).withStyle(ChatFormatting.YELLOW);
-      } else {
-         subtitle = Component.literal((isDraw ? "" : topKills + " Kills · ") + reason).withStyle(ChatFormatting.YELLOW);
-      }
-
-      Component chatMsg;
-      if (currentGameMode == GameMode.GUN_GAME && winner != null && !isDraw) {
-         chatMsg = Component.literal("[OSOK] ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
-            .append(Component.translatable("chat.oneshotonekill.match_winner", winner.getScoreboardName()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-      } else {
-         chatMsg = Component.literal("[OSOK] ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
-            .append(title);
-      }
-
-      server.getPlayerList().broadcastSystemMessage(chatMsg, false);
-
-      if (currentGameMode == GameMode.GUN_GAME) {
-         GunGameManager.INSTANCE.clearStatuses(server);
-      }
-
-      ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
-      ServerLevel level = worlds == null ? null : worlds.getActiveLevel();
-      if (level == null) {
-         // Ohne Arena gibt es nichts zu sprengen – dann endet das Match wie frueher, sofort.
-         for (ServerPlayer player : players) {
-            player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 80, 20));
-            player.connection.send(new ClientboundSetTitleTextPacket(title));
-            player.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
-         }
-         stopMatch(null);
-         return;
-      }
-
-      NukeSequenceManager.INSTANCE.triggerSequence(level, isDraw ? null : winner, Component.literal(reason));
+   private static GunGameRules.Standing gunGameStanding(ServerPlayer player) {
+      return new GunGameRules.Standing(
+              GunGameManager.INSTANCE.getPlayerTier(player.getUUID()),
+              GunGameManager.INSTANCE.getPlayerTierKills(player.getUUID()),
+              ScoreboardManager.INSTANCE.getKills(player.getUUID()));
    }
+
+   public void endMatchWithWinner(MinecraftServer server, String reason) {
+        if (currentMatchState == MatchState.STOPPED || decided || NukeSequenceManager.INSTANCE.isRunning()) {
+            return;
+        }
+
+        List<ServerPlayer> players = server.getPlayerList().getPlayers();
+        ServerPlayer winner;
+        boolean isDraw;
+        if (currentGameMode == GameMode.GUN_GAME) {
+            // Erst Stufe, dann Fortschritt, dann Kills. Liegen die beiden Besten völlig gleichauf,
+            // gibt es kein Sieger, statt dass der zufällig erste der Liste gewinnt.
+            List<ServerPlayer> ranked = new ArrayList<>(players);
+            ranked.sort(Comparator.comparing(MatchManager::gunGameStanding, GunGameRules::compare).reversed());
+            isDraw = GunGameRules.isDraw(ranked.stream().map(MatchManager::gunGameStanding).toList());
+            winner = ranked.isEmpty() ? null : ranked.getFirst();
+        } else {
+            winner = players.stream()
+                    .max(Comparator.comparingInt(p -> ScoreboardManager.INSTANCE.getKills(p.getUUID())))
+                    .orElse(null);
+            isDraw = winner == null || ScoreboardManager.INSTANCE.getKills(winner.getUUID()) == 0;
+        }
+
+        int topKills = winner != null ? ScoreboardManager.INSTANCE.getKills(winner.getUUID()) : 0;
+        int topTier = (winner != null && currentGameMode == GameMode.GUN_GAME) ? GunGameManager.INSTANCE.getPlayerTier(winner.getUUID()) : 0;
+
+        Component title = isDraw || winner == null
+                ? Component.translatable("chat.oneshotonekill.match_draw").withStyle(ChatFormatting.YELLOW, ChatFormatting.BOLD)
+                : Component.translatable("chat.oneshotonekill.match_winner", winner.getScoreboardName()).withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD);
+
+        Component subtitle;
+        if (currentGameMode == GameMode.GUN_GAME && winner != null && !isDraw) {
+            subtitle = Component.literal("S" + topTier + " (" + topKills + " Kills) · " + reason).withStyle(ChatFormatting.YELLOW);
+        } else {
+            subtitle = Component.literal((isDraw ? "" : topKills + " Kills · ") + reason).withStyle(ChatFormatting.YELLOW);
+        }
+
+        Component chatMsg = Component.literal("[OSOK] ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
+                .append(title);
+
+        server.getPlayerList().broadcastSystemMessage(chatMsg, false);
+
+        if (currentGameMode == GameMode.GUN_GAME) {
+            GunGameManager.INSTANCE.clearStatuses(server);
+        }
+
+        ArenaWorlds worlds = OneShotOneKill.INSTANCE.getArenas();
+        ServerLevel level = worlds == null ? null : worlds.getActiveLevel();
+        if (level == null) {
+            // Ohne Arena gibt es nichts zu sprengen – dann endet das Match wie frueher, sofort.
+            for (ServerPlayer player : players) {
+                player.connection.send(new ClientboundSetTitlesAnimationPacket(10, 80, 20));
+                player.connection.send(new ClientboundSetTitleTextPacket(title));
+                player.connection.send(new ClientboundSetSubtitleTextPacket(subtitle));
+            }
+            stopMatch(null);
+            return;
+        }
+
+        NukeSequenceManager.INSTANCE.triggerSequence(level, isDraw ? null : winner, Component.literal(reason));
+    }
 
    public void markDecided() {
       if (currentMatchState != MatchState.RUNNING) {
@@ -876,7 +863,7 @@ public final class MatchManager {
             return;
          }
          String arenaName = worlds != null ? worlds.getActive().getDisplayName() : "Standard";
-         String modeName = currentGameMode == GameMode.GUN_GAME ? "Waffenspiel" : "Klassisch";
+         String modeName = currentGameMode.name();
          MatchCountdownPayload payload = new MatchCountdownPayload(remainingTicks, false, arenaName, modeName);
          server.getPlayerList().getPlayers().forEach(player -> ServerPlayNetworking.send(player, payload));
       }
@@ -977,7 +964,7 @@ public final class MatchManager {
 
          Arena arena = worlds.getActive();
          String arenaName = arena.getDisplayName();
-         String modeName = currentGameMode == GameMode.GUN_GAME ? "Waffenspiel" : "Klassisch";
+         String modeName = currentGameMode.name();
          if (currentGameMode == GameMode.GUN_GAME) {
             GunGameManager.INSTANCE.startMatch(server);
          }

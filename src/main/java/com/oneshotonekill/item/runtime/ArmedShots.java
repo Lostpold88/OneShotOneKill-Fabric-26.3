@@ -8,6 +8,7 @@ import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.arena.ArenaWorlds;
 import com.oneshotonekill.event.KillFeed;
+import com.oneshotonekill.match.KillContext;
 import com.oneshotonekill.event.CombatEvents.DamageListener;
 import com.oneshotonekill.network.OsokPayloads.*;
 import com.oneshotonekill.registry.ModItems;
@@ -368,7 +369,9 @@ public final class ArmedShots {
          lightningBurst(level, target, hits);
          previous = target;
          hits++;
-         DamageListener.INSTANCE.eliminate(shooter, victim, arena, KillFeed.Cause.CHAIN_LIGHTNING);
+         // Nur das direkt getroffene Ziel zählt im Waffenspiel als Primärziel, die Sprünge nicht.
+         DamageListener.INSTANCE.eliminate(shooter, victim, arena, KillFeed.Cause.CHAIN_LIGHTNING,
+            victim == directHit ? KillContext.DEFAULT : KillContext.secondary());
       }
 
       if (hits == 0) {

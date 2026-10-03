@@ -1,166 +1,86 @@
 package com.oneshotonekill.match;
 
 import com.oneshotonekill.event.KillFeed;
+import com.oneshotonekill.item.runtime.BoogieBombSystem;
+import com.oneshotonekill.item.runtime.Deployables;
+import com.oneshotonekill.item.runtime.GrapplingHookSystem;
+import com.oneshotonekill.item.runtime.StatusAbilities;
+import com.oneshotonekill.item.runtime.ThrownDevices;
+import com.oneshotonekill.match.GunGameRules.Outcome;
+import com.oneshotonekill.match.GunGameRules.Standing;
 import com.oneshotonekill.network.OsokPayloads.GunGameStatusPayload;
-import com.oneshotonekill.registry.ModItems;
 import com.oneshotonekill.shared.Feedback;
 import com.oneshotonekill.shared.OsokEffects;
-import com.oneshotonekill.shared.ProtectedItems;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
-import java.util.function.Consumer;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.ChatFormatting;
-import net.minecraft.core.component.DataComponents;
 import net.minecraft.network.chat.Component;
-import net.minecraft.network.protocol.game.ClientboundSetSubtitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitleTextPacket;
-import net.minecraft.network.protocol.game.ClientboundSetTitlesAnimationPacket;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
-import net.minecraft.util.Unit;
 import net.minecraft.world.InteractionHand;
-import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
-import net.minecraft.world.item.Items;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.phys.BlockHitResult;
+import net.minecraft.world.phys.HitResult;
+import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 
 /**
- * Verwaltet den Ablauf, die Progression, Ausrüstung und Nachladelogik des Waffenspiel-Modus (Gun Game).
+ * Verwaltet Ablauf, Fortschritt, Ausrüstung und Nachschub des Waffenspiels (Gun Game).
+ * <p>
+ * Die Stufen selbst stehen in {@link GunGameTier}, die reine Rechenlogik in {@link GunGameRules}.
+ * Ein Kill wird in zwei Schritten behandelt: {@link #evaluate} misst ihn gegen die Stufe, solange
+ * Opfer und Spezial-Systeme noch nicht aufgeräumt sind, {@link #applyKill} schreibt das Ergebnis fort.
  */
-@SuppressWarnings({"CodeBlock2Expr", "ConstantValue", "resource", "unused"})
+@SuppressWarnings({"ConstantValue", "resource", "unused"})
 public final class GunGameManager {
    public static final GunGameManager INSTANCE = new GunGameManager();
-   public static final int TOTAL_TIERS = 13;
-   private static final int REPLENISH_COOLDOWN_TICKS = 60; // 3 Sekunden
+
+   /** So hoch darf ein Spieler über dem Boden liegen, damit wir die Höhe noch messen. */
+   private static final double HEIGHT_PROBE = 8.0;
+   /** Nach 30 Sekunden ungenutzter Reflektor-Kugel wird sie zurückgenommen, damit niemand festhängt. */
+   private static final int SHIELD_IDLE_TICKS = 600;
+   /** Der HUD-Zustand wird alle paar Ticks gegen die Fenster der Stufe geprüft. */
+   private static final int HUD_CHECK_TICKS = 5;
 
    private final Map<UUID, Integer> playerTiers = new HashMap<>();
    private final Map<UUID, Integer> playerTierKills = new HashMap<>();
-   private final Map<UUID, Integer> replenishCooldowns = new HashMap<>();
+   private final Map<UUID, Integer> resupplyCounters = new HashMap<>();
+   private final Map<UUID, Map<UUID, Integer>> lastCountedKill = new HashMap<>();
+   private final Map<UUID, Boolean> lastWindowState = new HashMap<>();
+   private final Map<UUID, Integer> shieldIdleSince = new HashMap<>();
+   private final Set<UUID> announcedFinalTier = new HashSet<>();
+   private UUID leader;
+   /** Gesetzt, sobald jemand die letzte Stufe geschafft hat: ab dann kommt kein HUD mehr zurück. */
+   private boolean finished;
 
    private GunGameManager() {
    }
 
-   public enum Tier {
-      TIER_1(1, "OneShot Bogen", "equipment.oneshotonekill.bow", 3, ChatFormatting.YELLOW, Items.BOW,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, createBow(player));
-         }),
-      TIER_2(2, "OneShot Dolch", "equipment.oneshotonekill.dagger", 3, ChatFormatting.RED, Items.IRON_SWORD,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
-            player.getInventory().setItem(0, createSword(false));
-         }),
-      TIER_3(3, "Explosiv-Schuss", "item.oneshotonekill.explosive_shot", 2, ChatFormatting.GOLD, ModItems.EXPLOSIVE_SHOT,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, createBow(player));
-            player.getInventory().setItem(0, new ItemStack(ModItems.EXPLOSIVE_SHOT));
-         }),
-      TIER_4(4, "Kettenblitz", "item.oneshotonekill.chain_lightning", 2, ChatFormatting.AQUA, ModItems.CHAIN_LIGHTNING,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, createBow(player));
-            player.getInventory().setItem(0, new ItemStack(ModItems.CHAIN_LIGHTNING));
-         }),
-      TIER_5(5, "Railgun", "item.oneshotonekill.railgun", 2, ChatFormatting.BLUE, ModItems.RAILGUN,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
-            player.getInventory().setItem(0, new ItemStack(ModItems.RAILGUN));
-         }),
-      TIER_6(6, "Minigun", "item.oneshotonekill.minigun", 2, ChatFormatting.GOLD, ModItems.MINIGUN,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
-            player.getInventory().setItem(0, new ItemStack(ModItems.MINIGUN));
-         }),
-      TIER_7(7, "Singularität & Bogen", "item.oneshotonekill.singularity", 2, ChatFormatting.DARK_PURPLE, ModItems.SINGULARITY,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, createBow(player));
-            player.getInventory().setItem(0, new ItemStack(ModItems.SINGULARITY));
-         }),
-      TIER_8(8, "C4-Sprengladung", "item.oneshotonekill.c4", 1, ChatFormatting.GOLD, ModItems.C4,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
-            player.getInventory().setItem(0, new ItemStack(ModItems.C4));
-         }),
-      TIER_9(9, "Frost-Falle", "item.oneshotonekill.frost_trap", 1, ChatFormatting.AQUA, ModItems.FROST_TRAP,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
-            player.getInventory().setItem(0, new ItemStack(ModItems.FROST_TRAP));
-            player.getInventory().setItem(1, createSword(false));
-         }),
-      TIER_10(10, "Geschützturm", "item.oneshotonekill.sentry_turret", 1, ChatFormatting.GREEN, ModItems.SENTRY_TURRET,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
-            player.getInventory().setItem(0, new ItemStack(ModItems.SENTRY_TURRET));
-         }),
-      TIER_11(11, "Tarnkappenbomber", "item.oneshotonekill.stealth_bomber", 1, ChatFormatting.DARK_AQUA, ModItems.STEALTH_BOMBER,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
-            player.getInventory().setItem(0, new ItemStack(ModItems.STEALTH_BOMBER));
-         }),
-      TIER_12(12, "Zeitverzerrer & Dolch", "item.oneshotonekill.slow_motion", 1, ChatFormatting.LIGHT_PURPLE, ModItems.SLOW_MOTION,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
-            player.getInventory().setItem(0, new ItemStack(ModItems.SLOW_MOTION));
-            player.getInventory().setItem(1, createSword(false));
-         }),
-      TIER_13(13, "Meisterdolch", "equipment.oneshotonekill.master_dagger", 1, ChatFormatting.GOLD, Items.GOLDEN_SWORD,
-         player -> {
-            player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
-            player.getInventory().setItem(0, createSword(true));
-         });
+   /** Das Urteil über einen Abschuss. */
+   public record Verdict(Kind kind) {
+      public static final Verdict IGNORE = new Verdict(Kind.IGNORE);
+      public static final Verdict COUNTS = new Verdict(Kind.COUNTS);
 
-      private final int tierIndex;
-      private final String fallbackName;
-      private final String translationKey;
-      private final int requiredKills;
-      private final ChatFormatting color;
-      private final Item icon;
-      private final Consumer<ServerPlayer> equipAction;
-
-      Tier(int tierIndex, String fallbackName, String translationKey, int requiredKills, ChatFormatting color, Item icon, Consumer<ServerPlayer> equipAction) {
-         this.tierIndex = tierIndex;
-         this.fallbackName = fallbackName;
-         this.translationKey = translationKey;
-         this.requiredKills = requiredKills;
-         this.color = color;
-         this.icon = icon;
-         this.equipAction = equipAction;
+      public enum Kind {
+         /** Kein Waffenspiel oder kein laufendes Match. */
+         IGNORE,
+         COUNTS,
+         WRONG_WEAPON,
+         CONDITION,
+         REPEAT
       }
+   }
 
-      public int getTierIndex() { return tierIndex; }
-      public String getTranslationKey() { return translationKey; }
-      public String getDisplayName() {
-         return Component.translatableWithFallback(translationKey, fallbackName).getString();
-      }
-      public int getRequiredKills() { return requiredKills; }
-      public ChatFormatting getColor() { return color; }
-      public Item getIcon() { return icon; }
-      public void apply(ServerPlayer player) { equipAction.accept(player); }
-
-      /**
-       * Nur Abschüsse mit der Waffe der aktuellen Stufe zählen. Das verhindert insbesondere,
-       * dass Mehrfachtreffer oder noch aktive Geräte nach einem Aufstieg schon die nächste
-       * Stufe fortschreiben.
-       */
-      public boolean accepts(KillFeed.Cause cause) {
-         return switch (this) {
-            case TIER_1, TIER_7 -> cause == KillFeed.Cause.BOW;
-            case TIER_2, TIER_9, TIER_12, TIER_13 -> cause == KillFeed.Cause.SWORD;
-            case TIER_3 -> cause == KillFeed.Cause.EXPLOSIVE_SHOT;
-            case TIER_4 -> cause == KillFeed.Cause.CHAIN_LIGHTNING;
-            case TIER_5 -> cause == KillFeed.Cause.RAILGUN;
-            case TIER_6 -> cause == KillFeed.Cause.MINIGUN;
-            case TIER_8 -> cause == KillFeed.Cause.C4;
-            case TIER_10 -> cause == KillFeed.Cause.SENTRY_TURRET;
-            case TIER_11 -> cause == KillFeed.Cause.STEALTH_BOMBER;
-         };
-      }
-
-      public static Tier byIndex(int index) {
-         int bounded = Math.clamp(index, 1, TOTAL_TIERS);
-         return values()[bounded - 1];
-      }
+   public int totalTiers() {
+      return GunGameTier.count();
    }
 
    public int getPlayerTier(UUID playerId) {
@@ -171,8 +91,12 @@ public final class GunGameManager {
       return playerTierKills.getOrDefault(playerId, 0);
    }
 
-   public Tier getTierFor(UUID playerId) {
-      return Tier.byIndex(getPlayerTier(playerId));
+   public GunGameTier getTierFor(UUID playerId) {
+      return GunGameTier.byIndex(getPlayerTier(playerId));
+   }
+
+   public boolean isFinished() {
+      return finished;
    }
 
    public void startMatch(MinecraftServer server) {
@@ -188,10 +112,37 @@ public final class GunGameManager {
    public void reset() {
       playerTiers.clear();
       playerTierKills.clear();
-      replenishCooldowns.clear();
+      resupplyCounters.clear();
+      lastCountedKill.clear();
+      lastWindowState.clear();
+      shieldIdleSince.clear();
+      announcedFinalTier.clear();
+      leader = null;
+      finished = false;
+      KillSignals.INSTANCE.reset();
+   }
+
+   /** Wer später beitritt, steigt auf der niedrigsten Stufe ein, auf der gerade jemand spielt. */
+   private void ensureEntry(ServerPlayer player) {
+      UUID id = player.getUUID();
+      if (playerTiers.containsKey(id)) {
+         return;
+      }
+      List<Integer> others = new ArrayList<>();
+      MinecraftServer server = player.level().getServer();
+      if (server != null) {
+         for (ServerPlayer other : server.getPlayerList().getPlayers()) {
+            if (!other.getUUID().equals(id) && playerTiers.containsKey(other.getUUID())) {
+               others.add(playerTiers.get(other.getUUID()));
+            }
+         }
+      }
+      playerTiers.put(id, GunGameRules.lowestActiveTier(others));
+      playerTierKills.put(id, 0);
    }
 
    public void giveTierEquipment(ServerPlayer player) {
+      ensureEntry(player);
       // Siehe EquipmentManager: Ein neuer Waffenspiel-Spawn darf kein von einer alten
       // Endsequenz übrig gebliebenes dauerhaftes Unverwundbar-Flag behalten.
       player.setPermanentlyInvulnerable(false);
@@ -200,138 +151,301 @@ public final class GunGameManager {
       player.setItemInHand(InteractionHand.OFF_HAND, ItemStack.EMPTY);
       player.getInventory().clearContent();
 
-      Tier tier = getTierFor(player.getUUID());
-      tier.apply(player);
+      GunGameTier tier = getTierFor(player.getUUID());
+      tier.equip(player);
 
       player.setHealth(player.getMaxHealth());
       player.getFoodData().setFoodLevel(20);
       player.getFoodData().setSaturation(20.0F);
-      player.experienceLevel = 0;
-      player.experienceProgress = (float) getPlayerTierKills(player.getUUID()) / (float) tier.getRequiredKills();
+      // Die Erfahrungsleiste zeigt die Stufe als Zahl und den Fortschritt darin als Balken.
+      player.experienceLevel = tier.index();
+      player.experienceProgress = (float) getPlayerTierKills(player.getUUID()) / (float) tier.requiredKills();
       player.inventoryMenu.broadcastChanges();
-      replenishCooldowns.remove(player.getUUID());
+      resupplyCounters.remove(player.getUUID());
+      lastWindowState.remove(player.getUUID());
    }
 
-   public void recordKill(ServerPlayer killer, ServerPlayer victim, KillFeed.Cause cause) {
-      UUID killerId = killer.getUUID();
-      int currentTierIndex = getPlayerTier(killerId);
-      Tier tier = Tier.byIndex(currentTierIndex);
-      if (MatchManager.INSTANCE.getCurrentMatchState() != MatchManager.MatchState.RUNNING
-         || MatchManager.INSTANCE.getCurrentGameMode() != MatchManager.GameMode.GUN_GAME
-         || !tier.accepts(cause)) {
-         return;
+   // -- Kill-Wertung --------------------------------------------------------
+
+   /**
+    * Misst einen Abschuss gegen die Stufe des Täters.
+    * <p>
+    * Muss aufgerufen werden, bevor die Spezial-Systeme das Opfer aufräumen: Tanz, Eis und Sog
+    * des Opfers sind danach schon weg.
+    */
+   public Verdict evaluate(ServerPlayer killer, ServerPlayer victim, KillFeed.Cause cause, KillContext context) {
+      if (finished || killer.equals(victim)
+         || MatchManager.INSTANCE.getCurrentMatchState() != MatchManager.MatchState.RUNNING
+         || MatchManager.INSTANCE.getCurrentGameMode() != MatchManager.GameMode.GUN_GAME) {
+         return Verdict.IGNORE;
       }
-      int currentKills = getPlayerTierKills(killerId) + 1;
+      GunGameTier tier = getTierFor(killer.getUUID());
+      GunGameTier.Check check = tier.check(killer, victim, cause, facts(killer, victim, context));
+      if (check == GunGameTier.Check.WRONG_WEAPON) {
+         return new Verdict(Verdict.Kind.WRONG_WEAPON);
+      }
+      if (check == GunGameTier.Check.CONDITION) {
+         return new Verdict(Verdict.Kind.CONDITION);
+      }
+      Map<UUID, Integer> row = lastCountedKill.get(killer.getUUID());
+      Integer last = row == null ? null : row.get(victim.getUUID());
+      if (GunGameRules.isRepeat(last, tickNow(killer))) {
+         return new Verdict(Verdict.Kind.REPEAT);
+      }
+      return Verdict.COUNTS;
+   }
 
-      if (currentKills < tier.getRequiredKills()) {
-         playerTierKills.put(killerId, currentKills);
-         killer.experienceProgress = (float) currentKills / (float) tier.getRequiredKills();
+   private GunGameTier.Facts facts(ServerPlayer killer, ServerPlayer victim, KillContext context) {
+      Vec3 origin = context.origin() != null ? context.origin() : victim.position();
+      double distance = killer.position().distanceTo(origin);
+      UUID freezer = Deployables.INSTANCE.frozenBy(victim);
+      Vec3 look = victim.getLookAngle();
+      Vec3 toKiller = killer.position().subtract(victim.position());
+      return new GunGameTier.Facts(
+         context.primary(),
+         distance,
+         StatusAbilities.INSTANCE.isRadarMarked(killer, victim),
+         BoogieBombSystem.INSTANCE.isDancing(victim),
+         freezer != null && freezer.equals(killer.getUUID()),
+         ThrownDevices.INSTANCE.isInSingularityOf(killer.getUUID(), victim),
+         GunGameRules.isBackTurned(look.x, look.y, look.z, toKiller.x, toKiller.y, toKiller.z),
+         heightAboveGround(killer));
+   }
 
-         float pitch = switch (currentKills) {
-            case 1 -> 1.0F;
-            case 2 -> 1.4F;
-            default -> 1.8F;
-         };
-         OsokEffects.INSTANCE.sendPrivateSound(killer, SoundEvents.NOTE_BLOCK_PLING.value(), 1.2F, pitch);
-         String pips = buildProgressPips(currentKills, tier.getRequiredKills());
-         Feedback.actionBar(killer, "§e⚡ Stufe " + tier.getTierIndex() + " · §f" + tier.getDisplayName() + " " + pips + " §7(" + currentKills + "/" + tier.getRequiredKills() + " Kills)");
-         syncStatus(killer, false);
-      } else {
-         if (currentTierIndex >= TOTAL_TIERS) {
-            // Sieg im Gun Game!
-            playerTierKills.put(killerId, tier.getRequiredKills());
-            syncStatus(killer, true);
-            MinecraftServer server = killer.level().getServer();
-            if (server != null) {
-               MatchManager.INSTANCE.endMatchWithWinner(server, "🏆 Waffenspiel-Meister (Stufe " + TOTAL_TIERS + " abgeschlossen)!");
-            }
+   private static double heightAboveGround(ServerPlayer player) {
+      Vec3 from = player.position();
+      Vec3 to = from.add(0.0, -HEIGHT_PROBE, 0.0);
+      BlockHitResult hit = player.level().clip(new ClipContext(from, to,
+         ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty()));
+      return hit.getType() == HitResult.Type.MISS ? HEIGHT_PROBE : from.y - hit.getLocation().y;
+   }
+
+   private static int tickNow(ServerPlayer player) {
+      MinecraftServer server = player.level().getServer();
+      return server == null ? 0 : server.getTickCount();
+   }
+
+   /** Schreibt das Urteil fort: Fortschritt, Aufstieg, Sieg oder Hinweis an den Täter. */
+   public void applyKill(ServerPlayer killer, ServerPlayer victim, Verdict verdict) {
+      GunGameTier tier = getTierFor(killer.getUUID());
+      switch (verdict.kind()) {
+         case IGNORE -> {
             return;
          }
-
-         int nextTierIndex = currentTierIndex + 1;
-         Tier nextTier = Tier.byIndex(nextTierIndex);
-         playerTiers.put(killerId, nextTierIndex);
-         playerTierKills.put(killerId, 0);
-
-         OsokEffects.INSTANCE.sendPrivateSound(killer, SoundEvents.PLAYER_LEVELUP, 1.2F, 1.2F);
-         OsokEffects.INSTANCE.sendPrivateSound(killer, SoundEvents.BEACON_POWER_SELECT, 1.0F, 1.5F);
-
-         killer.connection.send(new ClientboundSetTitlesAnimationPacket(5, 40, 15));
-         killer.connection.send(new ClientboundSetTitleTextPacket(Component.translatable("chat.oneshotonekill.gungame_tier_title", nextTier.getTierIndex()).withStyle(nextTier.getColor(), ChatFormatting.BOLD)));
-         killer.connection.send(new ClientboundSetSubtitleTextPacket(Component.translatable(nextTier.getTranslationKey()).withStyle(ChatFormatting.WHITE, ChatFormatting.BOLD)));
-
-         Feedback.actionBar(killer, Component.translatable("hud.oneshotonekill.match.level_up").getString() + " · " + Component.translatable("hud.oneshotonekill.match.new_weapon", nextTier.getDisplayName()).getString());
-         giveTierEquipment(killer);
-
-         MinecraftServer server = killer.level().getServer();
-         if (server != null) {
-            Component announcement = Component.literal("[OSOK] ⚡ ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
-               .append(Component.translatable("chat.oneshotonekill.gungame_tier_advance",
-                  killer.getScoreboardName(),
-                  nextTier.getTierIndex(),
-                  Component.translatable(nextTier.getTranslationKey()).getString()
-               ).withStyle(ChatFormatting.GRAY));
-            server.getPlayerList().broadcastSystemMessage(announcement, false);
+         case WRONG_WEAPON -> {
+            Feedback.actionBar(killer, Component.translatable("actionbar.oneshotonekill.gungame_wrong_weapon", tier.nameComponent()));
+            return;
          }
+         case CONDITION -> {
+            Feedback.actionBar(killer, Component.translatable("actionbar.oneshotonekill.gungame_condition",
+               Component.translatable(tier.conditionKey())));
+            return;
+         }
+         case REPEAT -> {
+            Feedback.actionBar(killer, Component.translatable("actionbar.oneshotonekill.gungame_repeat"));
+            return;
+         }
+         case COUNTS -> {
+         }
+      }
 
-         syncStatus(killer, true);
+      UUID killerId = killer.getUUID();
+      lastCountedKill.computeIfAbsent(killerId, id -> new HashMap<>()).put(victim.getUUID(), tickNow(killer));
+      Outcome outcome = GunGameRules.advance(getPlayerTier(killerId), getPlayerTierKills(killerId),
+         tier.requiredKills(), totalTiers());
+
+      switch (outcome.step()) {
+         case PROGRESS -> {
+            playerTierKills.put(killerId, outcome.kills());
+            killer.experienceProgress = (float) outcome.kills() / (float) tier.requiredKills();
+            float pitch = switch (outcome.kills()) {
+               case 1 -> 1.0F;
+               case 2 -> 1.4F;
+               default -> 1.8F;
+            };
+            OsokEffects.INSTANCE.sendPrivateSound(killer, SoundEvents.NOTE_BLOCK_PLING.value(), 1.2F, pitch);
+            Feedback.actionBar(killer, Component.translatable("actionbar.oneshotonekill.gungame_progress",
+               tier.index(), tier.nameComponent(), buildProgressPips(outcome.kills(), tier.requiredKills()),
+               outcome.kills(), tier.requiredKills()));
+            syncAll(killer.level().getServer());
+         }
+         case WIN -> {
+            playerTierKills.put(killerId, tier.requiredKills());
+            MinecraftServer server = killer.level().getServer();
+            // Erst das Ende melden und die HUDs abräumen, dann sperren: danach schickt kein
+            // Respawn mehr einen Status, und die Nuke-Sequenz läuft ohne Waffenspiel-HUD.
+            finished = true;
+            if (server != null) {
+               clearStatuses(server);
+               MatchManager.INSTANCE.endMatchWithWinner(server,
+                  Component.translatable("chat.oneshotonekill.gungame_win_reason", totalTiers()).getString());
+            }
+         }
+         case ADVANCE -> {
+            playerTiers.put(killerId, outcome.tier());
+            playerTierKills.put(killerId, 0);
+            GunGameTier next = GunGameTier.byIndex(outcome.tier());
+
+            OsokEffects.INSTANCE.sendPrivateSound(killer, SoundEvents.PLAYER_LEVELUP, 1.2F, 1.2F);
+            OsokEffects.INSTANCE.sendPrivateSound(killer, SoundEvents.BEACON_POWER_SELECT, 1.0F, 1.5F);
+            Feedback.actionBar(killer, Component.translatable("hud.oneshotonekill.match.level_up")
+               .append(" · ")
+               .append(Component.translatable("hud.oneshotonekill.match.new_weapon", next.nameComponent())));
+            giveTierEquipment(killer);
+
+            MinecraftServer server = killer.level().getServer();
+            if (server != null) {
+               server.getPlayerList().broadcastSystemMessage(
+                  Component.literal("[OSOK] ⚡ ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
+                     .append(Component.translatable("chat.oneshotonekill.gungame_tier_advance",
+                        killer.getScoreboardName(), next.index(), next.nameComponent()).withStyle(ChatFormatting.GRAY)),
+                  false);
+               announceLeadership(server, killer, next);
+               syncAll(server);
+               syncStatus(killer, true);
+            }
+         }
       }
    }
 
+   /** Meldet einen Führungswechsel und die letzte Stufe, jeweils einmal. */
+   private void announceLeadership(MinecraftServer server, ServerPlayer mover, GunGameTier tier) {
+      UUID id = mover.getUUID();
+      int others = 0;
+      for (ServerPlayer other : server.getPlayerList().getPlayers()) {
+         if (!other.getUUID().equals(id) && playerTiers.containsKey(other.getUUID())) {
+            others = Math.max(others, getPlayerTier(other.getUUID()));
+         }
+      }
+      if (tier.index() > others && !id.equals(leader)) {
+         leader = id;
+         server.getPlayerList().broadcastSystemMessage(
+            Component.literal("[OSOK] ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
+               .append(Component.translatable("chat.oneshotonekill.gungame_leader",
+                  mover.getScoreboardName(), tier.index(), tier.nameComponent()).withStyle(ChatFormatting.YELLOW)),
+            false);
+      }
+      if (tier.index() >= totalTiers() && announcedFinalTier.add(id)) {
+         server.getPlayerList().broadcastSystemMessage(
+            Component.literal("[OSOK] 👑 ").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD)
+               .append(Component.translatable("chat.oneshotonekill.gungame_final_tier",
+                  mover.getScoreboardName()).withStyle(ChatFormatting.RED, ChatFormatting.BOLD)),
+            false);
+         OsokEffects.INSTANCE.playOwnSound(mover, SoundEvents.BEACON_ACTIVATE, 1.0F, 0.6F);
+      }
+   }
+
+   // -- Takt ----------------------------------------------------------------
+
    public void tick(MinecraftServer server) {
-      if (server == null) return;
+      if (server == null || finished) {
+         return;
+      }
+      int now = server.getTickCount();
       for (ServerPlayer player : server.getPlayerList().getPlayers()) {
-         UUID uuid = player.getUUID();
+         UUID id = player.getUUID();
          if (!player.isAlive()) {
-            replenishCooldowns.remove(uuid);
+            resupplyCounters.remove(id);
             continue;
          }
 
-         Tier tier = getTierFor(uuid);
-         if (tier == Tier.TIER_1 || tier == Tier.TIER_2 || tier == Tier.TIER_13) {
-            continue; // Bogen und Schwerter gehen nie aus
+         if (GrapplingHookSystem.INSTANCE.isPulling(player) || GrapplingHookSystem.INSTANCE.isGrappleActive(player)) {
+            KillSignals.INSTANCE.grappling(player);
          }
 
-         boolean hasWeapon = false;
-         for (int slot = 0; slot < player.getInventory().getContainerSize(); slot++) {
-            ItemStack stack = player.getInventory().getItem(slot);
-            if (!stack.isEmpty() && (stack.is(tier.getIcon()) || stack.is(ModItems.C4_CHARGE) || stack.is(ModItems.C4))) {
-               hasWeapon = true;
-               break;
-            }
+         GunGameTier tier = getTierFor(id);
+         boolean windowOpen = tier.windowOpen(player);
+
+         // Serien-Fenster: Läuft das Fenster ab, verfällt der Fortschritt der Stufe.
+         if (tier.usesSeries() && getPlayerTierKills(id) > 0 && !windowOpen) {
+            playerTierKills.put(id, 0);
+            player.experienceProgress = 0.0F;
+            Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.gungame_series_lost"));
+            syncStatus(player, false);
          }
 
-         if (!hasWeapon) {
-            int count = replenishCooldowns.getOrDefault(uuid, 0) + 1;
-            if (count >= REPLENISH_COOLDOWN_TICKS) {
-               tier.apply(player);
-               player.inventoryMenu.broadcastChanges();
-               replenishCooldowns.remove(uuid);
-               OsokEffects.INSTANCE.sendPrivateSound(player, SoundEvents.ITEM_PICKUP, 0.8F, 1.2F);
-               Feedback.actionBar(player, Component.translatable("chat.oneshotonekill.gungame_reloaded", tier.getDisplayName()).getString());
+         // Soft-Lock-Schutz: Eine ungenutzte Reflektor-Kugel steht nicht ewig.
+         if (tier == GunGameTier.SHIELD) {
+            if (StatusAbilities.INSTANCE.hasShield(player)) {
+               int since = shieldIdleSince.computeIfAbsent(id, key -> now);
+               if (now - since >= SHIELD_IDLE_TICKS && StatusAbilities.INSTANCE.dropShield(player)) {
+                  shieldIdleSince.remove(id);
+                  Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.gungame_shield_expired"));
+               }
             } else {
-               replenishCooldowns.put(uuid, count);
-               if (count % 20 == 0) {
-                   int remainingSecs = (REPLENISH_COOLDOWN_TICKS - count) / 20;
-                   Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.gungame_reloading", remainingSecs));
-                }
+               shieldIdleSince.remove(id);
             }
-         } else {
-            replenishCooldowns.remove(uuid);
          }
+
+         // HUD-Zustand nur bei Änderung des Fensters senden.
+         if (now % HUD_CHECK_TICKS == 0) {
+            Boolean before = lastWindowState.put(id, windowOpen);
+            if (before == null || before != windowOpen) {
+               syncStatus(player, false);
+            }
+         }
+
+         resupply(player, tier);
       }
    }
 
+   /** Liefert ein verbrauchtes Stufen-Item nach einer Wartezeit nach, die zur Wirkungsdauer passt. */
+   private void resupply(ServerPlayer player, GunGameTier tier) {
+      UUID id = player.getUUID();
+      if (tier.hasItem(player)) {
+         resupplyCounters.remove(id);
+         return;
+      }
+      int count = resupplyCounters.merge(id, 1, Integer::sum);
+      if (count >= tier.resupplyTicks()) {
+         tier.giveItem(player);
+         player.inventoryMenu.broadcastChanges();
+         resupplyCounters.remove(id);
+         OsokEffects.INSTANCE.sendPrivateSound(player, SoundEvents.ITEM_PICKUP, 0.8F, 1.2F);
+         Feedback.actionBar(player, Component.translatable("chat.oneshotonekill.gungame_reloaded", tier.nameComponent()));
+      } else if (count % 20 == 0) {
+         int remainingSeconds = (tier.resupplyTicks() - count) / 20;
+         Feedback.actionBar(player, Component.translatable("actionbar.oneshotonekill.gungame_reloading", remainingSeconds));
+      }
+   }
+
+   // -- Anzeige -------------------------------------------------------------
+
+   private List<Standing> standings(MinecraftServer server) {
+      List<Standing> standings = new ArrayList<>();
+      for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+         UUID id = player.getUUID();
+         standings.add(new Standing(getPlayerTier(id), getPlayerTierKills(id), ScoreboardManager.INSTANCE.getKills(id)));
+      }
+      return standings;
+   }
+
    public void syncStatus(ServerPlayer player, boolean isLevelUp) {
-      Tier tier = getTierFor(player.getUUID());
-      int kills = getPlayerTierKills(player.getUUID());
+      MinecraftServer server = player.level().getServer();
+      if (finished || server == null) {
+         return;
+      }
+      UUID id = player.getUUID();
+      GunGameTier tier = getTierFor(id);
+      List<Standing> standings = standings(server);
+      Standing mine = new Standing(getPlayerTier(id), getPlayerTierKills(id), ScoreboardManager.INSTANCE.getKills(id));
       ServerPlayNetworking.send(player, new GunGameStatusPayload(
-         true, tier.getTierIndex(), TOTAL_TIERS, kills, tier.getRequiredKills(),
-         tier.getDisplayName(), tier.getColor().name(), isLevelUp
-      ));
+         true, tier.index(), totalTiers(), getPlayerTierKills(id), tier.requiredKills(), isLevelUp,
+         tier.windowOpen(player), GunGameRules.rankOf(mine, standings), standings.size(),
+         GunGameRules.leaderTier(standings)));
+   }
+
+   public void syncAll(MinecraftServer server) {
+      if (server == null) {
+         return;
+      }
+      for (ServerPlayer player : server.getPlayerList().getPlayers()) {
+         syncStatus(player, false);
+      }
    }
 
    public void clearStatus(ServerPlayer player) {
+      player.setGlowingTag(false);
       ServerPlayNetworking.send(player, GunGameStatusPayload.inactive());
    }
 
@@ -342,31 +456,10 @@ public final class GunGameManager {
    }
 
    private static String buildProgressPips(int current, int total) {
-      StringBuilder sb = new StringBuilder("§8[");
+      StringBuilder builder = new StringBuilder("§8[");
       for (int i = 0; i < total; i++) {
-         if (i < current) {
-            sb.append("§a●");
-         } else {
-            sb.append("§7○");
-         }
+         builder.append(i < current ? "§a●" : "§7○");
       }
-      sb.append("§8]");
-      return sb.toString();
-   }
-
-   private static ItemStack createSword(boolean isMaster) {
-      if (!isMaster) {
-         return com.oneshotonekill.equipment.EquipmentManager.INSTANCE.createSword();
-      }
-      ItemStack sword = new ItemStack(Items.GOLDEN_SWORD);
-      sword.set(DataComponents.CUSTOM_NAME, Component.translatable("equipment.oneshotonekill.master_dagger").withStyle(ChatFormatting.GOLD, ChatFormatting.BOLD));
-      sword.set(DataComponents.UNBREAKABLE, Unit.INSTANCE);
-      sword.set(DataComponents.ATTRIBUTE_MODIFIERS, com.oneshotonekill.equipment.EquipmentManager.createWeaponModifiers());
-      sword.set(DataComponents.ENCHANTMENT_GLINT_OVERRIDE, true);
-      return ProtectedItems.lockToSlot(sword);
-   }
-
-   private static ItemStack createBow(ServerPlayer player) {
-      return com.oneshotonekill.equipment.EquipmentManager.INSTANCE.createBow(player);
+      return builder.append("§8]").toString();
    }
 }

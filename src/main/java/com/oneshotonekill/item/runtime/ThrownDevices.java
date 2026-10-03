@@ -1,19 +1,14 @@
 package com.oneshotonekill.item.runtime;
 
-import com.oneshotonekill.shared.Hologram;
-import com.oneshotonekill.shared.Feedback;
-
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.arena.ArenaWorlds;
-import com.oneshotonekill.network.OsokPayloads.*;
+import com.oneshotonekill.network.OsokPayloads.ExplosionShakePayload;
 import com.oneshotonekill.registry.ModItems;
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Set;
-import java.util.UUID;
+import com.oneshotonekill.shared.Feedback;
+import com.oneshotonekill.shared.Hologram;
+import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.core.BlockPos;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.DustParticleOptions;
 import net.minecraft.core.particles.ParticleTypes;
@@ -22,21 +17,21 @@ import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.entity.Display;
 import net.minecraft.world.effect.MobEffectInstance;
 import net.minecraft.world.effect.MobEffects;
+import net.minecraft.world.entity.Display;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.DyedItemColor;
-import net.minecraft.core.BlockPos;
-import net.minecraft.world.level.block.state.BlockState;
-import net.minecraft.world.phys.shapes.CollisionContext;
 import net.minecraft.world.level.ClipContext;
+import net.minecraft.world.level.block.state.BlockState;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
-import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+
+import java.util.*;
 
 /**
  * Geworfene Geräte: Rauchbombe, Teleport-Granate und Singularität.
@@ -479,6 +474,7 @@ public final class ThrownDevices {
       openWarp(level, origin.add(0.0, 1.0, 0.0), false);
       thrower.teleportTo(level, landing.x, landing.y, landing.z, Set.of(), thrower.getYRot(), thrower.getXRot(), false);
       thrower.fallDistance = 0.0;
+      com.oneshotonekill.match.KillSignals.INSTANCE.teleported(thrower);
       openWarp(level, landing.add(0.0, 1.0, 0.0), true);
       shake(server, level, landing, 12.0F, 0.7F, 8);
 
@@ -818,7 +814,46 @@ public final class ThrownDevices {
       }
    }
 
-   private static final class Projectile {
+    /**
+     * Steht der Spieler in einer Rauchwand? Dieselbe Geometrie wie beim Blenden: gemessen wird
+     * an den Augen, damit „geblendet“ und „im Rauch“ immer dasselbe heißen.
+     */
+    public boolean isInsideSmoke(ServerPlayer player) {
+        Vec3 eye = player.getEyePosition();
+        for (Field field : fields) {
+            if (field.type != DeviceType.SMOKE) {
+                continue;
+            }
+            double deltaX = eye.x - field.center.x;
+            double deltaZ = eye.z - field.center.z;
+            double deltaY = eye.y - field.center.y;
+            if (deltaX * deltaX + deltaZ * deltaZ <= SMOKE_RADIUS * SMOKE_RADIUS
+                    && deltaY >= -1.5 && deltaY <= SMOKE_HEIGHT) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    /**
+     * Zieht eine Singularität dieses Besitzers den Spieler gerade an? Ausgetragene Opfer zählen nicht mehr.
+     */
+    public boolean isInSingularityOf(UUID owner, ServerPlayer player) {
+        Vec3 body = player.position().add(0.0, 1.0, 0.0);
+        for (Field field : fields) {
+            if (field.type != DeviceType.SINGULARITY || !owner.equals(field.owner)
+                    || field.excluded.contains(player.getUUID())) {
+                continue;
+            }
+            if (field.center.distanceToSqr(body) <= SINGULARITY_RADIUS * SINGULARITY_RADIUS) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+
+    private static final class Projectile {
       private final UUID owner;
       private final DeviceType type;
       private Vec3 position;

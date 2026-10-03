@@ -1,48 +1,42 @@
 package com.oneshotonekill.item.runtime;
 
-import com.oneshotonekill.shared.Hologram;
-import com.oneshotonekill.shared.Blast;
-import com.oneshotonekill.shared.Feedback;
-import com.oneshotonekill.shared.OsokEffects;
-
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
 import com.oneshotonekill.arena.ArenaWorlds;
-import com.oneshotonekill.event.KillFeed;
 import com.oneshotonekill.event.CombatEvents.DamageListener;
+import com.oneshotonekill.event.KillFeed;
+import com.oneshotonekill.network.OsokPayloads.DeployableMarkersPayload;
 import com.oneshotonekill.registry.ModDataComponents;
 import com.oneshotonekill.registry.ModItems;
-import com.oneshotonekill.network.OsokPayloads.DeployableMarkersPayload;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
-import java.util.UUID;
+import com.oneshotonekill.shared.Blast;
+import com.oneshotonekill.shared.Feedback;
+import com.oneshotonekill.shared.Hologram;
+import com.oneshotonekill.shared.OsokEffects;
 import net.minecraft.ChatFormatting;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.Direction;
 import net.minecraft.core.component.DataComponents;
 import net.minecraft.core.particles.ParticleTypes;
 import net.minecraft.network.chat.Component;
-import net.minecraft.util.Prediction;
-import net.minecraft.world.entity.Display;
-import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.server.MinecraftServer;
 import net.minecraft.server.level.ServerLevel;
 import net.minecraft.server.level.ServerPlayer;
 import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
-import net.minecraft.world.phys.shapes.CollisionContext;
+import net.minecraft.util.Prediction;
+import net.minecraft.world.entity.Display;
+import net.minecraft.world.entity.projectile.arrow.AbstractArrow;
 import net.minecraft.world.item.ItemStack;
 import net.minecraft.world.item.component.DyedItemColor;
 import net.minecraft.world.level.ClipContext;
-import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.AABB;
+import net.minecraft.world.phys.HitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraft.world.phys.shapes.CollisionContext;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
+
+import java.util.*;
 
 /**
  * Alles, was in der Arena abgestellt wird: Frost-Falle, C4-Ladung und Geschützturm.
@@ -459,7 +453,7 @@ public final class Deployables {
                continue;
             }
             revealTrap(level, trap);
-            freeze(level, player, trap.position);
+            freeze(level, player, trap.position, trap.owner);
             ServerPlayer owner = server.getPlayerList().getPlayer(trap.owner);
             if (owner != null && !owner.equals(player)) {
                OsokEffects.INSTANCE.playFrostTrapTriggeredEffect(owner, player.getGameProfile().name());
@@ -493,12 +487,13 @@ public final class Deployables {
     * Schneeflocken täte es nicht – die ist nach einer Sekunde weg, und der Getroffene steht
     * die restlichen sechs unbegründet still.
     */
-   private void freeze(ServerLevel level, ServerPlayer player, Vec3 trapAt) {
+   private void freeze(ServerLevel level, ServerPlayer player, Vec3 trapAt, UUID trapOwner) {
       Vec3 anchor = player.position();
       player.setDeltaMovement(Vec3.ZERO);
       player.fallDistance = 0.0;
       player.syncVelocity = true;
       Frozen state = new Frozen(anchor, TRAP_FREEZE_TICKS);
+      state.trapOwner = trapOwner;
 
       state.ring = Hologram.spawnEffect(level, anchor.add(0.0, 0.08, 0.0), iceRingStack(ICE_BRIGHT), 2.0F);
       if (state.ring != null) {
@@ -1383,7 +1378,16 @@ public final class Deployables {
       return frozen.containsKey(player.getUUID());
    }
 
-   public int remainingFreezeTicks(ServerPlayer player) {
+    /**
+     * Wer die Falle gestellt hat, die diesen Spieler festhält, oder {@code null}, wenn er nicht eingefroren ist.
+     */
+    public UUID frozenBy(ServerPlayer player) {
+        Frozen state = frozen.get(player.getUUID());
+        return state == null ? null : state.trapOwner;
+    }
+
+
+    public int remainingFreezeTicks(ServerPlayer player) {
       Frozen state = frozen.get(player.getUUID());
       return state == null ? 0 : state.ticksLeft;
    }
@@ -1632,6 +1636,8 @@ public final class Deployables {
       private int ticksLeft;
       private int age;
       private int colour = -1;
+      /** Wem die Falle gehört, die diesen Spieler eingefroren hat. */
+      private UUID trapOwner;
 
       private Frozen(Vec3 anchor, int ticksLeft) {
          this.anchor = anchor;

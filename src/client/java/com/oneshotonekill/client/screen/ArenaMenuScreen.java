@@ -470,22 +470,61 @@ public final class ArenaMenuScreen extends Screen {
         y += 56;
 
         if (isGunGame) {
-            // Gun Game Übersicht / Tier-Liste Info Box
-            graphics.fill(left, y, right, y + 88, 0xDD101522);
-            graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_GOLD);
-            graphics.horizontalLine(left, right - 1, y + 87, OsokWidgets.COLOR_GOLD);
-            graphics.verticalLine(left, y, y + 87, OsokWidgets.COLOR_GOLD);
-            graphics.verticalLine(right - 1, y, y + 87, OsokWidgets.COLOR_GOLD);
-
-            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_rules_title"), left + 10, y + 8, OsokWidgets.COLOR_GOLD);
-            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_rules_t1"), left + 10, y + 24, 0xFFE2E8F0);
-            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_rules_t2"), left + 10, y + 38, 0xFFE2E8F0);
-            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_rules_t3"), left + 10, y + 52, 0xFFE2E8F0);
-            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_rules_t4"), left + 10, y + 68, OsokWidgets.COLOR_AMBER);
-            y += 96;
+            y = drawGunGameTierList(graphics, left, right, y);
         }
 
         contentLength = y + 10 + scroll.offset() - contentTop;
+    }
+
+
+    /**
+     * Die Stufenliste des Waffenspiels, gruppiert nach den vier Akten, in zwei Spalten je Akt.
+     *
+     * @return die Zeile unter der Liste
+     */
+    private int drawGunGameTierList(GuiGraphicsExtractor graphics, int left, int right, int y) {
+        com.oneshotonekill.match.GunGameTier[] tiers = com.oneshotonekill.match.GunGameTier.values();
+        int[] perAct = new int[5];
+        for (com.oneshotonekill.match.GunGameTier tier : tiers) {
+            perAct[tier.act()]++;
+        }
+        int rowHeight = 20;
+        int height = 30;
+        for (int act = 1; act <= 4; act++) {
+            height += 18 + ((perAct[act] + 1) / 2) * rowHeight + 4;
+        }
+
+        graphics.fill(left, y, right, y + height, 0xDD101522);
+        graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_GOLD);
+        graphics.horizontalLine(left, right - 1, y + height - 1, OsokWidgets.COLOR_GOLD);
+        graphics.verticalLine(left, y, y + height - 1, OsokWidgets.COLOR_GOLD);
+        graphics.verticalLine(right - 1, y, y + height - 1, OsokWidgets.COLOR_GOLD);
+        graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_rules_title", tiers.length),
+                left + 10, y + 8, OsokWidgets.COLOR_GOLD);
+
+        int cursor = y + 26;
+        int columnWidth = (right - left - 20) / 2;
+        for (int act = 1; act <= 4; act++) {
+            int color = com.oneshotonekill.client.hud.GunGameHudLayer.actColor(act);
+            graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_act_" + act), left + 10, cursor, color);
+            graphics.horizontalLine(left + 10, right - 11, cursor + 11, (color & 0x00FFFFFF) | 0x66000000);
+            cursor += 18;
+            int slot = 0;
+            for (com.oneshotonekill.match.GunGameTier tier : tiers) {
+                if (tier.act() != act) {
+                    continue;
+                }
+                int x = left + 10 + (slot % 2) * columnWidth;
+                int rowY = cursor + (slot / 2) * rowHeight;
+                graphics.item(tier.iconStack(), x, rowY);
+                String label = tier.index() + ". " + Component.translatable(tier.nameKey()).getString()
+                        + " ×" + tier.requiredKills();
+                graphics.text(font, font.plainSubstrByWidth(label, columnWidth - 26), x + 20, rowY + 4, 0xFFE2E8F0);
+                slot++;
+            }
+            cursor += ((perAct[act] + 1) / 2) * rowHeight + 4;
+        }
+        return y + height + 8;
     }
 
     private void drawModeSelectionCard(GuiGraphicsExtractor graphics, int x, int y, int w, int h,
@@ -545,7 +584,7 @@ public final class ArenaMenuScreen extends Screen {
             graphics.verticalLine(left, y, y + 41, OsokWidgets.COLOR_GOLD);
             graphics.verticalLine(right - 1, y, y + 41, OsokWidgets.COLOR_GOLD);
 
-            graphics.item(new ItemStack(Items.GOLDEN_SWORD), left + 8, y + 13);
+            graphics.item(com.oneshotonekill.match.GunGameTier.MASTER.iconStack(), left + 8, y + 13);
             graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_gungame_banner_title"), left + 32, y + 8, OsokWidgets.COLOR_GOLD);
             graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_gungame_banner_desc"), left + 32, y + 24, OsokWidgets.COLOR_TEXT_FAINT);
             y += 50;
@@ -700,7 +739,7 @@ public final class ArenaMenuScreen extends Screen {
 
                 if (isGunGame) {
                     graphics.fill(left + 2, y + 2, left + 5, y + 54, OsokWidgets.COLOR_GOLD);
-                    graphics.item(new ItemStack(Items.GOLDEN_SWORD), left + 10, y + 19);
+                    graphics.item(com.oneshotonekill.match.GunGameTier.MASTER.iconStack(), left + 10, y + 19);
                     graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_unlimited_gungame_title"), left + 36, y + 12, OsokWidgets.COLOR_GOLD);
                     graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_unlimited_gungame_desc1"), left + 36, y + 27, OsokWidgets.COLOR_TEXT_WHITE);
                     graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_unlimited_gungame_desc2"), left + 36, y + 41, OsokWidgets.COLOR_TEXT_FAINT);
