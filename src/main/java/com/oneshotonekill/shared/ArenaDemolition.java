@@ -38,6 +38,8 @@ public final class ArenaDemolition {
    public static final ArenaDemolition INSTANCE = new ArenaDemolition();
 
    private static final int RESTORE_BLOCKS_PER_TICK = 24;
+   /** So weit über der Deckenunterkante reicht ein Deckenschacht, damit auch dicke Dächer durchbrochen werden. */
+   private static final int CEILING_PUNCH_HEIGHT = 8;
    /** So lange nach einem Einschlag bleiben Gegenstände im Krater verschwunden. */
    private static final int DROP_SUPPRESSION_TICKS = 20;
 
@@ -98,6 +100,50 @@ public final class ArenaDemolition {
       if (flyingDebris) {
          BlockDebris.INSTANCE.launch(level, arena, impact, destroyed, radius);
       }
+      return true;
+   }
+
+   /**
+    * Schlägt einen senkrechten Schacht durch die Hallendecke und meldet ihn zur Wiederherstellung an.
+    * Die Trümmer fliegen als Bildchen davon (siehe {@link BlockDebris}).
+    *
+    * @param ceilingY Höhe der Deckenunterkante
+    * @param radius   Schachtradius in Blöcken
+    * @return true, wenn wirklich etwas zerstört wurde
+    */
+   public boolean punchCeiling(ServerLevel level, Arena arena, double x, double z, double ceilingY, int radius,
+                               int restoreDelay, int currentTick) {
+      Map<BlockPos, BlockState> destroyed = new LinkedHashMap<>();
+      int bottom = (int) Math.floor(ceilingY) - 2;
+      int top = Math.min(level.getMaxY(), (int) Math.floor(ceilingY) + CEILING_PUNCH_HEIGHT);
+      int centreX = (int) Math.floor(x);
+      int centreZ = (int) Math.floor(z);
+      for (int bx = centreX - radius; bx <= centreX + radius; bx++) {
+         for (int bz = centreZ - radius; bz <= centreZ + radius; bz++) {
+            double dx = bx + 0.5 - x;
+            double dz = bz + 0.5 - z;
+            if (dx * dx + dz * dz > radius * radius) {
+               continue;
+            }
+            for (int by = Math.max(level.getMinY(), bottom); by <= top; by++) {
+               BlockPos pos = new BlockPos(bx, by, bz);
+               BlockState state = level.getBlockState(pos);
+               if (!state.isAir()) {
+                  destroyed.put(pos, state);
+               }
+            }
+         }
+      }
+      if (destroyed.isEmpty()) {
+         return false;
+      }
+      for (BlockPos pos : destroyed.keySet()) {
+         level.setBlock(pos, Blocks.AIR.defaultBlockState(), 3);
+      }
+      Vec3 centre = new Vec3(x, ceilingY, z);
+      restorations.add(new Restoration(level, currentTick + restoreDelay, destroyed, centre, radius));
+      terrainRevision++;
+      BlockDebris.INSTANCE.launch(level, arena, centre, destroyed, radius);
       return true;
    }
 

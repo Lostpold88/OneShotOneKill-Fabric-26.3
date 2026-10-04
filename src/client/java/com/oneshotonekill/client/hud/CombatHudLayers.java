@@ -509,103 +509,136 @@ public final class CombatHudLayers {
     // =========================================================================
 
     /**
-     * Moderner DEFCON-1 Bombenalarm mit Notfall-Banner, 3D Tracking-Projektionsmarker
-     * und weicher Gefahren-Vignette.
+     * Luftangriff-Alarm: Banner mit Restzeit und segmentiertem Countdown, Randglühen mit
+     * Warnstreifen bei eigener Gefahr und ein Zielmarker, der der Bombe folgt oder am Rand zu ihr zeigt.
+     * Gleiche Bernstein/Rot-Sprache wie das Zielterminal.
      */
     public static final class AirstrikeAlarmLayer implements HudElement {
-        private static final int ALARM_RED = 0xFFFF3366;
-        private static final int ALARM_RED_DIM = 0xAA881122;
-        private static final int CORE = 0xFFFFFFFF;
-        private static final int SAFE_CYAN = 0xFF00F0FF;
-        private static final int BACKDROP = 0xF00A0E16;
+        private static final int RED = 0xFF4B3E;
+        private static final int AMBER = 0xFFB02E;
+        private static final int WHITE = 0xFFFFFF;
+        private static final int PANEL = 0xEA0B0D10;
 
-        private static final int VIGNETTE_DEPTH = 32;
-        private static final int VIGNETTE_STEPS = 8;
+        private static final int VIGNETTE_DEPTH = 44;
+        private static final int VIGNETTE_STEPS = 10;
         private static final int MARKER_MARGIN = 46;
         private static final int EDGE_MARGIN = 26;
         private static final double ON_SCREEN_LIMIT = 78.0;
+        private static final int BANNER_WIDTH = 270;
+        private static final int SEGMENTS = 22;
 
-        /**
-         * Weich pulsierende Notfall-Vignette am Bildschirmrand
-         */
-        private static void drawVignette(GuiGraphicsExtractor graphics, float intensity, boolean endangered) {
+        private static int argb(int alpha, int rgb) {
+            return Mth.clamp(alpha, 0, 255) << 24 | rgb & 0x00FFFFFF;
+        }
+
+        /** Weich pulsierendes Randglühen; bei eigener Gefahr stärker und mit wandernden Warnstreifen. */
+        private static void drawVignette(GuiGraphicsExtractor graphics, float pulse, boolean endangered, float time) {
             int width = graphics.guiWidth();
             int height = graphics.guiHeight();
-            int rgb = ALARM_RED & 0x00FFFFFF;
-            float strength = intensity * (endangered ? 1.0f : 0.5f);
+            float strength = (0.45F + 0.55F * pulse) * (endangered ? 1.0F : 0.45F);
             for (int step = 0; step < VIGNETTE_STEPS; step++) {
                 int depth = VIGNETTE_DEPTH * (step + 1) / VIGNETTE_STEPS;
-                int alpha = (int) (strength * 0x38 * (1.0f - step / (float) VIGNETTE_STEPS));
+                int alpha = (int) (strength * 0x40 * (1.0F - step / (float) VIGNETTE_STEPS));
                 if (alpha <= 2) {
                     continue;
                 }
-                int color = alpha << 24 | rgb;
+                int color = argb(alpha, RED);
                 graphics.fill(0, 0, width, depth, color);
                 graphics.fill(0, height - depth, width, height, color);
                 graphics.fill(0, depth, depth, height - depth, color);
                 graphics.fill(width - depth, depth, width, height - depth, color);
             }
-        }
-
-        /**
-         * Glassmorphic DEFCON Banner mit Gefahrenstreifen oben
-         */
-        private static void drawBanner(GuiGraphicsExtractor graphics, Font font, AirstrikeAlarmState alarm,
-                                       int accent, boolean endangered, boolean blinkOn, float time) {
-            int centerX = graphics.guiWidth() / 2;
-            int top = Math.max(12, graphics.guiHeight() / 7);
-
-            int panelWidth = 240;
-            int panelHeight = alarm.isIncoming() ? 38 : 22;
-            int left = centerX - panelWidth / 2;
-            int right = left + panelWidth;
-
-            // Glassmorphic Deck
-            graphics.fill(left, top, right, top + panelHeight, BACKDROP);
-            graphics.outline(left, top, panelWidth, panelHeight, accent);
-            graphics.horizontalLine(left + 2, right - 2, top + 1, endangered ? ALARM_RED : OsokWidgets.COLOR_GOLD);
-
-            // Hazard Schraffur-Ticks
-            int stripeShift = Math.floorMod((int) (time * 2.0f), 12);
-            for (int s = -stripeShift; s < panelWidth; s += 12) {
-                int sx = left + s;
-                if (sx >= left + 2 && sx + 3 <= right - 2) {
-                    graphics.fill(sx, top + 2, sx + 3, top + 4, endangered ? ALARM_RED : OsokWidgets.COLOR_GOLD);
+            if (!endangered) {
+                return;
+            }
+            // Schräge Warnstreifen oben und unten, die langsam wandern.
+            int shift = Math.floorMod((int) (time * 1.5F), 20);
+            for (int row = 0; row < 5; row++) {
+                for (int x = -20 - row + shift; x < width; x += 20) {
+                    graphics.fill(x, row, x + 10, row + 1, argb(0xB0, AMBER));
+                    graphics.fill(x, height - 1 - row, x + 10, height - row, argb(0xB0, AMBER));
                 }
             }
+        }
 
-            String headline = alarm.isIncoming()
-                    ? (endangered ? Component.translatable("hud.oneshotonekill.airstrike.danger").getString() : Component.translatable("hud.oneshotonekill.airstrike.incoming").getString())
-                    : Component.translatable("hud.oneshotonekill.airstrike.impact").getString();
-            graphics.centeredText(font, headline, centerX, top + 7, blinkOn ? ALARM_RED : 0xFFFFFFFF);
+        private static void drawBanner(GuiGraphicsExtractor graphics, Font font, AirstrikeAlarmState alarm, boolean endangered,
+                                       float pulse, float partialTick) {
+            int centerX = graphics.guiWidth() / 2;
+            int top = Math.max(12, graphics.guiHeight() / 8);
+            boolean incoming = alarm.isIncoming();
+            int rgb = endangered || !incoming ? RED : AMBER;
+            int w = BANNER_WIDTH;
+            int h = incoming ? 46 : 28;
+            int left = centerX - w / 2;
+            int right = left + w;
+            int glow = argb(90 + Math.round(120 * pulse), rgb);
 
-            if (!alarm.isIncoming()) {
+            graphics.fill(left - 2, top - 2, right + 2, top + h + 2, 0x80000000);
+            graphics.fill(left, top, right, top + h, PANEL);
+            graphics.outline(left, top, w, h, glow);
+
+            // Warnblock links mit Ausrufezeichen.
+            graphics.fill(left, top, left + 30, top + h, argb(0x30 + Math.round(0x40 * pulse), rgb));
+            graphics.fill(left + 30, top, left + 31, top + h, argb(0xCC, rgb));
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(left + 15, top + h / 2.0F - 8);
+            graphics.pose().scale(2.0F, 2.0F);
+            graphics.centeredText(font, incoming ? "!" : "✸", 0, 0, argb(0xFF, rgb));
+            graphics.pose().popMatrix();
+
+            String headline = incoming
+                ? Component.translatable(endangered ? "hud.oneshotonekill.airstrike.danger" : "hud.oneshotonekill.airstrike.incoming").getString()
+                : Component.translatable("hud.oneshotonekill.airstrike.impact").getString();
+            int textLeft = left + 38;
+            int textRight = incoming ? right - 62 : right - 8;
+            drawFitted(graphics, font, headline, textLeft, top + 7, textRight - textLeft, argb(0xFF, rgb));
+
+            if (!incoming) {
                 return;
             }
 
             int distance = (int) Math.round(alarm.distanceToTarget());
-            String detail = endangered
-                    ? Component.translatable("hud.oneshotonekill.airstrike.in_radius", distance).getString()
-                    : Component.translatable("hud.oneshotonekill.airstrike.impact_distance", distance).getString();
-            graphics.centeredText(font, detail, centerX, top + 18, endangered ? ALARM_RED : SAFE_CYAN);
-            drawCountdownBar(graphics, centerX, top + 29, alarm, accent);
+            String detail = Component.translatable(endangered ? "hud.oneshotonekill.airstrike.in_radius" : "hud.oneshotonekill.airstrike.impact_distance", distance).getString();
+            drawFitted(graphics, font, detail, textLeft, top + 19, textRight - textLeft, argb(0xFF, endangered ? WHITE : 0xB8BEC8));
+
+            // Restzeit groß rechts.
+            float remaining = Math.max(0.0F, alarm.getRemainingTicks() - partialTick) / 20.0F;
+            String time = String.format("%.1f", remaining);
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(right - 8 - font.width(time) * 1.8F, top + 6);
+            graphics.pose().scale(1.8F, 1.8F);
+            graphics.text(font, time, 0, 0, argb(0xFF, rgb));
+            graphics.pose().popMatrix();
+            graphics.text(font, "s", right - 8 - font.width("s"), top + 19, argb(0xFF, rgb));
+
+            // Segmentierter Countdown: leert sich von rechts.
+            float progress = Mth.clamp((alarm.getRemainingTicks() - partialTick) / (float) alarm.getWarningTicks(), 0.0F, 1.0F);
+            int barLeft = left + 38;
+            int barWidth = right - 8 - barLeft;
+            int gap = 2;
+            int seg = (barWidth - (SEGMENTS - 1) * gap) / SEGMENTS;
+            int lit = Math.round(progress * SEGMENTS);
+            for (int i = 0; i < SEGMENTS; i++) {
+                int sx = barLeft + i * (seg + gap);
+                graphics.fill(sx, top + h - 11, sx + seg, top + h - 5, i < lit ? argb(0xFF, rgb) : argb(0x30, rgb));
+            }
         }
 
-        private static void drawCountdownBar(GuiGraphicsExtractor graphics, int centerX, int y, AirstrikeAlarmState alarm, int accent) {
-            int barWidth = 180;
-            int left = centerX - barWidth / 2;
-            float progress = Mth.clamp(alarm.getRemainingTicks() / (float) alarm.getWarningTicks(), 0.0f, 1.0f);
-
-            graphics.fill(left, y, left + barWidth, y + 4, 0x9905080E);
-            graphics.fill(left, y, left + Math.round(barWidth * progress), y + 4, accent);
-            graphics.outline(left - 1, y - 1, barWidth + 2, 6, 0x6600F0FF);
+        /** Text, der bei Platzmangel verkleinert statt abgeschnitten wird. */
+        private static void drawFitted(GuiGraphicsExtractor graphics, Font font, String text, int x, int y, int maxWidth, int color) {
+            int textWidth = font.width(text);
+            float scale = Math.min(1.0F, maxWidth / (float) Math.max(1, textWidth));
+            graphics.pose().pushMatrix();
+            graphics.pose().translate(x, y + 4.0F * (1.0F - scale));
+            graphics.pose().scale(scale, scale);
+            graphics.text(font, text, 0, 0, color);
+            graphics.pose().popMatrix();
         }
 
-        /**
-         * 3D Tracking-Projektionsmarker für anfliegende Gefechtsköpfe
-         */
+        /** Zielmarker: im Bild als Klammern um die Bombe, am Rand als Pfeil in ihre Richtung. */
         private static void drawBombMarker(GuiGraphicsExtractor graphics, Minecraft client, Font font,
-                                           AirstrikeAlarmState alarm, LocalPlayer player, int accent, boolean blinkOn, float partialTick) {
+                                           AirstrikeAlarmState alarm, LocalPlayer player, boolean endangered,
+                                           float urgency, float pulse, float partialTick) {
             net.minecraft.world.phys.Vec3 eye = player.getEyePosition(partialTick);
             double deltaX = alarm.getTargetX() - eye.x;
             double deltaY = alarm.bombY(partialTick) - eye.y;
@@ -636,40 +669,67 @@ public final class CombatHudLayers {
                 onScreen = x >= EDGE_MARGIN && x <= width - EDGE_MARGIN && y >= EDGE_MARGIN && y <= height - EDGE_MARGIN;
             }
 
+            double bearing = Math.toRadians(yawOffset);
             if (!onScreen) {
                 int radius = Math.max(20, Math.min(centerX, centerY) - MARKER_MARGIN);
-                double bearing = Math.toRadians(yawOffset);
                 x = centerX + (int) Math.round(Math.sin(bearing) * radius);
                 y = centerY - (int) Math.round(Math.cos(bearing) * radius);
             }
 
-            drawMarkerIcon(graphics, x, y, accent, blinkOn, onScreen);
+            int rgb = endangered || urgency > 0.6F ? RED : AMBER;
+            int color = argb(0xFF, rgb);
+
+            // Klammern ziehen sich mit der Dringlichkeit zusammen und atmen im Takt.
+            int half = 14 - Math.round(5 * urgency) + Math.round(2 * pulse);
+            drawBrackets(graphics, x, y, half, 5, color);
+            graphics.fill(x - 3, y - 3, x + 4, y + 4, argb(0x60 + Math.round(0x50 * pulse), rgb));
+            graphics.fill(x - 1, y - 1, x + 2, y + 2, argb(0xFF, WHITE));
+            graphics.horizontalLine(x - half - 6, x - half - 2, y, color);
+            graphics.horizontalLine(x + half + 2, x + half + 6, y, color);
+            graphics.verticalLine(x, y - half - 6, y - half - 2, color);
+            graphics.verticalLine(x, y + half + 2, y + half + 6, color);
+
+            if (!onScreen) {
+                // Pfeil, der nach außen zur Bombe zeigt.
+                double dirX = Math.sin(bearing);
+                double dirY = -Math.cos(bearing);
+                int tipX = x + (int) Math.round(dirX * (half + 14));
+                int tipY = y + (int) Math.round(dirY * (half + 14));
+                int baseX = x + (int) Math.round(dirX * (half + 6));
+                int baseY = y + (int) Math.round(dirY * (half + 6));
+                int wingX = (int) Math.round(-dirY * 5);
+                int wingY = (int) Math.round(dirX * 5);
+                drawLine(graphics, baseX + wingX, baseY + wingY, tipX, tipY, color);
+                drawLine(graphics, baseX - wingX, baseY - wingY, tipX, tipY, color);
+            }
+
             if (alarm.isIncoming()) {
-                String altitude = Math.max(0, (int) Math.round(alarm.bombY(partialTick) - player.getY())) + "m ↓";
-                graphics.centeredText(font, altitude, x, y + 14, blinkOn ? ALARM_RED : 0xFFFFFFFF);
+                String altitude = "↓ " + Math.max(0, (int) Math.round(alarm.bombY(partialTick) - player.getY())) + "m";
+                int labelWidth = font.width(altitude) + 8;
+                int labelY = y + half + 9;
+                graphics.fill(x - labelWidth / 2, labelY - 2, x + labelWidth / 2, labelY + 10, 0xCC07080A);
+                graphics.outline(x - labelWidth / 2, labelY - 2, labelWidth, 12, argb(0x88, rgb));
+                graphics.centeredText(font, altitude, x, labelY, color);
             }
         }
 
-        private static void drawMarkerIcon(GuiGraphicsExtractor graphics, int x, int y, int accent, boolean blinkOn, boolean onScreen) {
-            int outer = blinkOn ? 10 : 8;
-            graphics.outline(x - outer, y - outer, outer * 2 + 1, outer * 2 + 1, accent);
-            graphics.outline(x - outer + 1, y - outer + 1, outer * 2 - 1, outer * 2 - 1, 0xAA000000);
+        private static void drawBrackets(GuiGraphicsExtractor graphics, int cx, int cy, int half, int arm, int color) {
+            graphics.horizontalLine(cx - half, cx - half + arm, cy - half, color);
+            graphics.verticalLine(cx - half, cy - half, cy - half + arm, color);
+            graphics.horizontalLine(cx + half - arm, cx + half, cy - half, color);
+            graphics.verticalLine(cx + half, cy - half, cy - half + arm, color);
+            graphics.horizontalLine(cx - half, cx - half + arm, cy + half, color);
+            graphics.verticalLine(cx - half, cy + half - arm, cy + half, color);
+            graphics.horizontalLine(cx + half - arm, cx + half, cy + half, color);
+            graphics.verticalLine(cx + half, cy + half - arm, cy + half, color);
+        }
 
-            if (blinkOn) {
-                graphics.fill(x - 4, y - 4, x + 5, y + 5, ALARM_RED);
-                graphics.fill(x - 1, y - 1, x + 2, y + 2, CORE);
-            } else {
-                graphics.outline(x - 4, y - 4, 9, 9, accent);
-            }
-
-            int reach = outer + (blinkOn ? 6 : 4);
-            graphics.horizontalLine(x - reach, x - outer - 1, y, accent);
-            graphics.horizontalLine(x + outer + 1, x + reach, y, accent);
-            graphics.verticalLine(x, y - reach, y - outer - 1, accent);
-            graphics.verticalLine(x, y + outer + 1, y + reach, accent);
-
-            if (!onScreen) {
-                graphics.outline(x - outer - 3, y - outer - 3, (outer + 3) * 2 + 1, (outer + 3) * 2 + 1, 0x5500F0FF);
+        private static void drawLine(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color) {
+            int steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+            for (int i = 0; i <= steps; i++) {
+                int px = steps == 0 ? x0 : x0 + (x1 - x0) * i / steps;
+                int py = steps == 0 ? y0 : y0 + (y1 - y0) * i / steps;
+                graphics.fill(px, py, px + 2, py + 2, color);
             }
         }
 
@@ -683,18 +743,18 @@ public final class CombatHudLayers {
             }
 
             float partialTick = deltaTracker.getGameTimeDeltaPartialTick(false);
+            float time = player.tickCount + partialTick;
             boolean endangered = alarm.isInBlastRadius();
 
             float urgency = alarm.isIncoming()
                     ? 1.0f - Mth.clamp(alarm.getRemainingTicks() / (float) alarm.getWarningTicks(), 0.0f, 1.0f)
                     : 1.0f;
-            int blinkPeriod = urgency > 0.55f ? 2 : 4;
-            boolean blinkOn = player.tickCount / blinkPeriod % 2 == 0;
-            int accent = blinkOn ? ALARM_RED : ALARM_RED_DIM;
+            // Der Puls wird mit nahendem Einschlag schneller.
+            float pulse = 0.5F + 0.5F * Mth.sin(time * (0.3F + 0.7F * urgency));
 
-            drawVignette(graphics, blinkOn ? 1.0f : 0.4f, endangered);
-            drawBanner(graphics, client.font, alarm, accent, endangered, blinkOn, player.tickCount + partialTick);
-            drawBombMarker(graphics, client, client.font, alarm, player, accent, blinkOn, partialTick);
+            drawVignette(graphics, pulse, endangered, time);
+            drawBanner(graphics, client.font, alarm, endangered, pulse, partialTick);
+            drawBombMarker(graphics, client, client.font, alarm, player, endangered, urgency, pulse, partialTick);
 
             float flash = alarm.impactFlash(partialTick);
             if (flash > 0.01F) {

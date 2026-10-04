@@ -39,25 +39,25 @@ public final class BlockDebris {
    public static final BlockDebris INSTANCE = new BlockDebris();
 
    /** Obergrenze der Brocken je Einschlag; mehr trüge kein Client mehr flüssig. */
-   private static final int MAX_CHUNKS = 380;
+   private static final int MAX_CHUNKS = 900;
    /** Anteil der Brocken, die von der Oberfläche des Kraters stammen. */
    private static final double SURFACE_SHARE = 0.6;
    /** Anteil der Brocken, die als Fontäne fast senkrecht in die Höhe schießen. */
-   private static final double FOUNTAIN_SHARE = 0.16;
+   private static final double FOUNTAIN_SHARE = 0.22;
    private static final float VIEW_RANGE = 5.0F;
    private static final int INTERPOLATION_TICKS = 3;
    /** Pose-Update alle drei Ticks, passend zur Interpolation – bei hunderten Brocken zählt jedes Paket. */
    private static final int POSE_EVERY = 3;
    private static final double GRAVITY = 0.07;
    private static final double DRAG = 0.988;
-   private static final int MAX_AGE = 100;
+   private static final int MAX_AGE = 130;
    /** Ab hier schrumpft ein Brocken, damit er nicht plötzlich verschwindet. */
-   private static final int SHRINK_FROM = 80;
-   private static final double OUTWARD_SPEED = 1.7;
-   private static final double LIFT_BASE = 0.9;
-   private static final double LIFT_RANDOM = 1.4;
-   private static final double FOUNTAIN_LIFT = 1.9;
-   private static final double FOUNTAIN_LIFT_RANDOM = 1.2;
+   private static final int SHRINK_FROM = 105;
+   private static final double OUTWARD_SPEED = 2.4;
+   private static final double LIFT_BASE = 1.3;
+   private static final double LIFT_RANDOM = 1.8;
+   private static final double FOUNTAIN_LIFT = 2.6;
+   private static final double FOUNTAIN_LIFT_RANDOM = 1.6;
    /** Anteil der Brocken, die beim Aufprall einen Klang abgeben – alle würden zum Prasseln verschwimmen. */
    private static final int LANDING_SOUND_ONE_IN = 7;
    /** Erst nach diesen Ticks prüft ein Brocken den Boden, sonst „landet“ er im frisch geleerten Krater. */
@@ -132,15 +132,15 @@ public final class BlockDebris {
          }
 
          // Mal ein Splitter, mal ein ganzer Brocken, selten ein Felsen.
-         float size = (float) (0.45 + random.nextDouble() * 0.8 + (random.nextDouble() < 0.1 ? 0.9 : 0.0));
-         boolean burning = nearness > 0.55 && random.nextDouble() < 0.5;
+         float size = (float) (0.45 + random.nextDouble() * 0.9 + (random.nextDouble() < 0.14 ? 1.3 : 0.0));
+         boolean burning = nearness > 0.4 && random.nextDouble() < 0.6;
          Vector3f axis = Hologram.randomRotationAxis(random);
          chunks.add(new Chunk(level, display, entry.getValue(), start,
             new Vec3(Math.cos(angle) * speed, lift, Math.sin(angle) * speed),
             axis, (random.nextDouble() - 0.5) * 1.1, random.nextDouble() * Math.PI * 2.0, size, burning, ceiling));
 
          // Dazu ein Schwall Splitter in der Farbe des Blocks, damit der Wurf von Anfang an dicht wirkt.
-         if (particleBursts < 90) {
+         if (particleBursts < 220) {
             particleBursts++;
             double splash = 0.4 + 0.7 * nearness;
             level.sendParticles(new BlockParticleOption(ParticleTypes.BLOCK, entry.getValue()),
@@ -187,7 +187,7 @@ public final class BlockDebris {
             continue;
          }
 
-         if (chunk.burning && chunk.age % 3 == 0 && chunk.age < 60) {
+         if (chunk.burning && chunk.age % 2 == 0 && chunk.age < 80) {
             level.sendParticles(ParticleTypes.SMALL_FLAME, world.x, world.y, world.z, 1, 0.1, 0.1, 0.1, 0.01);
             level.sendParticles(ParticleTypes.LARGE_SMOKE, world.x, world.y, world.z, 1, 0.12, 0.12, 0.12, 0.01);
          }

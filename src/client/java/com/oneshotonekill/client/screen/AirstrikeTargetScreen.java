@@ -26,46 +26,35 @@ import net.minecraft.util.Mth;
 import net.minecraft.util.Util;
 
 import java.util.List;
+import java.util.function.BooleanSupplier;
 import java.util.function.Consumer;
 
 /**
- * Taktisches Orbital-Command Terminal (C2): Live-Geländescan, Polar-Radar mit Kompass,
- * holographischer Lock-On Reticle, 4-Kachel Telemetriedeck und Cyber-Buttons.
+ * Kriegsraum-Terminal für den Luftangriff: große Taktikkarte mit Koordinatenlineal und Raster,
+ * Radarsweep vom eigenen Standort, einrastendes Fadenkreuz mit Druckwellen und eine Datenleiste
+ * mit Status, Daten und Feuerknopf. Bernstein auf Schwarz, Rot für alles, was tötet.
  */
-@SuppressWarnings({"Convert2MethodRef", "MathClampMigration", "NullableProblems", "SameParameterValue", "unused"})
+@SuppressWarnings({"MathClampMigration", "NullableProblems", "SameParameterValue"})
 public final class AirstrikeTargetScreen extends Screen {
    private static final Identifier RADAR_TEXTURE = OneShotOneKill.INSTANCE.id("dynamic/airstrike_radar");
 
-   // Farbtokens & Designsystem
-   private static final int PANEL_BG = 0xF2080C14;
-   private static final int PANEL_BORDER = 0xAA00F0FF;
-   private static final int PANEL_INNER = 0x4400F0FF;
-   private static final int HEADER_BG = 0xF20C121E;
-   private static final int MAP_FRAME = 0xFF060910;
-   private static final int MAP_BORDER = 0x8800F0FF;
-   private static final int MAP_EMPTY = 0xFF080C12;
-   private static final int GRID_COLOR = 0x2600F0FF;
-   private static final int POLAR_RING_COLOR = 0x3300F0FF;
-   private static final int SCANLINE = 0x16000000;
-   private static final int BRACKET_GOLD = 0xFFFFD700;
-   private static final int TARGET_CYAN = 0xFF00F0FF;
-   private static final int TARGET_LOCKED = 0xFFFF3366;
-   private static final int BLAST_RGB = 0xFF2244;
-   private static final int PREVIEW_RGB = 0x00F0FF;
-   private static final int BLAST_LINE = 0xCCFF3366;
-   private static final int BLAST_PREVIEW = 0x4400F0FF;
-   private static final int SWEEP_RGB = 0x0000F0FF;
-   private static final int PLAYER_EMERALD = 0xFF00FF9D;
-   private static final int ENEMY_CRIMSON = 0xFFFF3366;
-   private static final int DANGER_PULSE = 0xFFFF0033;
-   private static final int TEXT_MUTED = 0xFF8B9BB4;
+   private static final int AMBER = 0xFFB02E;
+   private static final int AMBER_LIGHT = 0xFFD27A;
+   private static final int RED = 0xFF4B3E;
+   private static final int GREEN = 0x5BE38A;
+   private static final int MUTED = 0x8A8F98;
+   private static final int WHITE = 0xFFFFFF;
+   private static final int PANEL_BG = 0xF2101216;
+   private static final int PANEL_BG_DARK = 0xF20A0C0F;
+   private static final int MAP_EMPTY = 0xFF0B0D10;
 
-   private static final int SWEEP_TRAIL = 16;
-   private static final float SWEEP_TRAIL_STEP = 0.045F;
-   private static final float SWEEP_SPEED = 0.055F;
-   private static final int SWEEP_MAX_ALPHA = 0x88;
-   private static final int BLAST_CIRCLE_POINTS = 72;
-   private static final int LOCK_ON_TICKS = 7;
+   private static final int SWEEP_TRAIL = 18;
+   private static final float SWEEP_TRAIL_STEP = 0.04F;
+   private static final float SWEEP_SPEED = 0.05F;
+   private static final int SWEEP_MAX_ALPHA = 0x70;
+   private static final int RING_POINTS = 84;
+   private static final int LOCK_ON_TICKS = 8;
+   private static final int[] GRID_STEPS = {8, 16, 32, 64, 128, 256};
 
    private final Arena arena;
 
@@ -77,14 +66,14 @@ public final class AirstrikeTargetScreen extends Screen {
    private double maxX;
    private double minZ;
    private double maxZ;
-   private int panelLeft;
-   private int panelTop;
-   private int panelWidth;
-   private int panelHeight;
    private int mapLeft;
    private int mapTop;
    private int mapWidth;
    private int mapHeight;
+   private int panelLeft;
+   private int panelTop;
+   private int panelWidth;
+   private int panelHeight;
 
    private List<Integer> terrainColors = List.of();
    private int terrainCells;
@@ -93,7 +82,7 @@ public final class AirstrikeTargetScreen extends Screen {
    private DynamicTexture radarTexture;
    private int uploadedRadarRevision = -1;
    private int terrainRevision = -1;
-   private CyberStrikeButton fireButton;
+   private StrikeButton fireButton;
 
    public AirstrikeTargetScreen() {
       super(Component.translatable("gui.oneshotonekill.airstrike.title"));
@@ -116,30 +105,29 @@ public final class AirstrikeTargetScreen extends Screen {
       minZ = arena.getRegions().stream().mapToDouble(region -> region.getMinZ()).min().orElse(0.0);
       maxZ = arena.getRegions().stream().mapToDouble(region -> region.getMaxZ()).max().orElse(1.0);
       double aspect = (maxX - minX) / Math.max(1.0, maxZ - minZ);
+
+      // Kompaktes, zentriertes Panel; bei hoher GUI-Skalierung schrumpft die Karte.
       int maxWidth = Math.min(380, width - 64);
       int maxHeight = Math.min(260, height - 210);
-      // Bei hoher GUI-Skalierung darf die Karte schrumpfen, damit Telemetrie und Knöpfe im Bild bleiben.
       mapWidth = Math.max(100, Math.min(maxWidth, (int) Math.round(maxHeight * aspect)));
       mapHeight = Math.max(100, Math.min(maxHeight, (int) Math.round(mapWidth / aspect)));
 
-      // Mindestbreite 340px, damit Header, Telemetrie-Kacheln und Buttons immer perfekt passen
-      int minPanelWidth = Math.min(width - 24, 340);
-      panelWidth = Math.max(minPanelWidth, Math.min(width - 24, mapWidth + 48));
-      panelHeight = mapHeight + 152;
+      panelWidth = Math.max(Math.min(width - 24, 340), Math.min(width - 24, mapWidth + 48));
+      panelHeight = mapHeight + 156;
       panelLeft = width / 2 - panelWidth / 2;
       panelTop = height / 2 - panelHeight / 2;
-
-      // Karte mittig im Panel platzieren
       mapLeft = panelLeft + (panelWidth - mapWidth) / 2;
-      mapTop = panelTop + 48;
+      mapTop = panelTop + 46;
 
-      int buttonWidth = Math.min(240, panelWidth - 48);
-      fireButton = new CyberStrikeButton(width / 2 - buttonWidth / 2, mapTop + mapHeight + 54, buttonWidth, 22,
+      int deckLeft = panelLeft + 16;
+      int deckWidth = panelWidth - 32;
+      int buttonY = mapTop + mapHeight + 76;
+      int fireWidth = deckWidth * 62 / 100;
+      fireButton = new StrikeButton(deckLeft, buttonY, fireWidth, 24,
          Component.translatable("gui.oneshotonekill.airstrike.launch"), () -> hasTarget(), ignored -> confirm());
       fireButton.active = false;
       addRenderableWidget(fireButton);
-
-      addRenderableWidget(new CyberAbortButton(width / 2 - buttonWidth / 2, mapTop + mapHeight + 80, buttonWidth, 18,
+      addRenderableWidget(new AbortButton(deckLeft + fireWidth + 6, buttonY, deckWidth - fireWidth - 6, 24,
          Component.translatable("gui.oneshotonekill.airstrike.cancel"), ignored -> onClose()));
 
       ClientPlayNetworking.send(AirstrikeSystem.OpenRadarPayload.EMPTY);
@@ -175,7 +163,7 @@ public final class AirstrikeTargetScreen extends Screen {
       return super.keyPressed(event);
    }
 
-   /** Nur die Unschärfe; der kühle Schleier folgt in {@link #extractRenderState}. */
+   /** Nur die Unschärfe; der dunkle Schleier folgt in {@link #extractRenderState}. */
    @Override
    public void extractBackground(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
       graphics.blurBeforeThisStratum();
@@ -230,23 +218,26 @@ public final class AirstrikeTargetScreen extends Screen {
    @Override
    public void extractRenderState(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
       graphics.requestCursor(cursorFor(mouseX, mouseY));
-      graphics.fill(0, 0, width, height, OsokWidgets.COLOR_SCRIM);
-      drawGlassPanel(graphics, panelLeft, panelTop, panelWidth, panelHeight);
-      drawHeader(graphics);
+      graphics.fillGradient(0, 0, width, height, 0xCC050608, 0xDD020304);
 
-      graphics.fill(mapLeft - 3, mapTop - 3, mapLeft + mapWidth + 3, mapTop + mapHeight + 3, MAP_FRAME);
+      drawPanel(graphics);
+      drawTitle(graphics);
+      graphics.fill(mapLeft - 2, mapTop - 2, mapLeft + mapWidth + 2, mapTop + mapHeight + 2, 0xFF050607);
       drawTerrain(graphics);
-      drawPolarGrid(graphics);
+      drawGrid(graphics);
       drawSweep(graphics, partial);
       drawScanlines(graphics);
+
+      graphics.enableScissor(mapLeft, mapTop, mapLeft + mapWidth, mapTop + mapHeight);
       drawBlastPreview(graphics, mouseX, mouseY);
       drawTarget(graphics, partial);
       drawContacts(graphics);
       drawPlayerMarker(graphics);
-      drawMapFrameAndCompass(graphics);
+      graphics.disableScissor();
 
+      drawMapFrame(graphics);
       drawHint(graphics, mouseX, mouseY);
-      drawTelemetryDeck(graphics);
+      drawDeck(graphics);
       super.extractRenderState(graphics, mouseX, mouseY, partial);
    }
 
@@ -257,52 +248,38 @@ public final class AirstrikeTargetScreen extends Screen {
       }
    }
 
-   /** Header mit Satelliten-Icon, Telemetrie und blinkender DEFCON-Statuslampe */
-   private void drawHeader(GuiGraphicsExtractor graphics) {
-      graphics.fill(panelLeft + 3, panelTop + 3, panelLeft + panelWidth - 3, panelTop + 38, HEADER_BG);
-      graphics.fill(panelLeft + 3, panelTop + 36, panelLeft + panelWidth - 3, panelTop + 38, 0x5500F0FF);
+   // ---------------------------------------------------------------- Panel & Titel
 
-      // Goldener Tech-Winkel links oben
-      graphics.fill(panelLeft + 4, panelTop + 4, panelLeft + 12, panelTop + 6, BRACKET_GOLD);
-      graphics.fill(panelLeft + 4, panelTop + 4, panelLeft + 6, panelTop + 12, BRACKET_GOLD);
-
-      // Scharf gezeichnetes 2D-Vektor Satelliten-Icon
-      Component terminalTitle = Component.translatable("gui.oneshotonekill.airstrike.terminal");
-      int titleTextWidth = font.width(terminalTitle);
-      int satX = width / 2 - titleTextWidth / 2 - 14;
-      int satY = panelTop + 13;
-      drawVectorSatelliteIcon(graphics, satX, satY);
-
-      graphics.centeredText(font, terminalTitle, width / 2 + 4, panelTop + 10, OsokWidgets.COLOR_CYAN);
-      graphics.centeredText(font, Component.translatable("gui.oneshotonekill.airstrike.sector", arena.getDisplayName().toUpperCase()), width / 2, panelTop + 23, TEXT_MUTED);
-
-      // Status-Beacon rechts
+   private void drawPanel(GuiGraphicsExtractor graphics) {
       boolean armed = hasTarget();
-      int pulse = armed ? 255 : (int) (140 + 90 * Mth.sin(clientTick() * 0.35F));
-      int lampColor = Mth.clamp(pulse, 0, 255) << 24 | (armed ? TARGET_LOCKED : OsokWidgets.COLOR_CYAN) & 0x00FFFFFF;
-      int lampX = panelLeft + panelWidth - 20;
-      graphics.fill(lampX - 1, panelTop + 13, lampX + 8, panelTop + 22, 0x44000000);
-      graphics.fill(lampX, panelTop + 14, lampX + 7, panelTop + 21, lampColor);
-      graphics.outline(lampX - 2, panelTop + 12, 11, 11, armed ? TARGET_LOCKED : 0x8800F0FF);
+      int edge = armed ? RED : AMBER;
+      graphics.fill(panelLeft - 3, panelTop - 3, panelLeft + panelWidth + 3, panelTop + panelHeight + 3, 0xB0000000);
+      graphics.fillGradient(panelLeft, panelTop, panelLeft + panelWidth, panelTop + panelHeight, PANEL_BG, PANEL_BG_DARK);
+      float beat = armed ? 0.5F + 0.5F * Mth.sin(clientTick() * 0.3F) : 0.0F;
+      graphics.outline(panelLeft, panelTop, panelWidth, panelHeight, alpha(armed ? 120 + Math.round(120 * beat) : 0x88, edge));
+      graphics.fill(panelLeft, panelTop, panelLeft + panelWidth, panelTop + 2, alpha(0xFF, edge));
    }
 
-   /** Zeichnet ein scharfes 10x8 Vektor-Satelliten-Icon */
-   private static void drawVectorSatelliteIcon(GuiGraphicsExtractor graphics, int x, int y) {
-      // Satellitenkörper (Center Core)
-      graphics.fill(x + 3, y + 1, x + 7, y + 6, OsokWidgets.COLOR_GOLD);
-      graphics.fill(x + 4, y + 2, x + 6, y + 5, 0xFFFFFFFF);
+   private void drawTitle(GuiGraphicsExtractor graphics) {
+      int left = panelLeft + 16;
+      int y = panelTop + 9;
+      boolean blink = (clientTick() / 10) % 2 == 0;
+      graphics.fill(left, y + 1, left + 5, y + 6, alpha(blink ? 0xFF : 0x55, hasTarget() ? RED : AMBER));
 
-      // Solarsegel Links
-      graphics.fill(x, y, x + 2, y + 7, OsokWidgets.COLOR_CYAN);
-      graphics.horizontalLine(x + 1, x + 3, y + 3, 0xFFFFFFFF);
+      Component terminal = Component.translatable("gui.oneshotonekill.airstrike.terminal");
+      graphics.pose().pushMatrix();
+      graphics.pose().translate(left + 10, y);
+      float fit = Math.min(1.0F, (panelWidth - 42) / (float) Math.max(1, font.width(terminal)));
+      graphics.pose().scale(fit, fit);
+      graphics.text(font, terminal, 0, 0, alpha(0xFF, AMBER));
+      graphics.pose().popMatrix();
 
-      // Solarsegel Rechts
-      graphics.fill(x + 8, y, x + 10, y + 7, OsokWidgets.COLOR_CYAN);
-      graphics.horizontalLine(x + 6, x + 9, y + 3, 0xFFFFFFFF);
-
-      // Antennenspitze
-      graphics.fill(x + 5, y - 2, x + 6, y + 1, 0xFF00F0FF);
+      drawMicro(graphics, Component.translatable("gui.oneshotonekill.airstrike.sector", arena.getDisplayName().toUpperCase()).getString(),
+         left + 10, y + 12, alpha(0xFF, MUTED), -1);
+      graphics.fill(left, panelTop + 30, panelLeft + panelWidth - 16, panelTop + 31, alpha(0x55, AMBER));
    }
+
+   // ---------------------------------------------------------------- Karte
 
    private void drawTerrain(GuiGraphicsExtractor graphics) {
       if (!hasScan) {
@@ -312,6 +289,8 @@ public final class AirstrikeTargetScreen extends Screen {
       uploadRadarTexture();
       graphics.blit(RenderPipelines.GUI_TEXTURED, RADAR_TEXTURE, mapLeft, mapTop, 0, 0, mapWidth, mapHeight,
          terrainCells, terrainCells, terrainCells, terrainCells);
+      // Leicht abdunkeln, damit Marker und Raster auf hellem Gelände lesbar bleiben.
+      graphics.fill(mapLeft, mapTop, mapLeft + mapWidth, mapTop + mapHeight, 0x40000000);
    }
 
    private void uploadRadarTexture() {
@@ -336,65 +315,50 @@ public final class AirstrikeTargetScreen extends Screen {
       uploadedRadarRevision = terrainRevision;
    }
 
-    /**
-     * Polar-Koordinaten Gitter mit konzentrischen Distanzringen, beschriftet in Blöcken
-     */
-    private void drawPolarGrid(GuiGraphicsExtractor graphics) {
-        int cx = mapLeft + mapWidth / 2;
-        int cy = mapTop + mapHeight / 2;
-
-        // Achsenkreuze
-        graphics.verticalLine(cx, mapTop, mapTop + mapHeight, GRID_COLOR);
-        graphics.horizontalLine(mapLeft, mapLeft + mapWidth, cy, GRID_COLOR);
-
-        // Konzentrische Distanzringe (25%, 50%, 75%) samt Entfernung vom Kartenmittelpunkt
-        int maxRadius = Math.min(mapWidth, mapHeight) / 2;
-        double halfExtent = Math.min(maxX - minX, maxZ - minZ) / 2.0;
-        for (int r = 1; r <= 3; r++) {
-            int radius = maxRadius * r / 4;
-            drawCircleOutline(graphics, cx, cy, radius, POLAR_RING_COLOR);
-            drawMicroLabel(graphics, Math.round(halfExtent * r / 4.0) + "m", cx + 10, cy - radius + 2, 0x8800F0FF);
-        }
-    }
-
-   private boolean isInsideMap(int x, int y) {
-      return x >= mapLeft && x < mapLeft + mapWidth && y >= mapTop && y < mapTop + mapHeight;
+   /** Rasterlinien in runden Blockabständen; der Abstand passt sich der Kartengröße an. */
+   private int gridStep() {
+      double pixelsPerBlock = mapWidth / Math.max(1.0, maxX - minX);
+      for (int step : GRID_STEPS) {
+         if (step * pixelsPerBlock >= 38) {
+            return step;
+         }
+      }
+      return GRID_STEPS[GRID_STEPS.length - 1];
    }
 
-   private void drawPointInBounds(GuiGraphicsExtractor graphics, int x, int y, int color) {
-      if (isInsideMap(x, y)) {
-         graphics.fill(x, y, x + 1, y + 1, color);
+   private void drawGrid(GuiGraphicsExtractor graphics) {
+      int step = gridStep();
+      int line = alpha(0x22, AMBER);
+      for (double wx = Math.ceil(minX / step) * step; wx < maxX; wx += step) {
+         int px = toMapX(wx);
+         graphics.verticalLine(px, mapTop, mapTop + mapHeight - 1, line);
+      }
+      for (double wz = Math.ceil(minZ / step) * step; wz < maxZ; wz += step) {
+         int pz = toMapZ(wz);
+         graphics.horizontalLine(mapLeft, mapLeft + mapWidth - 1, pz, line);
       }
    }
 
-   private void drawEllipseOutline(GuiGraphicsExtractor graphics, int cx, int cy, double rx, double ry, int points, int color) {
-      for (int i = 0; i < points; i++) {
-         double a = i * (Math.PI * 2.0 / points);
-         int px = cx + (int) Math.round(Math.cos(a) * rx);
-         int py = cy + (int) Math.round(Math.sin(a) * ry);
-         drawPointInBounds(graphics, px, py, color);
-      }
-   }
-
-   private void drawCircleOutline(GuiGraphicsExtractor graphics, int cx, int cy, int radius, int color) {
-      drawEllipseOutline(graphics, cx, cy, radius, radius, 36, color);
-   }
-
-   /** Dual-Phosphor Radarsweep mit feinem Partikelschweif */
+   /** Radarsweep, der vom eigenen Standort ausgeht. */
    private void drawSweep(GuiGraphicsExtractor graphics, float partial) {
-      // Läuft schon beim Aufbau der Verbindung, damit die leere Karte nicht tot wirkt.
       float angle = (clientTick() + partial) * SWEEP_SPEED;
-      int reach = (int) Math.ceil(Math.hypot(mapWidth, mapHeight) / 2.0);
+      int reach = (int) Math.ceil(Math.hypot(mapWidth, mapHeight));
+      LocalPlayer player = Minecraft.getInstance().player;
+      float originX = mapLeft + mapWidth / 2.0F;
+      float originZ = mapTop + mapHeight / 2.0F;
+      if (player != null && arena.isInArenaColumn(player.getX(), player.getZ())) {
+         originX = toMapX(player.getX()) + 0.5F;
+         originZ = toMapZ(player.getZ()) + 0.5F;
+      }
 
       graphics.enableScissor(mapLeft, mapTop, mapLeft + mapWidth, mapTop + mapHeight);
       graphics.pose().pushMatrix();
-      graphics.pose().translate(mapLeft + mapWidth / 2.0F, mapTop + mapHeight / 2.0F);
-
+      graphics.pose().translate(originX, originZ);
       for (int trail = SWEEP_TRAIL - 1; trail >= 0; trail--) {
-         int alpha = SWEEP_MAX_ALPHA * (SWEEP_TRAIL - trail) / SWEEP_TRAIL;
+         int a = SWEEP_MAX_ALPHA * (SWEEP_TRAIL - trail) / SWEEP_TRAIL;
          graphics.pose().pushMatrix();
          graphics.pose().rotate(angle - trail * SWEEP_TRAIL_STEP);
-         graphics.fill(0, -1, reach, 0, alpha << 24 | SWEEP_RGB);
+         graphics.fill(0, -1, reach, 0, alpha(a, AMBER));
          graphics.pose().popMatrix();
       }
       graphics.pose().popMatrix();
@@ -403,39 +367,44 @@ public final class AirstrikeTargetScreen extends Screen {
 
    private void drawScanlines(GuiGraphicsExtractor graphics) {
       for (int y = mapTop + 1; y < mapTop + mapHeight; y += 3) {
-         graphics.fill(mapLeft, y, mapLeft + mapWidth, y + 1, SCANLINE);
+         graphics.fill(mapLeft, y, mapLeft + mapWidth, y + 1, 0x14000000);
       }
    }
 
-   /** Kartenrahmen mit Kompass-Markierungen (N, O, S, W) und goldenen Tech-Ecken */
-   private void drawMapFrameAndCompass(GuiGraphicsExtractor graphics) {
-      graphics.outline(mapLeft, mapTop, mapWidth, mapHeight, MAP_BORDER);
-
-      // Goldene Tech-Eckklammern
-      int arm = 10;
+   /** Rahmen, Eckwinkel und Koordinatenlineal mit Skalenstrichen. */
+   private void drawMapFrame(GuiGraphicsExtractor graphics) {
       int right = mapLeft + mapWidth - 1;
       int bottom = mapTop + mapHeight - 1;
+      graphics.outline(mapLeft, mapTop, mapWidth, mapHeight, alpha(0x88, AMBER));
 
-      graphics.horizontalLine(mapLeft - 2, mapLeft + arm, mapTop - 2, BRACKET_GOLD);
-      graphics.verticalLine(mapLeft - 2, mapTop - 2, mapTop + arm, BRACKET_GOLD);
+      int arm = 12;
+      int c = alpha(0xFF, AMBER);
+      graphics.horizontalLine(mapLeft - 2, mapLeft + arm, mapTop - 2, c);
+      graphics.verticalLine(mapLeft - 2, mapTop - 2, mapTop + arm, c);
+      graphics.horizontalLine(right - arm, right + 2, mapTop - 2, c);
+      graphics.verticalLine(right + 2, mapTop - 2, mapTop + arm, c);
+      graphics.horizontalLine(mapLeft - 2, mapLeft + arm, bottom + 2, c);
+      graphics.verticalLine(mapLeft - 2, bottom - arm, bottom + 2, c);
+      graphics.horizontalLine(right - arm, right + 2, bottom + 2, c);
+      graphics.verticalLine(right + 2, bottom - arm, bottom + 2, c);
 
-      graphics.horizontalLine(right - arm, right + 2, mapTop - 2, BRACKET_GOLD);
-      graphics.verticalLine(right + 2, mapTop - 2, mapTop + arm, BRACKET_GOLD);
-
-      graphics.horizontalLine(mapLeft - 2, mapLeft + arm, bottom + 2, BRACKET_GOLD);
-      graphics.verticalLine(mapLeft - 2, bottom - arm, bottom + 2, BRACKET_GOLD);
-
-      graphics.horizontalLine(right - arm, right + 2, bottom + 2, BRACKET_GOLD);
-      graphics.verticalLine(right + 2, bottom - arm, bottom + 2, BRACKET_GOLD);
-
-      // Kompass-Markierungen
-      int midX = mapLeft + mapWidth / 2;
-      int midZ = mapTop + mapHeight / 2;
-      drawMicroLabel(graphics, "N", midX, mapTop + 4, OsokWidgets.COLOR_GOLD);
-      drawMicroLabel(graphics, "S", midX, bottom - 8, OsokWidgets.COLOR_CYAN);
-      drawMicroLabel(graphics, "W", mapLeft + 6, midZ - 3, OsokWidgets.COLOR_CYAN);
-      drawMicroLabel(graphics, "E", right - 6, midZ - 3, OsokWidgets.COLOR_CYAN);
+      int step = gridStep();
+      int tick = alpha(0xAA, AMBER);
+      int label = alpha(0xFF, MUTED);
+      for (double wx = Math.ceil(minX / step) * step; wx < maxX; wx += step) {
+         int px = toMapX(wx);
+         graphics.verticalLine(px, mapTop - 4, mapTop - 1, tick);
+         drawMicro(graphics, String.valueOf((int) wx), px, mapTop - 12, label, 0);
+      }
+      for (double wz = Math.ceil(minZ / step) * step; wz < maxZ; wz += step) {
+         int pz = toMapZ(wz);
+         graphics.horizontalLine(mapLeft - 4, mapLeft - 1, pz, tick);
+         drawMicro(graphics, String.valueOf((int) wz), mapLeft - 6, pz - 3, label, 1);
+      }
+      drawMicro(graphics, "N", mapLeft + mapWidth / 2, mapTop + 4, alpha(0xFF, AMBER_LIGHT), 0);
    }
+
+   // ---------------------------------------------------------------- Zielen
 
    private void drawBlastPreview(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
       if (!isOverMap(mouseX, mouseY)) {
@@ -446,70 +415,67 @@ public final class AirstrikeTargetScreen extends Screen {
       if (!arena.isInArenaColumn(x, z)) {
          return;
       }
-      // Fadenkreuz über die ganze Karte, damit sich die Peilung ablesen lässt.
-      graphics.horizontalLine(mapLeft, mapLeft + mapWidth - 1, mouseY, 0x2200F0FF);
-      graphics.verticalLine(mouseX, mapTop, mapTop + mapHeight - 1, 0x2200F0FF);
-      drawBlastZone(graphics, x, z, BLAST_PREVIEW, false);
-      graphics.outline(mouseX - 4, mouseY - 4, 9, 9, TARGET_CYAN);
+      int line = alpha(0x30, AMBER_LIGHT);
+      graphics.horizontalLine(mapLeft, mapLeft + mapWidth - 1, mouseY, line);
+      graphics.verticalLine(mouseX, mapTop, mapTop + mapHeight - 1, line);
+      drawBlastZone(graphics, x, z, false);
+      drawBrackets(graphics, mouseX, mouseY, 5, 3, alpha(0xFF, AMBER_LIGHT));
+      drawTag(graphics, "X " + (int) x + "  Z " + (int) z, mouseX + 36, mouseY + 8, alpha(0xFF, AMBER_LIGHT));
    }
 
-   /** Holographisches Zielkreuz mit Einrast-Animation und Danger-Zone */
+   /** Einrastendes Fadenkreuz: Klammern ziehen sich zusammen, dann laufen Druckwellen vom Ziel aus. */
    private void drawTarget(GuiGraphicsExtractor graphics, float partial) {
       if (!hasTarget()) {
          return;
       }
       int x = toMapX(selectedX);
       int z = toMapZ(selectedZ);
+      drawBlastZone(graphics, selectedX, selectedZ, true);
 
-      // Wirkungszone mit rotem Füllkreis und gestricheltem Gefahrenrand
-      drawBlastZone(graphics, selectedX, selectedZ, BLAST_LINE, true);
-
-      // Peillinie vom Spieler zum Ziel
       LocalPlayer player = Minecraft.getInstance().player;
       if (player != null && arena.isInArenaColumn(player.getX(), player.getZ())) {
-         int px = toMapX(player.getX());
-         int pz = toMapZ(player.getZ());
-         drawDottedLine(graphics, px, pz, x, z, 0x6600F0FF);
+         drawDashedLine(graphics, toMapX(player.getX()), toMapZ(player.getZ()), x, z, alpha(0xAA, AMBER_LIGHT));
       }
 
-      // Einrast-Klammern
-      float lockProgress = Mth.clamp((clientTick() + partial - selectedAtTick) / LOCK_ON_TICKS, 0.0F, 1.0F);
-      int lockSize = 6 + Math.round(20 * (1.0F - lockProgress));
-      int lockAlpha = (int) ((0.5F + 0.5F * lockProgress) * 255);
-      int lockColor = lockAlpha << 24 | TARGET_LOCKED & 0x00FFFFFF;
+      float lock = Mth.clamp((clientTick() + partial - selectedAtTick) / LOCK_ON_TICKS, 0.0F, 1.0F);
+      float ease = 1.0F - (1.0F - lock) * (1.0F - lock) * (1.0F - lock);
+      int half = 8 + Math.round(24 * (1.0F - ease));
+      int red = alpha(Math.round(120 + 135 * ease), RED);
+      drawBrackets(graphics, x, z, half, 6, red);
 
-      graphics.outline(x - lockSize, z - lockSize, lockSize * 2 + 1, lockSize * 2 + 1, lockColor);
-      graphics.outline(x - 5, z - 5, 11, 11, TARGET_LOCKED);
-      graphics.horizontalLine(x - 10, x + 10, z, TARGET_LOCKED);
-      graphics.verticalLine(x, z - 10, z + 10, TARGET_LOCKED);
-      graphics.fill(x, z, x + 1, z + 1, 0xFFFFFFFF);
+      // Fadenkreuz mit Lücke in der Mitte.
+      int c = alpha(0xFF, RED);
+      graphics.horizontalLine(x - 12, x - 3, z, c);
+      graphics.horizontalLine(x + 3, x + 12, z, c);
+      graphics.verticalLine(x, z - 12, z - 3, c);
+      graphics.verticalLine(x, z + 3, z + 12, c);
+      graphics.fill(x, z, x + 1, z + 1, alpha(0xFF, WHITE));
+
+      drawTag(graphics, "X " + (int) selectedX + "  Z " + (int) selectedZ, x,
+         z - (int) Math.round(AirstrikeSystem.KILL_RADIUS / (maxZ - minZ) * mapHeight) - 16, alpha(0xFF, RED));
    }
 
-   /**
-    * Wirkungskreis; scharf als pulsierende rote Fläche mit umlaufenden Warnmarken, sonst als Vorschau.
-    */
-   private void drawBlastZone(GuiGraphicsExtractor graphics, double worldX, double worldZ, int color, boolean armed) {
+   /** Wirkungskreis: scharf als pulsierende rote Fläche mit Druckwellen und kreisenden Strichen, sonst als Vorschau. */
+   private void drawBlastZone(GuiGraphicsExtractor graphics, double worldX, double worldZ, boolean armed) {
       double radiusX = AirstrikeSystem.KILL_RADIUS / (maxX - minX) * mapWidth;
       double radiusZ = AirstrikeSystem.KILL_RADIUS / (maxZ - minZ) * mapHeight;
       int centerX = toMapX(worldX);
       int centerZ = toMapZ(worldZ);
 
-      if (armed) {
-         float pulse = 0.5F + 0.5F * Mth.sin(clientTick() * 0.25F);
-         drawBlastDisc(graphics, centerX, centerZ, radiusX, radiusZ, BLAST_RGB, 0x22 + Math.round(0x1C * pulse));
-         double spin = clientTick() * 0.08;
-         for (int i = 0; i < 12; i++) {
-            double angle = spin + i * (Math.PI * 2.0 / 12);
-            int markX = centerX + (int) Math.round(Math.cos(angle) * (radiusX + 2.0));
-            int markZ = centerZ + (int) Math.round(Math.sin(angle) * (radiusZ + 2.0));
-            if (isInsideMap(markX, markZ)) {
-               graphics.fill(markX, markZ, markX + 2, markZ + 2, TARGET_LOCKED);
-            }
-         }
-      } else {
-         drawBlastDisc(graphics, centerX, centerZ, radiusX, radiusZ, PREVIEW_RGB, 0x16);
+      if (!armed) {
+         drawBlastDisc(graphics, centerX, centerZ, radiusX, radiusZ, AMBER_LIGHT, 0x14);
+         drawEllipse(graphics, centerX, centerZ, radiusX, radiusZ, alpha(0x99, AMBER_LIGHT), 0.0, false);
+         return;
       }
-      drawEllipseOutline(graphics, centerX, centerZ, radiusX, radiusZ, BLAST_CIRCLE_POINTS, color);
+
+      float pulse = 0.5F + 0.5F * Mth.sin(clientTick() * 0.25F);
+      drawBlastDisc(graphics, centerX, centerZ, radiusX, radiusZ, RED, 0x26 + Math.round(0x20 * pulse));
+      for (int wave = 0; wave < 3; wave++) {
+         float t = ((clientTick() + wave * 7) % 21) / 21.0F;
+         drawEllipse(graphics, centerX, centerZ, radiusX * t, radiusZ * t, alpha(Math.round(0xB0 * (1.0F - t)), RED), 0.0, false);
+      }
+      drawEllipse(graphics, centerX, centerZ, radiusX, radiusZ, alpha(0xFF, RED), 0.0, false);
+      drawEllipse(graphics, centerX, centerZ, radiusX + 4, radiusZ + 4, alpha(0xCC, AMBER), clientTick() * 0.06, true);
    }
 
    /** Gefüllte Ellipse zeilenweise, auf die Karte beschnitten. */
@@ -526,9 +492,216 @@ public final class AirstrikeTargetScreen extends Screen {
          int left = Math.max(mapLeft, centerX - half);
          int right = Math.min(mapLeft + mapWidth, centerX + half + 1);
          if (right > left) {
-            graphics.fill(left, row, right, row + 1, alpha << 24 | rgb);
+            graphics.fill(left, row, right, row + 1, alpha(alpha, rgb));
          }
       }
+   }
+
+   /** Ellipse aus Einzelpunkten; gestrichelt dreht sie sich mit {@code spin}. */
+   private void drawEllipse(GuiGraphicsExtractor graphics, int cx, int cy, double rx, double ry, int color, double spin,
+                            boolean dashed) {
+      for (int i = 0; i < RING_POINTS; i++) {
+         if (dashed && (i / 4) % 2 == 1) {
+            continue;
+         }
+         double a = spin + i * (Math.PI * 2.0 / RING_POINTS);
+         int px = cx + (int) Math.round(Math.cos(a) * rx);
+         int py = cy + (int) Math.round(Math.sin(a) * ry);
+         if (isInsideMap(px, py)) {
+            graphics.fill(px, py, px + 1, py + 1, color);
+         }
+      }
+   }
+
+   /** Vier Eckklammern um einen Punkt. */
+   private static void drawBrackets(GuiGraphicsExtractor graphics, int cx, int cy, int half, int arm, int color) {
+      graphics.horizontalLine(cx - half, cx - half + arm, cy - half, color);
+      graphics.verticalLine(cx - half, cy - half, cy - half + arm, color);
+      graphics.horizontalLine(cx + half - arm, cx + half, cy - half, color);
+      graphics.verticalLine(cx + half, cy - half, cy - half + arm, color);
+      graphics.horizontalLine(cx - half, cx - half + arm, cy + half, color);
+      graphics.verticalLine(cx - half, cy + half - arm, cy + half, color);
+      graphics.horizontalLine(cx + half - arm, cx + half, cy + half, color);
+      graphics.verticalLine(cx + half, cy + half - arm, cy + half, color);
+   }
+
+   /** Kleines Etikett auf dunklem Grund, in die Karte geklemmt. */
+   private void drawTag(GuiGraphicsExtractor graphics, String text, int centerX, int y, int color) {
+      int w = (int) (font.width(text) * 0.7F) + 8;
+      int h = 11;
+      int x = Mth.clamp(centerX - w / 2, mapLeft + 2, Math.max(mapLeft + 2, mapLeft + mapWidth - w - 2));
+      int yy = Mth.clamp(y, mapTop + 2, Math.max(mapTop + 2, mapTop + mapHeight - h - 2));
+      graphics.fill(x, yy, x + w, yy + h, 0xDD07080A);
+      graphics.outline(x, yy, w, h, (color & 0x00FFFFFF) | 0x99000000);
+      drawMicro(graphics, text, x + w / 2, yy + 3, color, 0);
+   }
+
+   private void drawDashedLine(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color) {
+      int steps = Math.max(Math.abs(x1 - x0), Math.abs(y1 - y0));
+      if (steps <= 0) {
+         return;
+      }
+      int shift = clientTick() / 2 % 8;
+      for (int i = 0; i <= steps; i++) {
+         if ((i + shift) % 8 >= 4) {
+            continue;
+         }
+         int x = x0 + (x1 - x0) * i / steps;
+         int y = y0 + (y1 - y0) * i / steps;
+         graphics.fill(x, y, x + 1, y + 1, color);
+      }
+   }
+
+   // ---------------------------------------------------------------- Marker
+
+   private void drawPlayerMarker(GuiGraphicsExtractor graphics) {
+      LocalPlayer player = Minecraft.getInstance().player;
+      if (player == null || !arena.isInArenaColumn(player.getX(), player.getZ())) {
+         return;
+      }
+      boolean endangered = isInBlast(player.getX(), player.getZ());
+      int rgb = endangered ? RED : GREEN;
+      int color = alpha(0xFF, rgb);
+      int x = toMapX(player.getX());
+      int z = toMapZ(player.getZ());
+
+      drawSonarPulse(graphics, x, z, rgb, player.tickCount);
+      graphics.fill(x - 2, z - 2, x + 3, z + 3, color);
+      graphics.fill(x - 1, z - 1, x + 2, z + 2, 0xFF050607);
+      graphics.fill(x, z, x + 1, z + 1, color);
+      // Blickrichtung (Yaw 0 schaut nach +Z).
+      double yaw = Math.toRadians(player.getYRot());
+      for (int d = 4; d <= 9; d++) {
+         int hx = x + (int) Math.round(-Math.sin(yaw) * d);
+         int hz = z + (int) Math.round(Math.cos(yaw) * d);
+         graphics.fill(hx, hz, hx + 1, hz + 1, color);
+      }
+      drawMicro(graphics, Component.translatable("gui.oneshotonekill.airstrike.you").getString(), x, z + 7, color, 0);
+   }
+
+   private void drawContacts(GuiGraphicsExtractor graphics) {
+      if (!hasScan) {
+         return;
+      }
+      LocalPlayer player = Minecraft.getInstance().player;
+      int tick = player == null ? 0 : player.tickCount;
+      for (AirstrikeSystem.RadarPayload.RadarContact contact : contacts) {
+         boolean doomed = isInBlast(contact.x(), contact.z());
+         int rgb = doomed ? RED : AMBER;
+         int color = alpha(0xFF, rgb);
+         int x = toMapX(contact.x());
+         int z = toMapZ(contact.z());
+
+         drawSonarPulse(graphics, x, z, rgb, tick + Math.floorMod(contact.name().hashCode(), 20));
+         graphics.outline(x - 2, z - 2, 5, 5, color);
+         graphics.fill(x, z, x + 1, z + 1, color);
+         if (doomed && (tick / 4) % 2 == 0) {
+            graphics.fill(x - 3, z - 3, x + 4, z + 4, alpha(0x40, RED));
+         }
+         drawMicro(graphics, doomed ? "☠ " + contact.name() : contact.name(), x, z + 6, doomed ? color : alpha(0xDD, AMBER_LIGHT), 0);
+      }
+   }
+
+   private static void drawSonarPulse(GuiGraphicsExtractor graphics, int x, int y, int rgb, int tick) {
+      int phase = Math.floorMod(tick, 24);
+      int radius = 4 + phase / 3;
+      graphics.outline(x - radius, y - radius, radius * 2 + 1, radius * 2 + 1, alpha(Math.max(0, 0x80 - phase * 5), rgb));
+   }
+
+   private void drawHint(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
+      Component hint;
+      int rgb;
+      if (!hasScan) {
+         hint = Component.translatable("gui.oneshotonekill.airstrike.scan_init");
+         rgb = MUTED;
+      } else if (!hasTarget()) {
+         hint = isOverMap(mouseX, mouseY)
+            ? Component.translatable("gui.oneshotonekill.airstrike.target_coords", (int) worldXAt(mouseX), (int) worldZAt(mouseY))
+            : Component.translatable("gui.oneshotonekill.airstrike.click_hint");
+         rgb = AMBER;
+      } else {
+         hint = Component.translatable("gui.oneshotonekill.airstrike.locked_hint");
+         rgb = RED;
+      }
+      drawFittedText(graphics, hint, mapLeft + mapWidth / 2, mapTop + mapHeight + 8, mapWidth, alpha(0xFF, rgb));
+   }
+
+   // ---------------------------------------------------------------- Datenleiste
+
+   /** Statusbalken und vier Datenzellen unter der Karte. */
+   private void drawDeck(GuiGraphicsExtractor graphics) {
+      boolean armed = hasTarget();
+      LocalPlayer player = Minecraft.getInstance().player;
+      boolean selfInBlast = armed && player != null && isInBlast(player.getX(), player.getZ());
+      int enemiesInBlast = 0;
+      if (armed) {
+         for (AirstrikeSystem.RadarPayload.RadarContact contact : contacts) {
+            if (isInBlast(contact.x(), contact.z())) {
+               enemiesInBlast++;
+            }
+         }
+      }
+
+      String statusText;
+      int statusRgb;
+      if (!armed) {
+         statusText = Component.translatable("gui.oneshotonekill.airstrike.status_standby").getString();
+         statusRgb = MUTED;
+      } else if (selfInBlast) {
+         statusText = Component.translatable("gui.oneshotonekill.airstrike.status_danger").getString();
+         statusRgb = RED;
+      } else if (enemiesInBlast > 0) {
+         statusText = Component.translatable("gui.oneshotonekill.airstrike.in_blast", enemiesInBlast).getString();
+         statusRgb = AMBER;
+      } else {
+         statusText = Component.translatable("gui.oneshotonekill.airstrike.status_lock").getString();
+         statusRgb = GREEN;
+      }
+
+      int left = panelLeft + 16;
+      int w = panelWidth - 32;
+      int y = mapTop + mapHeight + 20;
+      int boxAlpha = selfInBlast ? 0x30 + Math.round(0x30 * (0.5F + 0.5F * Mth.sin(clientTick() * 0.5F))) : 0x26;
+      graphics.fill(left, y, left + w, y + 20, alpha(boxAlpha, statusRgb));
+      graphics.outline(left, y, w, 20, alpha(0xAA, statusRgb));
+      graphics.fill(left, y, left + 3, y + 20, alpha(0xFF, statusRgb));
+      drawMicro(graphics, Component.translatable("gui.oneshotonekill.airstrike.tile_status").getString(), left + 9, y + 7, alpha(0xFF, MUTED), -1);
+      drawFittedText(graphics, Component.literal(statusText), left + w / 2 + 14, y + 6, w - 90, alpha(0xFF, statusRgb));
+
+      String targetVal = armed ? (int) selectedX + " / " + (int) selectedZ : "---";
+      String distVal = armed && player != null
+         ? Math.round(Math.hypot(selectedX - player.getX(), selectedZ - player.getZ())) + "m"
+         : "---";
+      int gap = 4;
+      int cell = (w - 3 * gap) / 4;
+      int cy = y + 26;
+      int valueRgb = armed ? AMBER_LIGHT : MUTED;
+      drawCell(graphics, left, cy, cell, Component.translatable("gui.oneshotonekill.airstrike.tile_target").getString(), targetVal, valueRgb);
+      drawCell(graphics, left + (cell + gap), cy, cell, Component.translatable("gui.oneshotonekill.airstrike.tile_distance").getString(), distVal, valueRgb);
+      drawCell(graphics, left + 2 * (cell + gap), cy, cell, Component.translatable("gui.oneshotonekill.airstrike.tile_radius").getString(),
+         (int) AirstrikeSystem.KILL_RADIUS + "m", AMBER);
+      drawCell(graphics, left + 3 * (cell + gap), cy, cell, Component.translatable("gui.oneshotonekill.airstrike.tile_eta").getString(),
+         String.format("%.1fs", AirstrikeSystem.WARNING_TICKS / 20.0), armed ? RED : MUTED);
+   }
+
+   private void drawCell(GuiGraphicsExtractor graphics, int x, int y, int w, String title, String value, int rgb) {
+      graphics.fillGradient(x, y, x + w, y + 24, 0xDD14171C, 0xDD0B0D10);
+      graphics.outline(x, y, w, 24, alpha(0x44, AMBER));
+      graphics.fill(x + 1, y + 1, x + w - 1, y + 2, alpha(0xAA, rgb));
+      drawMicro(graphics, title, x + w / 2, y + 5, alpha(0xFF, MUTED), 0);
+      drawFittedText(graphics, Component.literal(value), x + w / 2, y + 13, w - 6, alpha(0xFF, rgb));
+   }
+
+   // ---------------------------------------------------------------- Text
+
+   /** Verkleinerter Text; {@code align}: -1 links, 0 Mitte, 1 rechts vom Punkt. */
+   private void drawMicro(GuiGraphicsExtractor graphics, String text, int x, int y, int color, int align) {
+      int w = font.width(text);
+      graphics.pose().pushMatrix();
+      graphics.pose().translate(x, y);
+      graphics.pose().scale(0.7F, 0.7F);
+      graphics.text(font, text, align < 0 ? 0 : align == 0 ? -w / 2 : -w, 0, color);
+      graphics.pose().popMatrix();
    }
 
    /** Text, der bei Platzmangel verkleinert statt abgeschnitten wird. */
@@ -546,148 +719,10 @@ public final class AirstrikeTargetScreen extends Screen {
       graphics.pose().popMatrix();
    }
 
-   private void drawDottedLine(GuiGraphicsExtractor graphics, int x0, int y0, int x1, int y1, int color) {
-      int dx = Math.abs(x1 - x0);
-      int dy = Math.abs(y1 - y0);
-      int steps = Math.max(dx, dy);
-      if (steps <= 0) return;
+   // ---------------------------------------------------------------- Hilfen
 
-      for (int i = 0; i <= steps; i += 4) {
-         int x = x0 + (x1 - x0) * i / steps;
-         int y = y0 + (y1 - y0) * i / steps;
-         if (x >= mapLeft && x < mapLeft + mapWidth && y >= mapTop && y < mapTop + mapHeight) {
-            graphics.fill(x, y, x + 1, y + 1, color);
-         }
-      }
-   }
-
-   private void drawPlayerMarker(GuiGraphicsExtractor graphics) {
-      LocalPlayer player = Minecraft.getInstance().player;
-      if (player == null || !arena.isInArenaColumn(player.getX(), player.getZ())) {
-         return;
-      }
-      boolean endangered = isInBlast(player.getX(), player.getZ());
-      int color = endangered ? DANGER_PULSE : PLAYER_EMERALD;
-      int x = toMapX(player.getX());
-      int z = toMapZ(player.getZ());
-
-      drawSonarPulse(graphics, x, z, color & 0xFFFFFF, player.tickCount);
-      // Diamantform (3x3)
-      graphics.fill(x, z - 2, x + 1, z + 3, color);
-      graphics.fill(x - 2, z, x + 3, z + 1, color);
-      graphics.fill(x, z, x + 1, z + 1, 0xFFFFFFFF);
-
-      drawMicroLabel(graphics, Component.translatable("gui.oneshotonekill.airstrike.you").getString(), x, z + 6, endangered ? DANGER_PULSE : PLAYER_EMERALD);
-   }
-
-   private void drawContacts(GuiGraphicsExtractor graphics) {
-      if (!hasScan) {
-         return;
-      }
-      LocalPlayer player = Minecraft.getInstance().player;
-      int tick = player == null ? 0 : player.tickCount;
-      for (AirstrikeSystem.RadarPayload.RadarContact contact : contacts) {
-         boolean doomed = isInBlast(contact.x(), contact.z());
-         int color = doomed ? DANGER_PULSE : ENEMY_CRIMSON;
-         int x = toMapX(contact.x());
-         int z = toMapZ(contact.z());
-
-         drawSonarPulse(graphics, x, z, color & 0xFFFFFF, tick + Math.floorMod(contact.name().hashCode(), 20));
-         graphics.fill(x, z - 2, x + 1, z + 3, color);
-         graphics.fill(x - 2, z, x + 3, z + 1, color);
-         graphics.fill(x, z, x + 1, z + 1, 0xFFFFFFFF);
-
-         String tag = doomed ? "☠ " + contact.name() : contact.name();
-         drawMicroLabel(graphics, tag, x, z + 6, doomed ? DANGER_PULSE : TEXT_MUTED);
-      }
-   }
-
-   private void drawHint(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
-      Component hint;
-      int color;
-      if (!hasScan) {
-         hint = Component.translatable("gui.oneshotonekill.airstrike.scan_init");
-         color = TEXT_MUTED;
-      } else if (!hasTarget()) {
-         hint = isOverMap(mouseX, mouseY)
-            ? Component.translatable("gui.oneshotonekill.airstrike.target_coords", (int) worldXAt(mouseX), (int) worldZAt(mouseY))
-            : Component.translatable("gui.oneshotonekill.airstrike.click_hint");
-         color = OsokWidgets.COLOR_CYAN;
-      } else {
-         hint = Component.translatable("gui.oneshotonekill.airstrike.locked_hint");
-         color = OsokWidgets.COLOR_GOLD;
-      }
-      drawFittedText(graphics, hint, width / 2, mapTop + mapHeight + 7, panelWidth - 24, color);
-   }
-
-   /**
-    * 4-Kachel Telemetrie-Deck unter der Karte
-    */
-   private void drawTelemetryDeck(GuiGraphicsExtractor graphics) {
-      int y = mapTop + mapHeight + 20;
-      int tileHeight = 28;
-      int gap = 4;
-      int deckLeft = panelLeft + 24;
-      int deckWidth = panelWidth - 48;
-      int tileWidth = (deckWidth - 3 * gap) / 4;
-
-      LocalPlayer player = Minecraft.getInstance().player;
-      boolean selfInBlast = hasTarget() && player != null && isInBlast(player.getX(), player.getZ());
-      int enemiesInBlast = 0;
-      if (hasTarget()) {
-         for (AirstrikeSystem.RadarPayload.RadarContact contact : contacts) {
-            if (isInBlast(contact.x(), contact.z())) {
-               enemiesInBlast++;
-            }
-         }
-      }
-
-      String targetVal = hasTarget() ? String.format("%d / %d", (int) selectedX, (int) selectedZ) : "---";
-      String distVal = hasTarget() && player != null
-              ? Math.round(Math.hypot(selectedX - player.getX(), selectedZ - player.getZ())) + "m"
-              : "---";
-      String radiusVal = (int) AirstrikeSystem.KILL_RADIUS + "m";
-
-      String statusVal;
-      int statusCol;
-      if (!hasTarget()) {
-         statusVal = Component.translatable("gui.oneshotonekill.airstrike.status_standby").getString();
-         statusCol = TEXT_MUTED;
-      } else if (selfInBlast) {
-         statusVal = Component.translatable("gui.oneshotonekill.airstrike.status_danger").getString();
-         int blink = 170 + Math.round(85.0F * Mth.sin(clientTick() * 0.5F));
-         statusCol = blink << 24 | DANGER_PULSE & 0x00FFFFFF;
-      } else if (enemiesInBlast > 0) {
-         statusVal = Component.translatable("gui.oneshotonekill.airstrike.in_blast", enemiesInBlast).getString();
-         statusCol = OsokWidgets.COLOR_GOLD;
-      } else {
-         statusVal = Component.translatable("gui.oneshotonekill.airstrike.status_lock").getString();
-         statusCol = OsokWidgets.COLOR_EMERALD;
-      }
-
-      int valueCol = hasTarget() ? OsokWidgets.COLOR_CYAN : TEXT_MUTED;
-      drawTelemetryTile(graphics, deckLeft, y, tileWidth, tileHeight, Component.translatable("gui.oneshotonekill.airstrike.tile_target").getString(), targetVal, valueCol);
-      drawTelemetryTile(graphics, deckLeft + (tileWidth + gap), y, tileWidth, tileHeight, Component.translatable("gui.oneshotonekill.airstrike.tile_distance").getString(), distVal, valueCol);
-      drawTelemetryTile(graphics, deckLeft + 2 * (tileWidth + gap), y, tileWidth, tileHeight, Component.translatable("gui.oneshotonekill.airstrike.tile_radius").getString(), radiusVal, OsokWidgets.COLOR_GOLD);
-      drawTelemetryTile(graphics, deckLeft + 3 * (tileWidth + gap), y, tileWidth, tileHeight, Component.translatable("gui.oneshotonekill.airstrike.tile_status").getString(), statusVal, statusCol);
-   }
-
-   private void drawTelemetryTile(GuiGraphicsExtractor graphics, int x, int y, int w, int h, String title, String val, int valColor) {
-      graphics.fillGradient(x, y, x + w, y + h, 0xDD0B1220, 0xDD060910);
-      graphics.outline(x, y, w, h, 0x5500F0FF);
-      // Akzentleiste in der Farbe des Werts: Zustand lässt sich auch ohne Lesen erfassen
-      graphics.fill(x + 1, y + 1, x + w - 1, y + 2, (valColor & 0x00FFFFFF) | 0xAA000000);
-
-      drawMicroLabel(graphics, title, x + w / 2, y + 5, TEXT_MUTED);
-      drawFittedText(graphics, Component.literal(val), x + w / 2, y + 15, w - 6, valColor);
-   }
-
-   private void drawMicroLabel(GuiGraphicsExtractor graphics, String text, int x, int y, int color) {
-      graphics.pose().pushMatrix();
-      graphics.pose().translate(x, y);
-      graphics.pose().scale(0.7F, 0.7F);
-      graphics.centeredText(font, Component.literal(text), 0, 0, color);
-      graphics.pose().popMatrix();
+   private static int alpha(int alpha, int rgb) {
+      return Mth.clamp(alpha, 0, 255) << 24 | rgb & 0x00FFFFFF;
    }
 
    private boolean hasTarget() {
@@ -695,8 +730,11 @@ public final class AirstrikeTargetScreen extends Screen {
    }
 
    private boolean isInBlast(double worldX, double worldZ) {
-      return hasTarget()
-         && Math.hypot(worldX - selectedX, worldZ - selectedZ) <= AirstrikeSystem.KILL_RADIUS;
+      return hasTarget() && Math.hypot(worldX - selectedX, worldZ - selectedZ) <= AirstrikeSystem.KILL_RADIUS;
+   }
+
+   private boolean isInsideMap(int x, int y) {
+      return x >= mapLeft && x < mapLeft + mapWidth && y >= mapTop && y < mapTop + mapHeight;
    }
 
    private boolean isOverMap(double x, double y) {
@@ -733,41 +771,15 @@ public final class AirstrikeTargetScreen extends Screen {
       return player == null ? 0 : player.tickCount;
    }
 
-   private static void drawGlassPanel(GuiGraphicsExtractor graphics, int x, int y, int panelWidth, int panelHeight) {
-      graphics.fill(x - 3, y - 3, x + panelWidth + 3, y + panelHeight + 3, 0xB0000000);
-      graphics.fillGradient(x, y, x + panelWidth, y + panelHeight, 0xF20B1220, 0xF2060910);
-      graphics.outline(x, y, panelWidth, panelHeight, PANEL_BORDER);
-      graphics.outline(x + 2, y + 2, panelWidth - 4, panelHeight - 4, PANEL_INNER);
+   // ---------------------------------------------------------------- Knöpfe
 
-      // 4 Goldene Tech-Ecken
-      int corner = 8;
-      graphics.fill(x, y, x + corner, y + 2, BRACKET_GOLD);
-      graphics.fill(x, y, x + 2, y + corner, BRACKET_GOLD);
+   /** Feuerknopf: gesperrt flach und grau, scharf rot mit wandernden Warnstreifen und pulsierendem Rand. */
+   private static final class StrikeButton extends AbstractButton {
+      private final Consumer<StrikeButton> onPress;
+      private final BooleanSupplier isArmed;
 
-      graphics.fill(x + panelWidth - corner, y, x + panelWidth, y + 2, BRACKET_GOLD);
-      graphics.fill(x + panelWidth - 2, y, x + panelWidth, y + corner, BRACKET_GOLD);
-
-      graphics.fill(x, y + panelHeight - 2, x + corner, y + panelHeight, BRACKET_GOLD);
-      graphics.fill(x, y + panelHeight - corner, x + 2, y + panelHeight, BRACKET_GOLD);
-
-      graphics.fill(x + panelWidth - corner, y + panelHeight - 2, x + panelWidth, y + panelHeight, BRACKET_GOLD);
-      graphics.fill(x + panelWidth - 2, y + panelHeight - corner, x + panelWidth, y + panelHeight, BRACKET_GOLD);
-   }
-
-   private static void drawSonarPulse(GuiGraphicsExtractor graphics, int x, int y, int rgb, int tick) {
-      int phase = Math.floorMod(tick, 24);
-      int radius = 4 + phase / 3;
-      int alpha = Math.max(0, 0x88 - phase * 5);
-      graphics.outline(x - radius, y - radius, radius * 2 + 1, radius * 2 + 1, alpha << 24 | rgb);
-   }
-
-   /** Spektakulärer Cyber-Strike Startknopf mit Gefahren-Schraffur und Pulse-Glow */
-   private static final class CyberStrikeButton extends AbstractButton {
-      private final Consumer<CyberStrikeButton> onPress;
-      private final java.util.function.BooleanSupplier isArmed;
-
-      private CyberStrikeButton(int x, int y, int width, int height, Component label,
-                               java.util.function.BooleanSupplier isArmed, Consumer<CyberStrikeButton> onPress) {
+      private StrikeButton(int x, int y, int width, int height, Component label, BooleanSupplier isArmed,
+                           Consumer<StrikeButton> onPress) {
          super(x, y, width, height, label);
          this.isArmed = isArmed;
          this.onPress = onPress;
@@ -788,28 +800,26 @@ public final class AirstrikeTargetScreen extends Screen {
          int h = getHeight();
 
          if (armed) {
-            float pulse = 0.5f + 0.5f * Mth.sin(clientTick() * 0.35f);
-            int bgColor = highlighted ? 0xEE990022 : 0xDD770018;
-            int borderColor = highlighted ? 0xFFFFFFFF : 0xFFFF3366;
+            float pulse = 0.5F + 0.5F * Mth.sin(clientTick() * 0.35F);
+            graphics.outline(x - 1, y - 1, w + 2, h + 2, alpha(50 + Math.round(120 * pulse), RED));
+            graphics.fillGradient(x, y, x + w, y + h, highlighted ? 0xF0C4261B : 0xF0A31D14, highlighted ? 0xF0801510 : 0xF0650F0B);
+            graphics.outline(x, y, w, h, highlighted ? alpha(0xFF, WHITE) : alpha(0xFF, RED));
 
-            // Pulsierender Schein um den Knopf
-            graphics.outline(x - 1, y - 1, w + 2, h + 2, (40 + Math.round(90 * pulse)) << 24 | 0xFF3366);
-            graphics.fillGradient(x, y, x + w, y + h, bgColor, bgColor & 0x00FFFFFF | 0xBB000000);
-            graphics.outline(x, y, w, h, borderColor);
-
-            // Wandernde Gefahrenstreifen an den Seiten
-            int shift = (int) (Util.getMillis() / 90L % 4L);
-            for (int s = shift - 4; s < 12; s += 4) {
-               int from = Math.max(0, s);
-               int to = Math.min(12, s + 2);
-               if (to > from) {
-                  graphics.fill(x + 2 + from, y + 2, x + 2 + to, y + h - 2, OsokWidgets.COLOR_GOLD);
-                  graphics.fill(x + w - 14 + from, y + 2, x + w - 14 + to, y + h - 2, OsokWidgets.COLOR_GOLD);
+            // Schräge Warnstreifen links und rechts, die langsam wandern.
+            int shift = (int) (Util.getMillis() / 80L % 8L);
+            for (int row = 2; row < h - 2; row++) {
+               for (int s = -((row + shift) % 8); s < 14; s += 8) {
+                  int from = Math.max(0, s);
+                  int to = Math.min(14, s + 4);
+                  if (to > from) {
+                     graphics.fill(x + 2 + from, y + row, x + 2 + to, y + row + 1, alpha(0xFF, AMBER));
+                     graphics.fill(x + w - 16 + from, y + row, x + w - 16 + to, y + row + 1, alpha(0xFF, AMBER));
+                  }
                }
             }
          } else {
-            graphics.fill(x, y, x + w, y + h, highlighted ? 0xDD121824 : 0xAA0A0E18);
-            graphics.outline(x, y, w, h, highlighted ? 0xAA00F0FF : 0x4400F0FF);
+            graphics.fill(x, y, x + w, y + h, highlighted ? 0xCC15181D : 0xAA0D0F12);
+            graphics.outline(x, y, w, h, alpha(highlighted ? 0x77 : 0x44, MUTED));
          }
 
          extractDefaultLabel(graphics.textRendererForWidget(this, GuiGraphicsExtractor.HoveredTextEffects.NONE));
@@ -824,11 +834,11 @@ public final class AirstrikeTargetScreen extends Screen {
       }
    }
 
-   /** Eleganter Glassmorphism-Abbruchknopf */
-   private static final class CyberAbortButton extends AbstractButton {
-      private final Consumer<CyberAbortButton> onPress;
+   /** Schlichter Abbruchknopf. */
+   private static final class AbortButton extends AbstractButton {
+      private final Consumer<AbortButton> onPress;
 
-      private CyberAbortButton(int x, int y, int width, int height, Component label, Consumer<CyberAbortButton> onPress) {
+      private AbortButton(int x, int y, int width, int height, Component label, Consumer<AbortButton> onPress) {
          super(x, y, width, height, label);
          this.onPress = onPress;
       }
@@ -841,13 +851,8 @@ public final class AirstrikeTargetScreen extends Screen {
       @Override
       protected void extractContents(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float partial) {
          boolean highlighted = isHoveredOrFocused();
-         int x = getX();
-         int y = getY();
-         int w = getWidth();
-         int h = getHeight();
-
-         graphics.fill(x, y, x + w, y + h, highlighted ? 0x99182230 : 0x660B1018);
-         graphics.outline(x, y, w, h, highlighted ? 0x8800F0FF : 0x3300F0FF);
+         graphics.fill(getX(), getY(), getX() + getWidth(), getY() + getHeight(), highlighted ? 0x99221C10 : 0x660D0F12);
+         graphics.outline(getX(), getY(), getWidth(), getHeight(), alpha(highlighted ? 0xAA : 0x55, AMBER));
 
          extractDefaultLabel(graphics.textRendererForWidget(this, GuiGraphicsExtractor.HoveredTextEffects.NONE));
          if (isHovered()) {
