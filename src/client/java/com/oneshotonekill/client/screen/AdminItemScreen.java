@@ -30,7 +30,10 @@ import com.mojang.blaze3d.platform.InputConstants;
  */
 @SuppressWarnings("NullableProblems")
 public final class AdminItemScreen extends Screen {
-   private static final int CARD_WIDTH = 580;
+   private static final int MAX_CARD_WIDTH = 580;
+   /** Schmaler wird die Karte nicht; darunter bliebe für Reiter und Suche kein Platz. */
+   private static final int MIN_CARD_WIDTH = 420;
+   private static final int SEARCH_WIDTH = 130;
    private static final int CONTENT_HEIGHT = 270;
    private static final int MIN_CONTENT_HEIGHT = 100;
    private static final int CHROME_HEIGHT = 156;
@@ -56,6 +59,7 @@ public final class AdminItemScreen extends Screen {
    private final OsokWidgets.TabIndicator tabIndicator = new OsokWidgets.TabIndicator();
    private long categoryChangedAt = Long.MIN_VALUE;
 
+   private int cardWidth = MAX_CARD_WIDTH;
    private int cardLeft;
    private int cardTop;
    private int cardHeight;
@@ -122,7 +126,8 @@ public final class AdminItemScreen extends Screen {
 
    @Override
    protected void init() {
-      OsokWidgets.CardLayout layout = OsokWidgets.CardLayout.compute(width, height, CARD_WIDTH, CHROME_HEIGHT, MIN_CONTENT_HEIGHT, CONTENT_HEIGHT, 84);
+      cardWidth = Math.clamp(width - 16, MIN_CARD_WIDTH, MAX_CARD_WIDTH);
+      OsokWidgets.CardLayout layout = OsokWidgets.CardLayout.compute(width, height, cardWidth, CHROME_HEIGHT, MIN_CONTENT_HEIGHT, CONTENT_HEIGHT, 84);
       listHeight = layout.contentHeight();
       cardHeight = layout.cardHeight();
       cardLeft = layout.cardLeft();
@@ -238,7 +243,7 @@ public final class AdminItemScreen extends Screen {
       float delta = advanceClock();
       scroll.advance(delta, contentLength - listHeight);
 
-      OsokWidgets.startGlassFrame(graphics, width, height, cardLeft, cardTop, CARD_WIDTH, cardHeight, entranceScale());
+      OsokWidgets.startGlassFrame(graphics, width, height, cardLeft, cardTop, cardWidth, cardHeight, entranceScale());
       hotspots.clear();
 
       graphics.text(font, "✦ OneShotOneKill", cardLeft + 16, cardTop + 14, OsokWidgets.COLOR_GOLD);
@@ -248,21 +253,21 @@ public final class AdminItemScreen extends Screen {
       String countText = filteredItems.size() == 1
          ? Component.translatable("gui.oneshotonekill.admin.item_count", filteredItems.size()).getString()
          : Component.translatable("gui.oneshotonekill.admin.items_count", filteredItems.size()).getString();
-      OsokWidgets.statusBadge(graphics, font, cardLeft + CARD_WIDTH - 16 - (font.width(countText) + 18), cardTop + 12, countText, currentCategory.accent, false);
+      OsokWidgets.statusBadge(graphics, font, cardLeft + cardWidth - 16 - (font.width(countText) + 18), cardTop + 12, countText, currentCategory.accent, false);
 
       drawCategoryTabsAndSearch(graphics, mouseX, mouseY, delta);
-      OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, listTop - 6, OsokWidgets.COLOR_CARD_BORDER);
+      OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + cardWidth - 16, listTop - 6, OsokWidgets.COLOR_CARD_BORDER);
 
       SpecialItem hoveredItemForTooltip = drawItemList(graphics, mouseX, mouseY, filteredItems);
 
-      int trackX = cardLeft + CARD_WIDTH - SCROLLBAR_INSET;
+      int trackX = cardLeft + cardWidth - SCROLLBAR_INSET;
       boolean barHovered = mouseX >= trackX - 3 && mouseX <= trackX + 7
          && mouseY >= listTop && mouseY < listTop + listHeight;
       OsokWidgets.scrollbar(graphics, trackX, listTop, listHeight, contentLength, listHeight,
          scroll.offset(), OsokWidgets.COLOR_GOLD, barHovered, scroll.isDragging());
 
       int footerY = listTop + listHeight + 8;
-      OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, footerY, OsokWidgets.COLOR_CARD_BORDER);
+      OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + cardWidth - 16, footerY, OsokWidgets.COLOR_CARD_BORDER);
 
       String keyName = OsokClient.adminMenuKeyName().getString();
       graphics.text(font, Component.translatable("gui.oneshotonekill.admin.hint", keyName),
@@ -270,7 +275,7 @@ public final class AdminItemScreen extends Screen {
 
       // Batch-Aktionen: [📦 Alle +1] & [Schließen]
       int closeWidth = 78;
-      int closeX = cardLeft + CARD_WIDTH - 16 - closeWidth;
+      int closeX = cardLeft + cardWidth - 16 - closeWidth;
       boolean closeHover = OsokWidgets.isOver(mouseX, mouseY, closeX, footerY + 6, closeWidth, 20);
       OsokWidgets.cyberButton(graphics, font, closeX, footerY + 6, closeWidth, 20, Component.translatable("gui.oneshotonekill.admin.close").getString(), true, closeHover, OsokWidgets.COLOR_CARD_BORDER);
       hotspots.add(new Hotspot(closeX, footerY + 6, closeWidth, 20, false, () -> {
@@ -353,7 +358,7 @@ public final class AdminItemScreen extends Screen {
    private SpecialItem drawItemList(GuiGraphicsExtractor graphics, int mouseX, int mouseY,
                                     List<SpecialItem> filteredItems) {
       int left = cardLeft + 16;
-      int right = cardLeft + CARD_WIDTH - 16;
+      int right = cardLeft + cardWidth - 16;
       int listBottom = listTop + listHeight;
 
       graphics.enableScissor(left, listTop, right, listBottom);
@@ -481,11 +486,10 @@ public final class AdminItemScreen extends Screen {
       float activeX = x;
       float activeWidth = 0.0F;
 
+      boolean showCounts = tabsWidth(true) <= cardWidth - 32 - SEARCH_WIDTH - 8;
       for (ItemCategory cat : ItemCategory.values()) {
          int count = cat.count(FAVORITES);
-         String tabTitle = cat == ItemCategory.FAVORITES
-            ? (count > 0 ? "⭐ " + count : "⭐")
-            : cat.label() + " (" + count + ")";
+         String tabTitle = tabTitle(cat, count, showCounts);
          int tabWidth = font.width(tabTitle) + 12;
          boolean isActive = currentCategory == cat;
          boolean hovered = OsokWidgets.isOver(mouseX, mouseY, x, y, tabWidth, 20);
@@ -503,8 +507,8 @@ public final class AdminItemScreen extends Screen {
       tabIndicator.advance(activeX, activeWidth, delta);
       tabIndicator.draw(graphics, y + 18.0F, 2.0F, currentCategory.accent);
 
-      int searchWidth = 130;
-      int searchX = cardLeft + CARD_WIDTH - 16 - searchWidth;
+      int searchWidth = SEARCH_WIDTH;
+      int searchX = cardLeft + cardWidth - 16 - searchWidth;
       boolean searchHover = OsokWidgets.isOver(mouseX, mouseY, searchX, y, searchWidth, 20);
       OsokWidgets.searchInput(graphics, font, searchX, y, searchWidth, 20, searchQuery, Component.translatable("gui.oneshotonekill.admin.search").getString(), searchFocused, searchHover);
 
@@ -514,6 +518,22 @@ public final class AdminItemScreen extends Screen {
 
       hotspots.add(new Hotspot(searchX, y, searchWidth, 20, false, CursorTypes.IBEAM,
          () -> setSearchFocused(true)));
+   }
+
+   private static String tabTitle(ItemCategory cat, int count, boolean showCounts) {
+      if (cat == ItemCategory.FAVORITES) {
+         return count > 0 ? "⭐ " + count : "⭐";
+      }
+      return showCounts ? cat.label() + " (" + count + ")" : cat.label();
+   }
+
+   /** Breite aller Reiter samt Abständen; entscheidet, ob die Zähler noch neben die Suche passen. */
+   private int tabsWidth(boolean showCounts) {
+      int total = 0;
+      for (ItemCategory cat : ItemCategory.values()) {
+         total += font.width(tabTitle(cat, cat.count(FAVORITES), showCounts)) + 12 + 3;
+      }
+      return total;
    }
 
    private void selectCategory(ItemCategory category) {
@@ -530,13 +550,13 @@ public final class AdminItemScreen extends Screen {
    @Override
    public boolean mouseClicked(MouseButtonEvent event, boolean doubleClick) {
       if (event.button() == InputConstants.MOUSE_BUTTON_LEFT) {
-         if (scroll.beginDrag(event.x(), event.y(), cardLeft + CARD_WIDTH - SCROLLBAR_INSET,
+         if (scroll.beginDrag(event.x(), event.y(), cardLeft + cardWidth - SCROLLBAR_INSET,
             listTop, listHeight, contentLength)) {
             return true;
          }
 
-         int searchWidth = 130;
-         int searchX = cardLeft + CARD_WIDTH - 16 - searchWidth;
+         int searchWidth = SEARCH_WIDTH;
+         int searchX = cardLeft + cardWidth - 16 - searchWidth;
          int searchY = cardTop + 36;
          if (!searchQuery.isEmpty() && OsokWidgets.isSearchClearHovered(event.x(), event.y(), searchX, searchY, searchWidth, 20)) {
             searchQuery = "";
@@ -600,7 +620,7 @@ public final class AdminItemScreen extends Screen {
          graphics.requestCursor(CursorTypes.RESIZE_NS);
          return;
       }
-      int trackX = cardLeft + CARD_WIDTH - SCROLLBAR_INSET;
+      int trackX = cardLeft + cardWidth - SCROLLBAR_INSET;
       if (contentLength > listHeight && mouseX >= trackX - 3 && mouseX <= trackX + 7
          && mouseY >= listTop && mouseY < listTop + listHeight) {
          graphics.requestCursor(CursorTypes.POINTING_HAND);

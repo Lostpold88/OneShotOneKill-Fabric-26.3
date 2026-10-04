@@ -306,6 +306,7 @@
   "gui.oneshotonekill.airstrike.status_danger": "GEFAHR!",
   "gui.oneshotonekill.airstrike.status_lock": "LOCK",
   "gui.oneshotonekill.airstrike.you": "DU",
+  "gui.oneshotonekill.airstrike.in_blast": "%d IM KREIS",
 
   "gui.oneshotonekill.bomber.title": "Tarnkappenbomber",
   "gui.oneshotonekill.bomber.hint": "Klicken zum Anordnen · ESC bricht ab",

@@ -357,7 +357,15 @@ public final class OsokWidgets {
       graphics.verticalLine(x, y, y + height - 1, border);
       graphics.verticalLine(x + width - 1, y, y + height - 1, border);
 
-      graphics.text(font, "🔍", x + 6, y + (height - 8) / 2, focused ? COLOR_CYAN : COLOR_TEXT_MUTED);
+      // Gezeichnet statt als Zeichen: Die Minecraft-Schrift besitzt kein Lupen-Emoji (außerhalb der BMP).
+      int iconColor = focused ? COLOR_CYAN : COLOR_TEXT_MUTED;
+      int iconX = x + 7;
+      int iconY = y + (height - 7) / 2;
+      graphics.horizontalLine(iconX + 1, iconX + 4, iconY, iconColor);
+      graphics.horizontalLine(iconX + 1, iconX + 4, iconY + 5, iconColor);
+      graphics.verticalLine(iconX, iconY + 1, iconY + 4, iconColor);
+      graphics.verticalLine(iconX + 5, iconY + 1, iconY + 4, iconColor);
+      graphics.fill(iconX + 5, iconY + 5, iconX + 7, iconY + 7, iconColor);
 
       if (query.isEmpty()) {
          graphics.text(font, placeholder, x + 20, y + (height - 8) / 2, COLOR_TEXT_FAINT);

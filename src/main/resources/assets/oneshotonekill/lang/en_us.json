@@ -306,6 +306,7 @@
   "gui.oneshotonekill.airstrike.status_danger": "DANGER!",
   "gui.oneshotonekill.airstrike.status_lock": "LOCK",
   "gui.oneshotonekill.airstrike.you": "YOU",
+  "gui.oneshotonekill.airstrike.in_blast": "%d IN BLAST",
 
   "gui.oneshotonekill.bomber.title": "Stealth Bomber",
   "gui.oneshotonekill.bomber.hint": "Click to designate · ESC to cancel",

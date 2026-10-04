@@ -33,7 +33,9 @@ import java.util.function.Consumer;
  */
 @SuppressWarnings({"ConstantValue", "NullableProblems", "SameParameterValue", "UnnecessaryLocalVariable"})
 public final class ArenaMenuScreen extends Screen {
-    private static final int CARD_WIDTH = 580;
+    private static final int MAX_CARD_WIDTH = 580;
+    /** Schmaler wird die Karte nicht; darunter passen Reiter und Schaltflächen nicht mehr nebeneinander. */
+    private static final int MIN_CARD_WIDTH = 420;
     private static final int TAB_CONTENT_HEIGHT = 270;
     private static final int MIN_TAB_CONTENT_HEIGHT = 100;
     private static final int CHROME_HEIGHT = 156;
@@ -60,6 +62,7 @@ public final class ArenaMenuScreen extends Screen {
     private Slider activeSlider = null;
     private Integer localPreviewMinutes = null;
     private Integer localPreviewKills = null;
+    private int cardWidth = MAX_CARD_WIDTH;
     private int cardLeft;
     private int cardTop;
     private int cardHeight;
@@ -109,7 +112,8 @@ public final class ArenaMenuScreen extends Screen {
 
     @Override
     protected void init() {
-        int[] b = OsokWidgets.CardLayout.compute(width, height, CARD_WIDTH, CHROME_HEIGHT, MIN_TAB_CONTENT_HEIGHT, TAB_CONTENT_HEIGHT, 84).bounds();
+        cardWidth = Math.clamp(width - 16, MIN_CARD_WIDTH, MAX_CARD_WIDTH);
+        int[] b = OsokWidgets.CardLayout.compute(width, height, cardWidth, CHROME_HEIGHT, MIN_TAB_CONTENT_HEIGHT, TAB_CONTENT_HEIGHT, 84).bounds();
         cardLeft = b[0];
         cardTop = b[1];
         cardHeight = b[2];
@@ -189,20 +193,20 @@ public final class ArenaMenuScreen extends Screen {
 
     private void renderMenuContent(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
         scroll.advance(delta, contentLength - contentHeight);
-        OsokWidgets.startGlassFrame(graphics, width, height, cardLeft, cardTop, CARD_WIDTH, cardHeight, entranceScale());
+        OsokWidgets.startGlassFrame(graphics, width, height, cardLeft, cardTop, cardWidth, cardHeight, entranceScale());
 
         hotspots.clear();
         sliders.clear();
 
         drawHeader(graphics);
         drawTabs(graphics, mouseX, mouseY, delta);
-        OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, contentTop - 6, OsokWidgets.COLOR_CARD_BORDER);
+        OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + cardWidth - 16, contentTop - 6, OsokWidgets.COLOR_CARD_BORDER);
 
         drawCurrentTab(graphics, mouseX, mouseY);
         drawScrollbar(graphics, mouseX, mouseY);
 
         int footerY = contentTop + contentHeight + 16;
-        OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + CARD_WIDTH - 16, footerY - 8, OsokWidgets.COLOR_CARD_BORDER);
+        OsokWidgets.divider(graphics, cardLeft + 16, cardLeft + cardWidth - 16, footerY - 8, OsokWidgets.COLOR_CARD_BORDER);
         drawFooter(graphics, mouseX, mouseY, footerY);
 
         OsokWidgets.endGlassFrame(graphics);
@@ -210,7 +214,7 @@ public final class ArenaMenuScreen extends Screen {
 
     private void drawCurrentTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         int contentLeft = cardLeft + 16;
-        int contentRight = cardLeft + CARD_WIDTH - 16;
+        int contentRight = cardLeft + cardWidth - 16;
         int contentBottom = contentTop + contentHeight;
         graphics.enableScissor(contentLeft, contentTop, contentRight, contentBottom);
         graphics.pose().pushMatrix();
@@ -232,7 +236,7 @@ public final class ArenaMenuScreen extends Screen {
         graphics.text(font, Component.translatable("gui.oneshotonekill.menu.subtitle"), cardLeft + 16 + font.width("✦ OneShotOneKill ") + 4, cardTop + 14, OsokWidgets.COLOR_TEXT_MUTED);
 
         // Live-Match-Status Badge rechts oben
-        drawMatchStateBadge(graphics, cardLeft + CARD_WIDTH - 16, cardTop + 12);
+        drawMatchStateBadge(graphics, cardLeft + cardWidth - 16, cardTop + 12);
     }
 
     private void drawTabs(GuiGraphicsExtractor graphics, int mouseX, int mouseY, float delta) {
@@ -268,7 +272,7 @@ public final class ArenaMenuScreen extends Screen {
 
     private void drawArenasTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         int left = cardLeft + 16;
-        int right = cardLeft + CARD_WIDTH - 16;
+        int right = cardLeft + cardWidth - 16;
         int y = contentTop + 4 - scroll.offset();
 
         if (!isMatchState(MatchState.STOPPED)) {
@@ -381,15 +385,11 @@ public final class ArenaMenuScreen extends Screen {
 
     private void drawMatchControlTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         int left = cardLeft + 16;
-        int right = cardLeft + CARD_WIDTH - 16;
+        int right = cardLeft + cardWidth - 16;
         int y = contentTop + 4 - scroll.offset();
 
         // Dashboard Info Card
-        graphics.fill(left, y, right, y + 50, 0xFF141A27);
-        graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_CARD_BORDER);
-        graphics.horizontalLine(left, right - 1, y + 49, OsokWidgets.COLOR_CARD_BORDER);
-        graphics.verticalLine(left, y, y + 49, OsokWidgets.COLOR_CARD_BORDER);
-        graphics.verticalLine(right - 1, y, y + 49, OsokWidgets.COLOR_CARD_BORDER);
+        OsokWidgets.panel(graphics, left, y, right, y + 50, 0xFF141A27, OsokWidgets.COLOR_CARD_BORDER);
 
         graphics.text(font, Component.translatable("gui.oneshotonekill.menu.control_card_title"), left + 12, y + 10, OsokWidgets.COLOR_TEXT_WHITE);
         graphics.text(font, Component.translatable("gui.oneshotonekill.menu.control_card_desc"), left + 12, y + 28, OsokWidgets.COLOR_TEXT_FAINT);
@@ -494,11 +494,7 @@ public final class ArenaMenuScreen extends Screen {
             height += 18 + ((perAct[act] + 1) / 2) * rowHeight + 4;
         }
 
-        graphics.fill(left, y, right, y + height, 0xDD101522);
-        graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_GOLD);
-        graphics.horizontalLine(left, right - 1, y + height - 1, OsokWidgets.COLOR_GOLD);
-        graphics.verticalLine(left, y, y + height - 1, OsokWidgets.COLOR_GOLD);
-        graphics.verticalLine(right - 1, y, y + height - 1, OsokWidgets.COLOR_GOLD);
+        OsokWidgets.panel(graphics, left, y, right, y + height, 0xDD101522, OsokWidgets.COLOR_GOLD);
         graphics.text(font, Component.translatable("gui.oneshotonekill.menu.gungame_rules_title", tiers.length),
                 left + 10, y + 8, OsokWidgets.COLOR_GOLD);
 
@@ -565,7 +561,7 @@ public final class ArenaMenuScreen extends Screen {
 
     private void drawMatchTargetTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         int left = cardLeft + 16;
-        int right = cardLeft + CARD_WIDTH - 16;
+        int right = cardLeft + cardWidth - 16;
         int y = contentTop + 4 - scroll.offset();
         boolean stopped = isMatchState(MatchState.STOPPED);
         boolean isGunGame = "GUN_GAME".equalsIgnoreCase(state.getGameMode());
@@ -578,11 +574,7 @@ public final class ArenaMenuScreen extends Screen {
 
         if (isGunGame) {
             // Gun Game Modus Info Banner
-            graphics.fill(left, y, right, y + 42, 0xFF241F16);
-            graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_GOLD);
-            graphics.horizontalLine(left, right - 1, y + 41, OsokWidgets.COLOR_GOLD);
-            graphics.verticalLine(left, y, y + 41, OsokWidgets.COLOR_GOLD);
-            graphics.verticalLine(right - 1, y, y + 41, OsokWidgets.COLOR_GOLD);
+            OsokWidgets.panel(graphics, left, y, right, y + 42, 0xFF241F16, OsokWidgets.COLOR_GOLD);
 
             graphics.item(com.oneshotonekill.match.GunGameTier.MASTER.iconStack(), left + 8, y + 13);
             graphics.text(font, Component.translatable("gui.oneshotonekill.menu.target_gungame_banner_title"), left + 32, y + 8, OsokWidgets.COLOR_GOLD);
@@ -591,11 +583,7 @@ public final class ArenaMenuScreen extends Screen {
         }
 
         // Modus-Auswahl Panel
-        graphics.fill(left, y, right, y + 56, 0xFF141A27);
-        graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_CARD_BORDER);
-        graphics.horizontalLine(left, right - 1, y + 55, OsokWidgets.COLOR_CARD_BORDER);
-        graphics.verticalLine(left, y, y + 55, OsokWidgets.COLOR_CARD_BORDER);
-        graphics.verticalLine(right - 1, y, y + 55, OsokWidgets.COLOR_CARD_BORDER);
+        OsokWidgets.panel(graphics, left, y, right, y + 56, 0xFF141A27, OsokWidgets.COLOR_CARD_BORDER);
 
         graphics.text(font, isGunGame ? Component.translatable("gui.oneshotonekill.menu.target_section_title_gungame") : Component.translatable("gui.oneshotonekill.menu.target_section_title"), left + 10, y + 8, OsokWidgets.COLOR_TEXT_MUTED);
 
@@ -731,11 +719,8 @@ public final class ArenaMenuScreen extends Screen {
                 }
             }
             case UNLIMITED -> {
-                graphics.fill(left, y, right, y + (isGunGame ? 56 : 46), 0xFF141924);
-                graphics.horizontalLine(left, right - 1, y, isGunGame ? OsokWidgets.COLOR_GOLD : OsokWidgets.COLOR_CARD_BORDER);
-                graphics.horizontalLine(left, right - 1, y + (isGunGame ? 55 : 45), isGunGame ? OsokWidgets.COLOR_GOLD : OsokWidgets.COLOR_CARD_BORDER);
-                graphics.verticalLine(left, y, y + (isGunGame ? 55 : 45), isGunGame ? OsokWidgets.COLOR_GOLD : OsokWidgets.COLOR_CARD_BORDER);
-                graphics.verticalLine(right - 1, y, y + (isGunGame ? 55 : 45), isGunGame ? OsokWidgets.COLOR_GOLD : OsokWidgets.COLOR_CARD_BORDER);
+                OsokWidgets.panel(graphics, left, y, right, y + (isGunGame ? 56 : 46), 0xFF141924,
+                        isGunGame ? OsokWidgets.COLOR_GOLD : OsokWidgets.COLOR_CARD_BORDER);
 
                 if (isGunGame) {
                     graphics.fill(left + 2, y + 2, left + 5, y + 54, OsokWidgets.COLOR_GOLD);
@@ -784,15 +769,11 @@ public final class ArenaMenuScreen extends Screen {
 
     private void drawItemWeightsTab(GuiGraphicsExtractor graphics, int mouseX, int mouseY) {
         int left = cardLeft + 16;
-        int right = cardLeft + CARD_WIDTH - 16;
+        int right = cardLeft + cardWidth - 16;
         int y = contentTop + 4 - scroll.offset();
 
         // Item-Modus Card
-        graphics.fill(left, y, right, y + 54, 0xFF141A27);
-        graphics.horizontalLine(left, right - 1, y, OsokWidgets.COLOR_CARD_BORDER);
-        graphics.horizontalLine(left, right - 1, y + 53, OsokWidgets.COLOR_CARD_BORDER);
-        graphics.verticalLine(left, y, y + 53, OsokWidgets.COLOR_CARD_BORDER);
-        graphics.verticalLine(right - 1, y, y + 53, OsokWidgets.COLOR_CARD_BORDER);
+        OsokWidgets.panel(graphics, left, y, right, y + 54, 0xFF141A27, OsokWidgets.COLOR_CARD_BORDER);
 
         graphics.text(font, Component.translatable("gui.oneshotonekill.menu.weights_mode_title"), left + 10, y + 8, OsokWidgets.COLOR_TEXT_MUTED);
         boolean modeHover = OsokWidgets.isOver(mouseX, mouseY, left + 10, y + 22, 220, 20);
@@ -880,11 +861,7 @@ public final class ArenaMenuScreen extends Screen {
         int rowBg = rowHover ? 0xFF222B3D : 0xFF141924;
         int rowBorder = rowHover ? cat.accent : OsokWidgets.COLOR_CARD_BORDER;
 
-        graphics.fill(left, y, right, y + 28, rowBg);
-        graphics.horizontalLine(left, right - 1, y, rowBorder);
-        graphics.horizontalLine(left, right - 1, y + 27, rowBorder);
-        graphics.verticalLine(left, y, y + 27, rowBorder);
-        graphics.verticalLine(right - 1, y, y + 27, rowBorder);
+        OsokWidgets.panel(graphics, left, y, right, y + 28, rowBg, rowBorder);
 
         boolean isTilted = state != null && Arena.TILTED_TOWERS.getId().equalsIgnoreCase(state.getActiveArenaId());
         boolean isTiltedHook = isTilted && item == SpecialItem.GRAPPLING_HOOK;
@@ -944,7 +921,7 @@ public final class ArenaMenuScreen extends Screen {
         graphics.text(font, Component.translatable("gui.oneshotonekill.menu.hotkey_hint", OsokClient.menuKeyName()),
                 cardLeft + 38, y, OsokWidgets.COLOR_TEXT_FAINT);
 
-        int closeX = cardLeft + CARD_WIDTH - 16 - BUTTON_WIDTH;
+        int closeX = cardLeft + cardWidth - 16 - BUTTON_WIDTH;
         boolean closeHover = OsokWidgets.isOver(mouseX, mouseY, closeX, y - 6, BUTTON_WIDTH, 20);
         OsokWidgets.cyberButton(graphics, font, closeX, y - 6, BUTTON_WIDTH, 20, Component.translatable("gui.oneshotonekill.menu.footer_close").getString(), true, closeHover, OsokWidgets.COLOR_CARD_BORDER);
         hotspots.add(new Hotspot(closeX, y - 6, BUTTON_WIDTH, 20, true, false, this::onClose));
@@ -959,7 +936,7 @@ public final class ArenaMenuScreen extends Screen {
     }
 
     private int scrollbarTrackX() {
-        return cardLeft + CARD_WIDTH - SCROLLBAR_INSET;
+        return cardLeft + cardWidth - SCROLLBAR_INSET;
     }
 
     // -- Eingabe -------------------------------------------------------------
