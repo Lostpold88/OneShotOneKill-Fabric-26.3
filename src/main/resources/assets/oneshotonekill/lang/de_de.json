@@ -439,7 +439,7 @@
   "gungame.cond.3": "Bogen-Kill im Magnetfeld (+5 s danach)",
   "gungame.cond.4": "Kill mit Reflektor-Kugel oder 15 s nach Abwehr",
   "gungame.cond.5": "Dolch-Kill im Rauch (+2 s danach)",
-  "gungame.cond.6": "Bogen-Kill im Gleitflug ab 5 Blöcken Höhe (+3 s danach)",
+  "gungame.cond.6": "Bogen-Kill im Gleitflug (+5 s danach)",
   "gungame.cond.7": "Dolch-Kill am Seil oder 3 s danach",
   "gungame.cond.8": "Explosions-Kill, Einschlag ab 15 Blöcken",
   "gungame.cond.9": "Nur Direkttreffer, Sprünge zählen nicht",

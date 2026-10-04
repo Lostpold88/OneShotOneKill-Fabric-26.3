@@ -374,7 +374,7 @@ public final class GunGameManager {
          }
 
          GunGameTier tier = getTierFor(id);
-         if (StatusAbilities.INSTANCE.isGliding(player) && heightAboveGround(player) >= 5.0) {
+         if (StatusAbilities.INSTANCE.isGliding(player)) {
             KillSignals.INSTANCE.glidedHigh(player);
          }
          if (StatusAbilities.INSTANCE.isVanished(player)) {
