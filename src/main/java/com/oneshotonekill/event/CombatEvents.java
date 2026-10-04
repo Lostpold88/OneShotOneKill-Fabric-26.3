@@ -238,7 +238,10 @@ public final class CombatEvents {
          }
          if (MatchManager.INSTANCE.getCurrentGameMode() == GameMode.GUN_GAME) {
             GunGameManager.INSTANCE.applyKill(attacker, victim, verdict);
-            ScoreboardManager.INSTANCE.addKill(attacker.getUUID());
+            // Nur gewertete Kills stehen in der Tabelle, sonst weicht sie vom Fortschritt ab.
+            if (verdict.kind() == GunGameManager.Verdict.Kind.COUNTS) {
+               ScoreboardManager.INSTANCE.addKill(attacker.getUUID());
+            }
          } else {
             int newKills = ScoreboardManager.INSTANCE.addKill(attacker.getUUID());
             if (ScoreboardManager.INSTANCE.claimBounty(victim.getUUID())) {

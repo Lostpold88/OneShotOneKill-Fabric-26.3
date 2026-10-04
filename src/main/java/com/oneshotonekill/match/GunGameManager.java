@@ -53,6 +53,8 @@ public final class GunGameManager {
    private final Map<UUID, Integer> resupplyCounters = new HashMap<>();
    private final Map<UUID, Map<UUID, Integer>> lastCountedKill = new HashMap<>();
    private final Map<UUID, Boolean> lastWindowState = new HashMap<>();
+   /** Stufe des Täters beim ersten Kill eines Ticks: Mehrfachopfer eines Schlags messen alle dagegen. */
+   private final Map<UUID, TierSnapshot> tickTiers = new HashMap<>();
    private final Set<UUID> announcedFinalTier = new HashSet<>();
    private UUID leader;
    /** Gesetzt, sobald jemand die letzte Stufe geschafft hat: ab dann kommt kein HUD mehr zurück. */
@@ -62,9 +64,8 @@ public final class GunGameManager {
    }
 
    /** Das Urteil über einen Abschuss. */
-   public record Verdict(Kind kind) {
-      public static final Verdict IGNORE = new Verdict(Kind.IGNORE);
-      public static final Verdict COUNTS = new Verdict(Kind.COUNTS);
+   public record Verdict(Kind kind, int tier) {
+      public static final Verdict IGNORE = new Verdict(Kind.IGNORE, 0);
 
       public enum Kind {
          /** Kein Waffenspiel oder kein laufendes Match. */
@@ -74,6 +75,9 @@ public final class GunGameManager {
          CONDITION,
          REPEAT
       }
+   }
+
+   private record TierSnapshot(int tick, int tier) {
    }
 
    public int totalTiers() {
@@ -112,6 +116,7 @@ public final class GunGameManager {
       resupplyCounters.clear();
       lastCountedKill.clear();
       lastWindowState.clear();
+      tickTiers.clear();
       announcedFinalTier.clear();
       leader = null;
       finished = false;
@@ -148,6 +153,9 @@ public final class GunGameManager {
       player.getInventory().clearContent();
 
       GunGameTier tier = getTierFor(player.getUUID());
+      if (tier != GunGameTier.SHIELD) {
+         StatusAbilities.INSTANCE.dropShield(player);
+      }
       tier.equip(player);
 
       player.setHealth(player.getMaxHealth());
@@ -175,20 +183,28 @@ public final class GunGameManager {
          || MatchManager.INSTANCE.getCurrentGameMode() != MatchManager.GameMode.GUN_GAME) {
          return Verdict.IGNORE;
       }
-      GunGameTier tier = getTierFor(killer.getUUID());
+      // Ein Schlag, der mehrere Gegner trifft, steigt den Täter schon beim ersten Opfer auf. Alle
+      // Opfer desselben Ticks werden gegen die Stufe gemessen, auf der der Schlag begann.
+      int now = tickNow(killer);
+      TierSnapshot snapshot = tickTiers.get(killer.getUUID());
+      if (snapshot == null || snapshot.tick() != now) {
+         snapshot = new TierSnapshot(now, getPlayerTier(killer.getUUID()));
+         tickTiers.put(killer.getUUID(), snapshot);
+      }
+      GunGameTier tier = GunGameTier.byIndex(snapshot.tier());
       GunGameTier.Check check = tier.check(killer, victim, cause, facts(killer, victim, context));
       if (check == GunGameTier.Check.WRONG_WEAPON) {
-         return new Verdict(Verdict.Kind.WRONG_WEAPON);
+         return new Verdict(Verdict.Kind.WRONG_WEAPON, tier.index());
       }
       if (check == GunGameTier.Check.CONDITION) {
-         return new Verdict(Verdict.Kind.CONDITION);
+         return new Verdict(Verdict.Kind.CONDITION, tier.index());
       }
       Map<UUID, Integer> row = lastCountedKill.get(killer.getUUID());
       Integer last = row == null ? null : row.get(victim.getUUID());
       if (GunGameRules.isRepeat(last, tickNow(killer))) {
-         return new Verdict(Verdict.Kind.REPEAT);
+         return new Verdict(Verdict.Kind.REPEAT, tier.index());
       }
-      return Verdict.COUNTS;
+      return new Verdict(Verdict.Kind.COUNTS, tier.index());
    }
 
    private GunGameTier.Facts facts(ServerPlayer killer, ServerPlayer victim, KillContext context) {
@@ -223,6 +239,11 @@ public final class GunGameManager {
 
    /** Schreibt das Urteil fort: Fortschritt, Aufstieg, Sieg oder Hinweis an den Täter. */
    public void applyKill(ServerPlayer killer, ServerPlayer victim, Verdict verdict) {
+      // Das Urteil gehört zur Stufe, auf der der Schlag begann. Ist der Täter inzwischen
+      // aufgestiegen (Mehrfachopfer), gilt es nicht mehr, und es folgt keine falsche Meldung.
+      if (verdict.kind() != Verdict.Kind.IGNORE && verdict.tier() != getPlayerTier(killer.getUUID())) {
+         return;
+      }
       GunGameTier tier = getTierFor(killer.getUUID());
       switch (verdict.kind()) {
          case IGNORE -> {
@@ -281,6 +302,9 @@ public final class GunGameManager {
             playerTiers.put(killerId, outcome.tier());
             playerTierKills.put(killerId, 0);
             GunGameTier next = GunGameTier.byIndex(outcome.tier());
+            // Unsichtbarkeit, Magnetfeld, Gleitflug und Radar der alten Stufe enden mit ihr.
+            StatusAbilities.INSTANCE.clearFor(killer);
+            KillSignals.INSTANCE.clearFor(killer);
 
             OsokEffects.INSTANCE.sendPrivateSound(killer, SoundEvents.PLAYER_LEVELUP, 1.2F, 1.2F);
             OsokEffects.INSTANCE.sendPrivateSound(killer, SoundEvents.BEACON_POWER_SELECT, 1.0F, 1.5F);
@@ -350,6 +374,15 @@ public final class GunGameManager {
          }
 
          GunGameTier tier = getTierFor(id);
+         if (StatusAbilities.INSTANCE.isGliding(player) && heightAboveGround(player) >= 5.0) {
+            KillSignals.INSTANCE.glidedHigh(player);
+         }
+         if (StatusAbilities.INSTANCE.isVanished(player)) {
+            KillSignals.INSTANCE.vanished(player);
+         }
+         if (ThrownDevices.INSTANCE.isInsideSmoke(player)) {
+            KillSignals.INSTANCE.smoked(player);
+         }
          boolean windowOpen = tier.windowOpen(player);
 
          // Serien-Fenster: Läuft das Fenster ab, verfällt der Fortschritt der Stufe.

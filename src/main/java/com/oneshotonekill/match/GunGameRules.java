@@ -10,8 +10,8 @@ import java.util.List;
  * sich ohne Spielstart prüfen lassen. {@link GunGameTier} und {@link GunGameManager} rufen nur auf.
  */
 public final class GunGameRules {
-   /** Derselbe Gegner zählt nur einmal je 20 Sekunden. */
-   public static final int REPEAT_GUARD_TICKS = 400;
+   /** Derselbe Gegner zählt nur einmal je 3 Sekunden (verhindert Doppelzählung desselben Treffers). */
+   public static final int REPEAT_GUARD_TICKS = 60;
    /** Ab diesem Winkel zwischen Blickrichtung und Richtung zum Angreifer gilt ein Opfer als abgewandt. */
    public static final double BACK_TURN_DEGREES = 100.0;
    private static final double BACK_TURN_COS = Math.cos(Math.toRadians(BACK_TURN_DEGREES));

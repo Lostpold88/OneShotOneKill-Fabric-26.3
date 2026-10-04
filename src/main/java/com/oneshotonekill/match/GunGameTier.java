@@ -31,29 +31,31 @@ import net.minecraft.world.item.Items;
 @SuppressWarnings({"unused", "Convert2MethodRef"})
 public enum GunGameTier {
    // Akt I: Hilfsmittel mit langem Fenster
-   RADAR(1, ModItems.RADAR_PULSE, "item.oneshotonekill.radar_pulse", 2, Kit.ITEM_BASE, bow(),
-      (killer, victim, facts) -> facts.victimMarked() && facts.distance() >= 25.0,
+   RADAR(1, ModItems.RADAR_PULSE, "item.oneshotonekill.radar_pulse", 1, Kit.ITEM_BASE, bow(),
+      (killer, victim, facts) -> facts.victimMarked() && facts.distance() >= 10.0,
       killer -> StatusAbilities.INSTANCE.isRadarActive(killer), false, 60),
-   CLOAK(1, ModItems.INVISIBILITY_CLOAK, "item.oneshotonekill.invisibility_cloak", 2, Kit.ITEM_BASE, sword(),
-      (killer, victim, facts) -> StatusAbilities.INSTANCE.isVanished(killer) && facts.victimBackTurned(),
+   CLOAK(1, ModItems.INVISIBILITY_CLOAK, "item.oneshotonekill.invisibility_cloak", 1, Kit.ITEM_BASE, sword(),
+      (killer, victim, facts) -> StatusAbilities.INSTANCE.isVanished(killer)
+         || KillSignals.INSTANCE.vanishedWithin(killer, 40),
       killer -> StatusAbilities.INSTANCE.isVanished(killer), false, 300),
-   MAGNET(1, ModItems.ARROW_MAGNET, "item.oneshotonekill.arrow_magnet", 2, Kit.ITEM_BASE, bow(),
+   MAGNET(1, ModItems.ARROW_MAGNET, "item.oneshotonekill.arrow_magnet", 1, Kit.ITEM_BASE, bow(),
       (killer, victim, facts) -> StatusAbilities.INSTANCE.remainingMagnetTicks(killer) > 0
          || KillSignals.INSTANCE.magnetWithin(killer, 100),
       killer -> StatusAbilities.INSTANCE.remainingMagnetTicks(killer) > 0
          || KillSignals.INSTANCE.magnetWithin(killer, 100), false, 300),
-   SHIELD(1, ModItems.REFLECTOR_SHIELD, "item.oneshotonekill.reflector_shield", 2, Kit.ITEM_BASE, both(),
+   SHIELD(1, ModItems.REFLECTOR_SHIELD, "item.oneshotonekill.reflector_shield", 1, Kit.ITEM_BASE, both(),
       (killer, victim, facts) -> StatusAbilities.INSTANCE.hasShield(killer)
          || KillSignals.INSTANCE.shieldBlockedWithin(killer, 300),
       killer -> StatusAbilities.INSTANCE.hasShield(killer)
          || KillSignals.INSTANCE.shieldBlockedWithin(killer, 300), false, 200),
-   SMOKE(1, ModItems.SMOKE_BOMB, "item.oneshotonekill.smoke_bomb", 2, Kit.ITEM_BASE, sword(),
-      (killer, victim, facts) -> ThrownDevices.INSTANCE.isInsideSmoke(killer),
+   SMOKE(1, ModItems.SMOKE_BOMB, "item.oneshotonekill.smoke_bomb", 1, Kit.ITEM_BASE, sword(),
+      (killer, victim, facts) -> ThrownDevices.INSTANCE.isInsideSmoke(killer)
+         || KillSignals.INSTANCE.smokedWithin(killer, 40),
       killer -> ThrownDevices.INSTANCE.isInsideSmoke(killer), false, 240),
-   GLIDER(1, ModItems.GLIDER, "item.oneshotonekill.glider", 2, Kit.ITEM_BASE, bow(),
-      (killer, victim, facts) -> StatusAbilities.INSTANCE.isGliding(killer) && facts.killerHeight() >= 5.0,
-      killer -> StatusAbilities.INSTANCE.isGliding(killer), false, 180),
-   GRAPPLE(1, ModItems.GRAPPLING_HOOK, "item.oneshotonekill.grappling_hook", 2, Kit.ITEM_BASE, sword(),
+   GLIDER(1, ModItems.GLIDER, "item.oneshotonekill.glider", 1, Kit.ITEM_BASE, bow(),
+      (killer, victim, facts) -> KillSignals.INSTANCE.glidedWithin(killer, 60),
+      killer -> KillSignals.INSTANCE.glidedWithin(killer, 60), false, 180),
+   GRAPPLE(1, ModItems.GRAPPLING_HOOK, "item.oneshotonekill.grappling_hook", 1, Kit.ITEM_BASE, sword(),
       (killer, victim, facts) -> KillSignals.INSTANCE.grapplingWithin(killer, 60),
       killer -> KillSignals.INSTANCE.grapplingWithin(killer, 60), false, 60),
 
@@ -82,8 +84,8 @@ public enum GunGameTier {
    SINGULARITY(3, ModItems.SINGULARITY, "item.oneshotonekill.singularity", 2, Kit.ITEM_BASE, sword(),
       (killer, victim, facts) -> facts.victimInKillerSingularity(), always(), false, 120),
    SLOW(3, ModItems.SLOW_MOTION, "item.oneshotonekill.slow_motion", 2, Kit.ITEM_BASE, sword(),
-      (killer, victim, facts) -> SlowMotionSystem.INSTANCE.isActive(),
-      killer -> SlowMotionSystem.INSTANCE.isActive(), false, 160),
+      (killer, victim, facts) -> SlowMotionSystem.INSTANCE.isActivatedBy(killer),
+      killer -> SlowMotionSystem.INSTANCE.isActivatedBy(killer), false, 160),
 
    // Akt IV: Finale
    BOMBER(4, ModItems.STEALTH_BOMBER, "item.oneshotonekill.stealth_bomber", 2, Kit.ITEM_ONLY, only(Cause.STEALTH_BOMBER),

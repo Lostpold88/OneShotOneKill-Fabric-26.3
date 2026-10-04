@@ -672,6 +672,9 @@ public final class StatusAbilities {
          arrow.setPos(outside.x, outside.y, outside.z);
          arrow.setDeltaMovement(reflected);
          arrow.syncVelocity = true;
+         // Der Pfeil gehört ab jetzt dem Magnet-Träger: Sonst trifft er den Schützen als dessen
+         // eigener Pfeil (kein Kill) oder schreibt einem Dritten den Kill des Schützen gut.
+         arrow.setOwner(player);
 
          // Nur der tatsächliche Kontaktpunkt blitzt kurz rot/blau auf. Keine dauernden Sterne
          // oder Partikelringe mehr um den Spieler.

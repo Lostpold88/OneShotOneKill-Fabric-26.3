@@ -669,7 +669,7 @@ public final class MatchManager {
 
    public enum GameMode {
       CLASSIC("🏆 Klassisch", "Standard Deathmatch mit Spezial-Items und Killstreaks."),
-      GUN_GAME("🎯 Waffenspiel", "13-Stufen Progression. Wer Stufe 13 meistert gewinnt!");
+      GUN_GAME("🎯 Waffenspiel", "23-Stufen Progression. Wer Stufe 23 meistert gewinnt!");
 
       private final String displayName;
       private final String description;

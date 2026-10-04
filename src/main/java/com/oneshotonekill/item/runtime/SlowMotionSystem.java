@@ -121,6 +121,10 @@ public final class SlowMotionSystem {
       finish(server, false);
    }
 
+   public boolean isActivatedBy(ServerPlayer player) {
+      return active && activatorName.equals(player.getScoreboardName());
+   }
+
    public boolean isActive() {
       return active;
    }

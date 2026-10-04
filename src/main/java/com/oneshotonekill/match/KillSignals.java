@@ -19,6 +19,9 @@ public final class KillSignals {
    private final Map<UUID, Integer> teleports = new HashMap<>();
    private final Map<UUID, Integer> grapples = new HashMap<>();
    private final Map<UUID, Integer> magnets = new HashMap<>();
+   private final Map<UUID, Integer> glides = new HashMap<>();
+   private final Map<UUID, Integer> smokes = new HashMap<>();
+   private final Map<UUID, Integer> vanishes = new HashMap<>();
 
    private KillSignals() {
    }
@@ -42,6 +45,30 @@ public final class KillSignals {
 
    public boolean magnetWithin(ServerPlayer player, int ticks) {
       return within(magnets, player, ticks);
+   }
+
+   public void glidedHigh(ServerPlayer player) {
+      glides.put(player.getUUID(), now());
+   }
+
+   public boolean glidedWithin(ServerPlayer player, int ticks) {
+      return within(glides, player, ticks);
+   }
+
+   public void smoked(ServerPlayer player) {
+      smokes.put(player.getUUID(), now());
+   }
+
+   public boolean smokedWithin(ServerPlayer player, int ticks) {
+      return within(smokes, player, ticks);
+   }
+
+   public void vanished(ServerPlayer player) {
+      vanishes.put(player.getUUID(), now());
+   }
+
+   public boolean vanishedWithin(ServerPlayer player, int ticks) {
+      return within(vanishes, player, ticks);
    }
 
    public void grappling(ServerPlayer player) {
@@ -70,6 +97,9 @@ public final class KillSignals {
       teleports.remove(player.getUUID());
       grapples.remove(player.getUUID());
       magnets.remove(player.getUUID());
+      glides.remove(player.getUUID());
+      smokes.remove(player.getUUID());
+      vanishes.remove(player.getUUID());
    }
 
    public void reset() {
@@ -77,5 +107,8 @@ public final class KillSignals {
       teleports.clear();
       grapples.clear();
       magnets.clear();
+      glides.clear();
+      smokes.clear();
+      vanishes.clear();
    }
 }
