@@ -1,26 +1,20 @@
 package com.oneshotonekill.item.runtime;
 
-import com.oneshotonekill.shared.Hologram;
-import com.oneshotonekill.nuke.MushroomCloud;
-
-import com.oneshotonekill.registry.ModItems;
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.Arena;
+import com.oneshotonekill.arena.ArenaWorlds;
+import com.oneshotonekill.event.CombatEvents.DamageListener;
+import com.oneshotonekill.event.KillFeed;
+import com.oneshotonekill.match.MatchManager;
+import com.oneshotonekill.match.MatchManager.MatchState;
+import com.oneshotonekill.network.OsokPayloads.AirstrikeAlarmPayload;
+import com.oneshotonekill.network.OsokPayloads.ExplosionShakePayload;
+import com.oneshotonekill.nuke.MushroomCloud;
+import com.oneshotonekill.registry.ModItems;
 import com.oneshotonekill.shared.ArenaDemolition;
 import com.oneshotonekill.shared.ArenaShape;
-import com.oneshotonekill.arena.ArenaWorlds;
-import com.oneshotonekill.event.KillFeed;
-import com.oneshotonekill.event.CombatEvents.DamageListener;
-import com.oneshotonekill.network.OsokPayloads.*;
-import com.oneshotonekill.match.MatchManager.MatchState;
-import com.oneshotonekill.match.MatchManager;
+import com.oneshotonekill.shared.Hologram;
 import io.netty.buffer.ByteBuf;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
 import net.fabricmc.fabric.api.networking.v1.ServerPlayNetworking;
 import net.minecraft.core.BlockPos;
 import net.minecraft.core.particles.ParticleTypes;
@@ -40,18 +34,31 @@ import net.minecraft.world.phys.Vec3;
 import org.joml.Quaternionf;
 import org.joml.Vector3f;
 
+import java.util.*;
+
 /** Server-authoritative missile strikes with controlled arena damage and server-fed tactical radar. */
 @SuppressWarnings({"BooleanMethodIsAlwaysInverted", "NullableProblems", "resource"})
 public final class AirstrikeSystem {
    public static final AirstrikeSystem INSTANCE = new AirstrikeSystem();
 
-   private static final int WARNING_TICKS = 40;
+   /**
+    * Flugzeit von der Auslösung bis zum Einschlag – für jeden Angriff dieselbe, egal wie hoch
+    * oder tief das Ziel liegt. Die Bombe fliegt immer genau diese Zeit; nur die Strecke, die sie
+    * dabei zurücklegt, hängt von der Höhe ab.
+    */
+   private static final int WARNING_TICKS = 44;
    /** Abstand der Pfeifgeräusche während des Anflugs. */
-   private static final int PAYLOAD_WHISTLE_TICKS = 7;
-   /** Größe und Modellmaße der Nuke; ausgegeben von generate_airstrike_nuke_3d.py. */
-   private static final float NUKE_SCALE = 3.6F;
-   private static final double NUKE_NOSE_OFFSET = 1.7550;
-   private static final double NUKE_TAIL_OFFSET = 1.8000;
+   private static final int PAYLOAD_WHISTLE_TICKS = 5;
+   /** Größe der Nuke; die Maße je Größeneinheit stammen aus generate_airstrike_nuke_3d.py (1,755 bei 3,6). */
+   private static final float NUKE_SCALE = 5.0F;
+   private static final double NUKE_NOSE_OFFSET = 0.4875 * NUKE_SCALE;
+   private static final double NUKE_TAIL_OFFSET = 0.5 * NUKE_SCALE;
+   /** Abwurfhöhe über der Einschlagstelle bei offenem Himmel: hoch genug für einen sichtbaren Sturz. */
+   private static final double OPEN_SKY_LAUNCH = 96.0;
+   /** Abstand zwischen Heck der Bombe und Hallendecke beim Abwurf. */
+   private static final double CEILING_CLEARANCE = 0.4;
+   /** Anteil des Sturzes, der gleichmäßig verläuft; der Rest beschleunigt. Gilt für jeden Angriff gleich. */
+   private static final double FALL_LINEAR_SHARE = 0.3;
    private static final float NUKE_VIEW_RANGE = 4.0F;
    private static final int RESTORE_DELAY_TICKS = 20 * 8;
    private static final int CRATER_RADIUS = 9;
@@ -80,7 +87,20 @@ public final class AirstrikeSystem {
    private static final double RADAR_LEVEL_FLOOR = 24.0;
    private static final double RADAR_LEVEL_RANGE = 0.80;
 
+   /**
+    * Anteil des Weges, den die Bombe nach dem Anteil {@code time} der Flugzeit zurückgelegt hat.
+    * <p>
+    * Server und Client rechnen mit derselben Kurve, damit der Marker im HUD der echten Bombe folgt.
+    * Sie beschleunigt: erst ein ruhiger Abwurf, dann der Sturz.
+    */
+   public static double fallShare(double time) {
+      double t = Math.clamp(time, 0.0, 1.0);
+      return FALL_LINEAR_SHARE * t + (1.0 - FALL_LINEAR_SHARE) * t * t;
+   }
+
    private final List<PendingStrike> pendingStrikes = new ArrayList<>();
+   /** Verzögerte Nachbeben, die dem Einschlag folgen. */
+   private final List<Aftershock> aftershocks = new ArrayList<>();
    /** Zuschauer des Radars und die Revision, die sie zuletzt bekommen haben. */
    private final Map<UUID, Integer> radarViewers = new HashMap<>();
 
@@ -115,10 +135,16 @@ public final class AirstrikeSystem {
          return;
       }
 
-      double impactY = playableSurfaceY(level, arena, targetX, targetZ);
+      double surfaceY = playableSurfaceY(level, arena, targetX, targetZ);
       double launchY = arena.getHasCeiling()
-         ? Math.min(arena.getCeilingY() - 1.2, impactY + 14.0)
-         : impactY + 34.0;
+         ? arena.getCeilingY() - NUKE_TAIL_OFFSET - CEILING_CLEARANCE
+         : surfaceY + OPEN_SKY_LAUNCH;
+      launchY = Math.max(surfaceY + 3.0, launchY);
+      // Aufschlag auf das, was die Bombe von ihrer Abwurfhöhe aus wirklich zuerst trifft –
+      // auch ein Dach über der Spielfläche. So steht der Aufschlagpunkt vor dem Abwurf fest und
+      // der Einschlag kommt zu jeder Zeit genau zum selben Tick.
+      Double roofY = surfaceBelow(level, targetX, targetZ, launchY, surfaceY);
+      double impactY = roofY == null ? surfaceY : Math.max(surfaceY, roofY);
       launchY = Math.max(impactY + 3.0, launchY);
       int requestedAt = level.getServer().getTickCount();
       Display.ItemDisplay nuke = Hologram.spawnNaturallyLit(level, new Vec3(targetX, launchY, targetZ),
@@ -173,30 +199,20 @@ public final class AirstrikeSystem {
             continue;
          }
 
-         double impactY = strike.impactY();
          if (currentTick < strike.impactAt()) {
-            double previousY = descentY(strike, currentTick - 1);
-            double currentY = descentY(strike, currentTick);
-            // Die Modellmitte schwebt fast zwei Blöcke über der Spitze. Kontakt wird deshalb
-            // an der sichtbaren Bombenspitze geprüft und nicht mitten im Rumpf.
-            Double contactY = firstContactY(level, strike,
-               previousY - NUKE_NOSE_OFFSET, currentY - NUKE_NOSE_OFFSET);
-            if (contactY == null) {
-               animateIncomingPayload(level, strike, currentTick, currentY);
-               continue;
-            }
-            // Die Bombe hat ein Dach, einen Vorsprung oder eine Wand berührt – hier wird gezündet.
-            impactY = contactY;
+            animateIncomingPayload(level, strike, currentTick, descentY(strike, currentTick));
+            continue;
          }
 
          iterator.remove();
          ServerPlayer attacker = server.getPlayerList().getPlayer(strike.attacker());
          discardPayloads(strike);
          if (attacker != null) {
-            impact(server, worlds, level, attacker, strike, impactY, currentTick);
+            impact(server, worlds, level, attacker, strike, settledImpactY(level, strike), currentTick);
          }
       }
 
+      tickAftershocks(server, worlds, currentTick);
       MushroomCloud.INSTANCE.tick();
       updateRadarViewers(server, currentTick);
    }
@@ -219,6 +235,7 @@ public final class AirstrikeSystem {
          discardPayloads(strike);
       }
       pendingStrikes.clear();
+      aftershocks.clear();
       MushroomCloud.INSTANCE.reset();
       radarViewers.clear();
       terrainCache = null;
@@ -366,24 +383,25 @@ public final class AirstrikeSystem {
       return Math.clamp(RADAR_LEVEL_FLOOR + tinted * RADAR_LEVEL_RANGE, 0.0, 255.0);
    }
 
-   /** Höhe der Nutzlast zum gegebenen Tick auf der Bahn von der Abwurf- zur Zielhöhe. */
-   private double descentY(PendingStrike strike, int tick) {
-      double progress = Math.clamp((tick - strike.requestedAt()) / (double) WARNING_TICKS, 0.0, 1.0);
-      double finalCentreY = strike.impactY() + NUKE_NOSE_OFFSET;
-      return strike.launchY() + (finalCentreY - strike.launchY()) * progress;
-   }
+    /**
+     * Höhe der Nutzlast zum gegebenen Tick auf der Bahn von der Abwurf- zur Zielhöhe.
+     */
+    private double descentY(PendingStrike strike, int tick) {
+        double share = fallShare((tick - strike.requestedAt()) / (double) WARNING_TICKS);
+        double finalCentreY = strike.impactY() + NUKE_NOSE_OFFSET;
+        return strike.launchY() + (finalCentreY - strike.launchY()) * share;
+    }
 
    /**
-    * Sucht im diesen Tick durchflogenen Höhenband den ersten festen Block. Geprüft wird das ganze
-    * Band statt nur die Endhöhe, damit die Bombe bei hoher Sinkrate kein Dach durchschlägt.
+    * Oberkante des ersten festen Blocks in der Säule, von {@code fromY} abwärts bis {@code floorY}
+    * gesucht, oder {@code null}, wenn dort nur Luft ist.
     */
-   private Double firstContactY(ServerLevel level, PendingStrike strike, double fromY, double toY) {
+   private Double surfaceBelow(ServerLevel level, double x, double z, double fromY, double floorY) {
       BlockPos.MutableBlockPos pos = new BlockPos.MutableBlockPos();
-      int column = (int) Math.floor(strike.x());
-      int row = (int) Math.floor(strike.z());
-      int top = (int) Math.floor(fromY);
-      int bottom = (int) Math.floor(toY);
-      for (int y = top; y >= bottom; y--) {
+      int column = (int) Math.floor(x);
+      int row = (int) Math.floor(z);
+      int bottom = (int) Math.floor(floorY);
+      for (int y = (int) Math.floor(fromY); y >= bottom; y--) {
          pos.set(column, y, row);
          if (!level.getBlockState(pos).isAir()) {
             return y + 1.0;
@@ -392,31 +410,63 @@ public final class AirstrikeSystem {
       return null;
    }
 
+   /**
+    * Höhe, in der die Bombe tatsächlich einschlägt. Hat ein anderer Einschlag den Boden seit dem
+    * Abwurf gesenkt, setzt sie auf dem neuen Grund auf statt in der Luft zu zünden; der Zeitpunkt
+    * bleibt davon unberührt.
+    */
+   private double settledImpactY(ServerLevel level, PendingStrike strike) {
+      Double ground = surfaceBelow(level, strike.x(), strike.z(), strike.impactY() + 1.0, strike.impactY() - 40.0);
+      return ground == null ? strike.impactY() : ground;
+   }
+
+
    private void animateIncomingPayload(ServerLevel level, PendingStrike strike, int currentTick, double y) {
       int elapsed = currentTick - strike.requestedAt();
+      int remaining = strike.impactAt() - currentTick;
+      float share = (float) Math.clamp(elapsed / (double) WARNING_TICKS, 0.0, 1.0);
       Display.ItemDisplay nuke = strike.payload();
       if (nuke != null && !nuke.isRemoved()) {
-         float yaw = elapsed * 0.045F;
+         // Je schneller der Sturz, desto stärker trudelt die Bombe um die Längsachse und kippelt leicht.
+         float yaw = elapsed * (0.05F + 0.25F * share);
+         float wobble = 0.05F * share * (float) Math.sin(elapsed * 0.9);
          Hologram.setPose(nuke, new Vector3f(0.0F, (float) (y - strike.launchY()), 0.0F),
-            new Quaternionf().rotationY(yaw), new Vector3f(NUKE_SCALE, NUKE_SCALE, NUKE_SCALE), 2);
+                 new Quaternionf().rotationY(yaw).rotateZ(wobble), new Vector3f(NUKE_SCALE, NUKE_SCALE, NUKE_SCALE), 2);
       }
       if (elapsed < 0) {
          return;
       }
+
+      double x = strike.x();
+      double z = strike.z();
+      double ground = strike.impactY();
       if (elapsed % PAYLOAD_WHISTLE_TICKS == 0) {
-         // Pfeifen wird beim Sinken höher – das klassische Bombensignal.
-         float pitch = 0.55F + 1.15F * (float) Math.clamp(elapsed / (double) WARNING_TICKS, 0.0, 1.0);
-         level.playSound(null, strike.x(), y, strike.z(), SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.PLAYERS, 0.9F, pitch);
+         // Pfeifen wird beim Sinken höher und lauter – das klassische Bombensignal.
+         float pitch = 0.5F + 1.3F * share;
+         level.playSound(null, x, y, z, SoundEvents.FIREWORK_ROCKET_LAUNCH, SoundSource.PLAYERS, 1.6F + 2.4F * share, pitch);
       }
-      if (elapsed % 2 != 0) {
-         return;
-      }
+
+      // Feuerschweif: wird mit der Geschwindigkeit dichter und heißer.
       double tailY = y + NUKE_TAIL_OFFSET;
-      // Nur eine schmale Spur: das Modell soll sichtbar bleiben und nicht in der alten
-      // Partikelwolke aus drei TNT-Ladungen verschwinden.
-      level.sendParticles(ParticleTypes.LARGE_SMOKE, strike.x(), tailY, strike.z(), 6, 0.32, 0.18, 0.32, 0.018);
-      level.sendParticles(ParticleTypes.ELECTRIC_SPARK, strike.x(), tailY - 0.2, strike.z(), 3, 0.28, 0.12, 0.28, 0.02);
+      level.sendParticles(ParticleTypes.FLAME, x, tailY, z, 3 + Math.round(10 * share), 0.28, 0.25, 0.28, 0.04 + 0.06 * share);
+      level.sendParticles(ParticleTypes.LARGE_SMOKE, x, tailY + 1.2, z, 3 + Math.round(5 * share), 0.4, 0.6, 0.4, 0.02);
+      // Zweiter Rauchballen weiter hinten: bei hohem Tempo bleibt so eine zusammenhängende Spur am Himmel.
+      level.sendParticles(ParticleTypes.LARGE_SMOKE, x, tailY + 3.5 + 3.0 * share, z, 3, 0.35, 0.8, 0.35, 0.01);
+      if (elapsed % 2 == 0) {
+         level.sendParticles(ParticleTypes.ELECTRIC_SPARK, x, tailY - 0.2, z, 4, 0.35, 0.2, 0.35, 0.03);
+         level.sendParticles(ParticleTypes.LAVA, x, tailY, z, 2, 0.45, 0.3, 0.45, 0.0);
+      }
+
+      if (remaining == 8) {
+         level.playSound(null, x, ground + 6.0, z, SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 5.0F, 0.5F);
+      }
+      if (remaining == 4) {
+         // Die Luft reißt vor der Bombe auf.
+         level.sendParticles(ParticleTypes.SONIC_BOOM, x, y - NUKE_NOSE_OFFSET, z, 1, 0.0, 0.0, 0.0, 0.0);
+         level.playSound(null, x, y, z, SoundEvents.WARDEN_SONIC_BOOM, SoundSource.PLAYERS, 3.0F, 1.5F);
+      }
    }
+
 
    private void impact(MinecraftServer server, ArenaWorlds worlds, ServerLevel level, ServerPlayer attacker, PendingStrike strike,
                        double impactY, int currentTick) {
@@ -429,9 +479,10 @@ public final class AirstrikeSystem {
       double headroom = arena != null && arena.getHasCeiling() ? arena.getCeilingY() - impact.y : OPEN_SKY_HEADROOM;
       MushroomCloud.INSTANCE.detonate(level, impact, headroom);
       level.sendParticles(ParticleTypes.EXPLOSION_EMITTER, impact.x, impact.y + 1.0, impact.z, 6, 2.2, 1.2, 2.2, 0.04);
+      unleashImpact(server, worlds, level, impact, currentTick);
 
       ArenaDemolition.INSTANCE.detonate(level, worlds.getActive(), impact,
-         CRATER_RADIUS, CRATER_DEPTH_OFFSET, RESTORE_DELAY_TICKS, currentTick);
+         CRATER_RADIUS, CRATER_DEPTH_OFFSET, RESTORE_DELAY_TICKS, currentTick, true);
 
       Deployables.INSTANCE.destroyInRadius(level, impact, KILL_RADIUS);
 
@@ -441,6 +492,81 @@ public final class AirstrikeSystem {
          }
       }
    }
+
+   /**
+    * Das Spektakel rund um den Einschlag: Lichtblitz, Feuerring, der die Druckwelle nach außen
+    * trägt, ein Erdbeben für die ganze Arena und Nachbeben, die in den Sekunden danach folgen.
+    * Der Atompilz selbst kommt aus {@link MushroomCloud}.
+    */
+   private void unleashImpact(MinecraftServer server, ArenaWorlds worlds, ServerLevel level, Vec3 impact, int currentTick) {
+      level.playSound(null, impact.x, impact.y, impact.z, SoundEvents.LIGHTNING_BOLT_IMPACT, SoundSource.PLAYERS, 8.0F, 0.5F);
+      level.playSound(null, impact.x, impact.y, impact.z, SoundEvents.WITHER_BREAK_BLOCK, SoundSource.PLAYERS, 4.0F, 0.5F);
+      level.sendParticles(ParticleTypes.SONIC_BOOM, impact.x, impact.y + 1.5, impact.z, 1, 0.0, 0.0, 0.0, 0.0);
+      level.sendParticles(ParticleTypes.SONIC_BOOM, impact.x, impact.y + 6.0, impact.z, 1, 0.0, 0.0, 0.0, 0.0);
+
+      // Count 0 heißt bei Partikelpaketen: Die Werte sind eine Richtung, die Geschwindigkeit skaliert sie.
+      int spokes = 56;
+      for (int i = 0; i < spokes; i++) {
+         double angle = i * (Math.PI * 2.0 / spokes);
+         double dx = Math.cos(angle);
+         double dz = Math.sin(angle);
+         level.sendParticles(ParticleTypes.FLAME, impact.x, impact.y + 0.6, impact.z, 0, dx, 0.10, dz, 1.1);
+         level.sendParticles(ParticleTypes.LARGE_SMOKE, impact.x, impact.y + 0.8, impact.z, 0, dx, 0.14, dz, 0.7);
+         if (i % 2 == 0) {
+            level.sendParticles(ParticleTypes.LAVA, impact.x, impact.y + 1.0, impact.z, 0, dx, 0.5, dz, 0.5);
+         }
+      }
+
+      shakeArena(server, worlds, impact, 150.0F, 3.2F, 80);
+      aftershocks.add(new Aftershock(currentTick + 8, level, impact, 0));
+      aftershocks.add(new Aftershock(currentTick + 24, level, impact, 1));
+      aftershocks.add(new Aftershock(currentTick + 46, level, impact, 2));
+   }
+
+   /**
+    * Schüttelt jedem in der Arena die Kamera; wie stark, rechnet der Client aus seiner Entfernung.
+    */
+   private void shakeArena(MinecraftServer server, ArenaWorlds worlds, Vec3 at, float reach, float intensity, int ticks) {
+      Arena arena = worlds.getActive();
+      ExplosionShakePayload shake = new ExplosionShakePayload(at.x, at.y, at.z, reach, intensity, ticks);
+      for (ServerPlayer listener : server.getPlayerList().getPlayers()) {
+         if (worlds.arenaOf(listener) == arena) {
+            ServerPlayNetworking.send(listener, shake);
+         }
+      }
+   }
+
+   private void tickAftershocks(MinecraftServer server, ArenaWorlds worlds, int currentTick) {
+      Iterator<Aftershock> iterator = aftershocks.iterator();
+      while (iterator.hasNext()) {
+         Aftershock shock = iterator.next();
+         if (currentTick < shock.at()) {
+            continue;
+         }
+         iterator.remove();
+         if (worlds == null) {
+            continue;
+         }
+         Vec3 at = shock.position();
+         switch (shock.stage()) {
+            case 0 -> {
+               // Die Druckwelle erreicht den Rand der Arena.
+               shock.level().playSound(null, at.x, at.y, at.z, SoundEvents.GENERIC_EXPLODE, SoundSource.PLAYERS, 6.0F, 0.35F);
+               shakeArena(server, worlds, at, 130.0F, 2.2F, 50);
+            }
+            case 1 -> {
+               shock.level().playSound(null, at.x, at.y + 10.0, at.z, SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 8.0F, 0.45F);
+               shakeArena(server, worlds, at, 110.0F, 1.5F, 40);
+            }
+            default -> {
+               // Trümmer prasseln nieder, ganz fern grollt es nach.
+               shock.level().playSound(null, at.x, at.y + 14.0, at.z, SoundEvents.LIGHTNING_BOLT_THUNDER, SoundSource.PLAYERS, 6.0F, 0.32F);
+               shock.level().playSound(null, at.x, at.y, at.z, SoundEvents.GRAVEL_BREAK, SoundSource.PLAYERS, 3.0F, 0.5F);
+            }
+         }
+      }
+   }
+
 
    private ItemStack findAirstrike(ServerPlayer player) {
       if (player.getMainHandItem().is(ModItems.AIRSTRIKE)) {
@@ -566,6 +692,9 @@ public final class AirstrikeSystem {
       public Type<CloseRadarPayload> type() {
          return TYPE;
       }
+   }
+
+   private record Aftershock(int at, ServerLevel level, Vec3 position, int stage) {
    }
 
    private record PendingStrike(UUID attacker, String arenaId, double x, double z, double impactY, double launchY,

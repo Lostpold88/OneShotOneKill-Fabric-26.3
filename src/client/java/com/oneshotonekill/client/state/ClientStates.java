@@ -209,8 +209,27 @@ public final class ClientStates {
                 return impactY;
             }
             float elapsed = warningTicks - remainingTicks + partialTick;
-            float progress = Mth.clamp(elapsed / warningTicks, 0.0F, 1.0F);
-            return launchY + (impactY - launchY) * progress;
+            // Dieselbe Kurve wie die echte Bombe auf dem Server, damit der Marker ihr folgt.
+            double share = AirstrikeSystem.fallShare(elapsed / warningTicks);
+            return launchY + (impactY - launchY) * share;
+        }
+
+        /**
+         * Weißer Blitz im Moment des Einschlags, 0 bis 1. Er klingt binnen weniger Ticks ab und
+         * ist umso schwächer, je weiter der Spieler vom Einschlag entfernt steht.
+         */
+        public float impactFlash(float partialTick) {
+            if (isIncoming() || aftermathTicks <= 0) {
+                return 0.0F;
+            }
+            double distance = distanceToTarget();
+            if (distance < 0.0) {
+                return 0.0F;
+            }
+            float sinceImpact = AFTERMATH_TICKS - aftermathTicks + partialTick;
+            float fade = Mth.clamp(1.0F - sinceImpact / 22.0F, 0.0F, 1.0F);
+            float reach = Mth.clamp(1.0F - (float) (distance / 140.0), 0.0F, 1.0F);
+            return fade * fade * reach;
         }
 
         /**
@@ -238,7 +257,6 @@ public final class ClientStates {
                 // Einschlagmeldung: der Anflug endet sofort, die Anzeige hallt nach.
                 remainingTicks = 0;
                 aftermathTicks = AFTERMATH_TICKS;
-                CameraShakeState.INSTANCE.trigger(targetX, impactY, targetZ, 48.0, 1.0F, 24);
                 return;
             }
             warningTicks = payload.getWarningTicks();
@@ -251,7 +269,6 @@ public final class ClientStates {
                 remainingTicks--;
                 if (remainingTicks == 0) {
                     aftermathTicks = AFTERMATH_TICKS;
-                    CameraShakeState.INSTANCE.trigger(targetX, impactY, targetZ, 48.0, 1.0F, 24);
                 }
             } else if (aftermathTicks > 0) {
                 aftermathTicks--;

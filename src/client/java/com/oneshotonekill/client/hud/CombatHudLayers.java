@@ -695,6 +695,12 @@ public final class CombatHudLayers {
             drawVignette(graphics, blinkOn ? 1.0f : 0.4f, endangered);
             drawBanner(graphics, client.font, alarm, accent, endangered, blinkOn, player.tickCount + partialTick);
             drawBombMarker(graphics, client, client.font, alarm, player, accent, blinkOn, partialTick);
+
+            float flash = alarm.impactFlash(partialTick);
+            if (flash > 0.01F) {
+                // Zuletzt gezeichnet: Der Blitz überstrahlt alles, auch die Warnanzeige.
+                graphics.fill(0, 0, graphics.guiWidth(), graphics.guiHeight(), Math.round(flash * 235.0F) << 24 | 0xFFF4DC);
+            }
         }
     }
 

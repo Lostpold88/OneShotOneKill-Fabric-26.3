@@ -75,6 +75,15 @@ public final class ArenaDemolition {
     */
    public boolean detonate(ServerLevel level, Arena arena, Vec3 impact, int radius, double depthOffset,
                            int restoreDelay, int currentTick) {
+      return detonate(level, arena, impact, radius, depthOffset, restoreDelay, currentTick, false);
+   }
+
+   /**
+    * Wie oben; mit {@code flyingDebris} fliegen die gesprengten Blöcke als Trümmer davon
+    * (siehe {@link BlockDebris}), statt einfach zu verschwinden.
+    */
+   public boolean detonate(ServerLevel level, Arena arena, Vec3 impact, int radius, double depthOffset,
+                           int restoreDelay, int currentTick, boolean flyingDebris) {
       clearGroundItems(level, impact, radius);
       dropSuppressions.add(new DropSuppression(level, impact, radius, currentTick + DROP_SUPPRESSION_TICKS));
 
@@ -86,6 +95,9 @@ public final class ArenaDemolition {
 
       restorations.add(new Restoration(level, currentTick + restoreDelay, destroyed, impact, radius));
       terrainRevision++;
+      if (flyingDebris) {
+         BlockDebris.INSTANCE.launch(level, impact, destroyed, radius);
+      }
       return true;
    }
 
@@ -250,6 +262,7 @@ public final class ArenaDemolition {
     * @return wie viele Bloecke geaendert wurden
     */
    public int restoreArena(ServerLevel level, Arena arena) {
+      BlockDebris.INSTANCE.reset();
       restorations.clear();
       dropSuppressions.clear();
       terrainRevision++;
@@ -266,6 +279,7 @@ public final class ArenaDemolition {
    }
 
    public void tick(int currentTick) {
+      BlockDebris.INSTANCE.tick();
       restoreDestroyedBlocks(currentTick);
       dropSuppressions.removeIf(suppression -> currentTick >= suppression.expiresAt);
    }
@@ -313,6 +327,7 @@ public final class ArenaDemolition {
     * niemand mehr auf seine Wiederherstellung wartet.
     */
    public int restoreEverythingNow() {
+      BlockDebris.INSTANCE.reset();
       int restored = 0;
       for (Restoration restoration : restorations) {
          while (restoration.blocks.hasNext()) {
