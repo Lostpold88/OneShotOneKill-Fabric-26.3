@@ -96,7 +96,7 @@ public final class ArenaDemolition {
       restorations.add(new Restoration(level, currentTick + restoreDelay, destroyed, impact, radius));
       terrainRevision++;
       if (flyingDebris) {
-         BlockDebris.INSTANCE.launch(level, impact, destroyed, radius);
+         BlockDebris.INSTANCE.launch(level, arena, impact, destroyed, radius);
       }
       return true;
    }
