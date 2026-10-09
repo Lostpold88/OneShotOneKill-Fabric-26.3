@@ -36,8 +36,9 @@ public final class PhaseHudLayer implements HudElement {
       if (client.player == null || client.level == null) {
          return;
       }
-      PhaseFields.Zone zone = PhaseFields.CLIENT.find(client.player.getUUID());
-      if (zone == null || client.player.getEyePosition().distanceToSqr(zone.centre()) > zone.radius() * zone.radius()) {
+      // Steht der Spieler in mehreren eigenen Kugeln, zeigt die Anzeige die, die am längsten hält.
+      PhaseFields.Zone zone = PhaseFields.CLIENT.findInside(client.player.getUUID(), client.player.getEyePosition());
+      if (zone == null) {
          return;
       }
 

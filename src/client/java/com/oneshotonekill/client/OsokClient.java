@@ -174,6 +174,7 @@ public final class OsokClient implements ClientModInitializer {
                 new BlockModelResolver(ctx.minecraft().getModelManager())));
 
         ReflectorShieldRenderer.register();
+        PhaseFieldRenderer.register();
         MagnetShieldRenderer.register();
         GliderWingRenderer.register();
         GrapplingHookRenderer.register();
@@ -194,6 +195,7 @@ public final class OsokClient implements ClientModInitializer {
         BomberCameraState.INSTANCE.tick();
         AbilityStatusState.INSTANCE.tick();
         ReflectorShieldRenderer.tick();
+        PhaseFieldRenderer.tick();
         MagnetShieldRenderer.tick();
         GliderWingRenderer.tick();
         BoogieDiscoRenderer.tick();
@@ -273,6 +275,7 @@ public final class OsokClient implements ClientModInitializer {
     private static void onDisconnect() {
         ClientClimbing.INSTANCE.clear();
         com.oneshotonekill.shared.PhaseFields.CLIENT.clear();
+        PhaseFieldRenderer.clear();
         MatchStartState.INSTANCE.clear();
         MinigunHudState.INSTANCE.clear();
         MinigunSpinState.INSTANCE.clear();
@@ -344,6 +347,7 @@ public final class OsokClient implements ClientModInitializer {
         OsokClientHandlers.register();
         com.oneshotonekill.client.effect.BoogieBombClient.register();
         com.oneshotonekill.client.hud.PhaseHudLayer.register();
+        com.oneshotonekill.client.renderer.PhaseGhost.register();
         ClientInputEvents.register();
         InteractionGates.registerClientPullGate(player ->
                 GrapplePullState.INSTANCE.isPulling(player.getUUID())

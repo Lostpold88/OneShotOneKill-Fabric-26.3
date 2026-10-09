@@ -103,14 +103,15 @@ public final class OsokClientHandlers {
       ClientPlayNetworking.registerGlobalReceiver(PhaseFieldSystem.Sync.TYPE,
          (payload, context) -> {
             if (payload.radius() > 0.0F) {
-               PhaseFields.CLIENT.put(new PhaseFields.Zone(payload.owner(),
+               PhaseFields.CLIENT.put(new PhaseFields.Zone(payload.id(), payload.owner(),
                   new Vec3(payload.x(), payload.y(), payload.z()), payload.radius(),
                   (context.client().level == null ? 0L : context.client().level.getGameTime()) + payload.ticks()));
             } else {
-               PhaseFields.CLIENT.remove(payload.owner());
+               PhaseFields.CLIENT.remove(payload.id());
             }
             // Die Blöcke der Kugel müssen neu gebaut werden: halbtransparent hinein, opak wieder heraus.
-            if (context.client().level != null) {
+            if (context.client().level != null && context.client().player != null
+               && payload.owner().equals(context.client().player.getUUID())) {
                int reach = 7;
                int bx = Mth.floor(payload.x());
                int by = Mth.floor(payload.y());

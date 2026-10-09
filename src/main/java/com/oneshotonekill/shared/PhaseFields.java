@@ -25,11 +25,18 @@ import net.minecraft.world.phys.Vec3;
  * des Spiels. Die Liste ist deshalb ein unveränderlicher Schnappschuss und bleibt fast immer leer.
  */
 public final class PhaseFields {
+   /** Dauer einer Kugel und Länge der Warnphase am Ende, in Ticks. */
+   public static final int DURATION_TICKS = 300;
+   public static final int WARNING_TICKS = 60;
+
    public static final PhaseFields SERVER = new PhaseFields();
    public static final PhaseFields CLIENT = new PhaseFields();
 
-   /** {@code endsAt} ist die Spielzeit des Ablaufs in Ticks der jeweiligen Seite; nur die Anzeige liest sie. */
-   public record Zone(UUID owner, Vec3 centre, double radius, long endsAt) {
+   /**
+    * Eine Kugel. {@code id} unterscheidet mehrere Kugeln desselben Werfers; {@code endsAt} ist die
+    * Spielzeit des Ablaufs in Ticks der jeweiligen Seite und wird nur von der Anzeige gelesen.
+    */
+   public record Zone(UUID id, UUID owner, Vec3 centre, double radius, long endsAt) {
       public boolean contains(BlockPos pos) {
          double dx = pos.getX() + 0.5 - centre.x;
          double dy = pos.getY() + 0.5 - centre.y;
@@ -50,17 +57,17 @@ public final class PhaseFields {
       return entity.level().isClientSide() ? CLIENT : SERVER;
    }
 
-   /** Setzt die Kugel eines Besitzers; eine neue ersetzt seine alte. */
+   /** Setzt eine Kugel; es dürfen beliebig viele gleichzeitig bestehen, auch vom selben Werfer. */
    public synchronized void put(Zone zone) {
       List<Zone> next = new ArrayList<>(zones);
-      next.removeIf(old -> old.owner.equals(zone.owner));
+      next.removeIf(old -> old.id.equals(zone.id));
       next.add(zone);
       zones = List.copyOf(next);
    }
 
-   public synchronized void remove(UUID owner) {
+   public synchronized void remove(UUID id) {
       List<Zone> next = new ArrayList<>(zones);
-      if (next.removeIf(old -> old.owner.equals(owner))) {
+      if (next.removeIf(old -> old.id.equals(id))) {
          zones = List.copyOf(next);
       }
    }
@@ -132,29 +139,32 @@ public final class PhaseFields {
       return false;
    }
 
-   /** Die Kugel dieses Besitzers, falls er eine hat. */
-   public Zone find(UUID owner) {
-      for (Zone zone : zones) {
-         if (zone.owner.equals(owner)) {
-            return zone;
-         }
-      }
-      return null;
+   /** Alle Kugeln als unveränderlicher Schnappschuss – für die Darstellung. */
+   public List<Zone> all() {
+      return zones;
    }
 
-   /** Liegt der Block in irgendeiner Kugel? Für die Darstellung, die für alle gleich ist. */
-   public boolean covers(BlockPos pos) {
+   /**
+    * Die Kugel dieses Besitzers, in der {@code point} liegt; bei mehreren die, die am längsten hält.
+    */
+   public Zone findInside(UUID owner, Vec3 point) {
+      Zone best = null;
       for (Zone zone : zones) {
-         if (zone.contains(pos)) {
-            return true;
+         if (zone.owner.equals(owner) && zone.centre.distanceToSqr(point) <= zone.radius * zone.radius
+            && (best == null || zone.endsAt > best.endsAt)) {
+            best = zone;
          }
       }
-      return false;
+      return best;
    }
 
-   public boolean isActive(UUID owner) {
+   /** Liegt der Block in der Kugel dieses Besitzers? Für die Durchsicht, die nur ihm gehört. */
+   public boolean coversFor(UUID owner, BlockPos pos) {
+      if (owner == null) {
+         return false;
+      }
       for (Zone zone : zones) {
-         if (zone.owner.equals(owner)) {
+         if (zone.owner.equals(owner) && zone.contains(pos)) {
             return true;
          }
       }
