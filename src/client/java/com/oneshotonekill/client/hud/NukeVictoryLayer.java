@@ -12,7 +12,6 @@ import net.minecraft.client.gui.GuiGraphicsExtractor;
 import net.minecraft.util.Util;
 
 import java.util.List;
-import java.util.Locale;
 
 import static com.oneshotonekill.client.hud.HudFx.*;
 
@@ -20,10 +19,9 @@ import static com.oneshotonekill.client.hud.HudFx.*;
  * Die Siegerehrung nach dem Einschlag.
  * <p>
  * Gezeichnet wird in einem festen Entwurfsraum von 480 x 270 Einheiten, der auf die Bildschirmgröße
- * skaliert wird - so sieht die Tafel auf jeder Auflösung gleich aus. Von oben nach unten: zwei Spotlights
- * und Konfetti im Hintergrund, die Schlagzeile "VICTORY" (Buchstabe für Buchstabe hereinfallend, mit
- * wanderndem Glanz), der Name des Siegers, dann die Rangliste mit Kill-Balken und hochzählenden Zahlen und
- * zuletzt vier Kacheln mit den Matchwerten.
+ * skaliert wird - so sieht die Tafel auf jeder Auflösung gleich aus. Von oben nach unten: dezentes Konfetti
+ * im Hintergrund, die Schlagzeile "VICTORY" (Buchstabe für Buchstabe hereinfallend, mit wanderndem Glanz),
+ * der Name des Siegers und die Rangliste mit Kill-Balken und hochzählenden Zahlen.
  * <p>
  * Der Zähler der Sequenz bleibt nach ihrem Ende stehen. Alles, was weiterlaufen soll (Konfetti, Glanz,
  * Spotlights), läuft deshalb mit der Wanduhr.
@@ -65,11 +63,9 @@ public final class NukeVictoryLayer implements HudElement {
 
       graphics.pose().pushMatrix();
       graphics.pose().scale(ui, ui);
-      drawSpotlights(graphics, vw, vh, ambient, since);
       drawConfetti(graphics, vw, vh, ambient, since);
       int bottom = drawHeadline(graphics, font, vw, victory, since, ambient);
-      int panelBottom = drawRanking(graphics, font, vw, bottom + 8, victory, since);
-      drawTiles(graphics, font, vw, panelBottom + 8, victory, since);
+      drawRanking(graphics, font, vw, bottom + 8, victory, since);
       graphics.pose().popMatrix();
    }
 
@@ -77,22 +73,9 @@ public final class NukeVictoryLayer implements HudElement {
    // Hintergrund
    // ------------------------------------------------------------------
 
-   private static void drawSpotlights(GuiGraphicsExtractor graphics, int vw, int vh, float ambient, float since) {
-      float reveal = smooth((since - 0.2F) / 1.0F);
-      for (int side = -1; side <= 1; side += 2) {
-         float sway = (float) Math.sin(ambient * 0.5F + side) * 0.06F;
-         graphics.pose().pushMatrix();
-         graphics.pose().translate(vw / 2.0F + side * vw * 0.46F, -4);
-         graphics.pose().rotate(-side * (0.38F + sway));
-         graphics.fillGradient(-22, 0, 22, (int) (vh * 1.25F), argb(0xFFE9A0, 0.20F * reveal), argb(0xFFE9A0, 0.0F));
-         graphics.fillGradient(-8, 0, 8, (int) (vh * 1.25F), argb(0xFFFFFF, 0.16F * reveal), argb(0xFFFFFF, 0.0F));
-         graphics.pose().popMatrix();
-      }
-   }
-
    private static void drawConfetti(GuiGraphicsExtractor graphics, int vw, int vh, float ambient, float since) {
       float fade = smooth((since - 0.3F) / 1.2F);
-      int pieces = 130;
+      int pieces = 45;
       for (int i = 0; i < pieces; i++) {
          float speed = 22.0F + 60.0F * rand(i + 700);
          float y = (ambient * speed + rand(i + 701) * (vh + 30.0F)) % (vh + 30.0F) - 15.0F;
@@ -249,69 +232,4 @@ public final class NukeVictoryLayer implements HudElement {
       return top + height;
    }
 
-   // ------------------------------------------------------------------
-   // Kacheln
-   // ------------------------------------------------------------------
-
-   private static void drawTiles(GuiGraphicsExtractor graphics, Font font, int vw, int top,
-                                 NukeVictoryPayload victory, float since) {
-      int gap = 6;
-      int tileW = (PANEL_WIDTH - 3 * gap) / 4;
-      int tileH = 34;
-      int left = (vw - PANEL_WIDTH) / 2;
-      int rows = Math.min(NukeVictoryPayload.MAX_ROWS, victory.ranking().size());
-      float base = 1.5F + rows * 0.2F + 0.5F;
-
-      String[] labels = {"DAUER", "KILLS GESAMT", "KILLS / MIN", victory.mvp().isEmpty() ? "TODE GESAMT" : "LAENGSTE SERIE"};
-      for (int i = 0; i < 4; i++) {
-         float start = base + i * 0.15F;
-         float p = clamp01((since - start) / 0.35F);
-         if (p <= 0.0F) {
-            continue;
-         }
-         float count = easeOutCubic((since - start) / 1.1F);
-         int x = left + i * (tileW + gap);
-         int y = top + Math.round((1.0F - easeOutCubic(p)) * 14.0F);
-
-         graphics.fill(x, y, x + tileW, y + tileH, argb(0x07090F, 0.88F * p));
-         graphics.outline(x, y, tileW, tileH, argb(GOLD, 0.45F * p));
-         graphics.fill(x, y, x + 2, y + tileH, argb(GOLD, p));
-         HudFx.leftText(graphics, font, labels[i], x + 6, y + 4, 0.75F, argb(0x94A3B8, p));
-
-         String value;
-         int colour = 0xF8FAFC;
-         float scale = 1.25F;
-         switch (i) {
-            case 0 -> {
-               int seconds = Math.round(victory.matchSeconds() * count);
-               value = seconds / 60 + ":" + HudFx.twoDigits(seconds % 60);
-            }
-            case 1 -> {
-               value = Integer.toString(Math.round(victory.totalKills() * count));
-               colour = OsokWidgets.COLOR_EMERALD;
-            }
-            case 2 -> value = String.format(Locale.ROOT, "%.1f", victory.killsPerMinute() * count);
-            default -> {
-               if (victory.mvp().isEmpty()) {
-                  value = Integer.toString(Math.round(victory.totalDeaths() * count));
-                  colour = OsokWidgets.COLOR_CRIMSON;
-               } else {
-                  value = "★" + Math.round(victory.mvpStreak() * count);
-                  colour = GOLD;
-               }
-            }
-         }
-         HudFx.leftText(graphics, font, value, x + 6, y + 14, scale, argb(colour, p));
-         if (i == 3 && !victory.mvp().isEmpty()) {
-            HudFx.leftText(graphics, font, victory.mvp(), x + 6, y + tileH - 9, 0.75F, argb(0xCBD5E1, p));
-         }
-      }
-
-      // Sandsack-Zeile: wer am häufigsten gestorben ist
-      float footerP = smooth((since - base - 0.9F) / 0.5F);
-      if (footerP > 0.0F && !victory.mostDeaths().isEmpty()) {
-         HudFx.smallText(graphics, font, "SANDSACK: " + victory.mostDeaths() + "  (" + victory.mostDeathsCount() + " Tode)",
-            vw / 2.0F, top + tileH + 6, 0.85F, argb(0x94A3B8, footerP));
-      }
-   }
 }

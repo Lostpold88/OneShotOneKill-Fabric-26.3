@@ -301,7 +301,7 @@ public final class TimeDistortionEffects {
          float strength = 0.105F * atmosphere + 1.05F * burst + 0.035F * pulse + 0.05F * urgency;
          return new ShaderState(
             strength,
-            0.0014F * atmosphere + 0.015F * burst + 0.0016F * urgency,
+            0.0020F * atmosphere + 0.024F * burst + 0.0030F * urgency,
             this.smoothWarp,
             warmth,
             atmosphere,
@@ -317,8 +317,8 @@ public final class TimeDistortionEffects {
             energyA,
             energyB,
             historyAlpha,
-            0.010F * burst + 0.0016F * atmosphere + 0.004F * urgency,
-            0.030F * burst + 0.0035F * atmosphere + 0.006F * urgency,
+            0.016F * burst + 0.0016F * atmosphere + 0.006F * urgency,
+            0.048F * burst + 0.0035F * atmosphere + 0.009F * urgency,
             sweepAngle(),
             atmosphere * (0.55F + 0.45F * urgency),
             1.0F + 2.2F * burst + 1.6F * urgency,

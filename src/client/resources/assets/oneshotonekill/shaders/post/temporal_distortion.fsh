@@ -54,8 +54,23 @@ float gaussian(float value, float width) {
     return exp(-x * x);
 }
 
+// Ableitung der Glocke: ungerade um den Ringmittelpunkt. Als Verschiebung entlang der Wellen-
+// richtung ergibt das eine echte Linse - innen vergroessert, aussen gestaucht.
+float gaussianSlope(float value, float width) {
+    float x = value / max(width, 1.0e-4);
+    return x * exp(-x * x);
+}
+
 float hash(vec2 seed) {
     return fract(sin(dot(seed, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
+float vnoise(vec2 p) {
+    vec2 i = floor(p);
+    vec2 f = fract(p);
+    f = f * f * (3.0 - 2.0 * f);
+    return mix(mix(hash(i), hash(i + vec2(1.0, 0.0)), f.x),
+               mix(hash(i + vec2(0.0, 1.0)), hash(i + vec2(1.0, 1.0)), f.x), f.y);
 }
 
 // Die Tiefe des Haupt-Targets traegt an dieser Stelle nur noch die Hand: GameRenderer leert den
@@ -129,9 +144,22 @@ void main() {
     float pinchShape = radius * (1.0 - smoothstep(0.0, 1.05, radius));
     vec2 baseUv = texCoord - direction * Pinch * pinchShape * world;
 
+    // Druckwellen als Linse: die Welle bricht das Bild an ihrer Front sichtbar.
+    float lens = gaussianSlope(radius - RingRadius.x, ringWidth) * RingEnergy.x
+        + gaussianSlope(radius - RingRadius.y, ringWidth) * RingEnergy.y;
+
+    // Zeitstottern: auf jedem Sekundenschlag reissen einzelne Zeilenbaender seitlich weg.
+    float glitchBand = floor(texCoord.y * 46.0);
+    float glitchStep = floor(Elapsed * 12.0);
+    float glitchGate = step(0.80, hash(vec2(glitchBand, glitchStep)));
+    float glitch = (hash(vec2(glitchBand + 17.0, glitchStep)) - 0.5) * 0.045
+        * Pulse * Pulse * Atmosphere * glitchGate;
+
     vec2 displacement = direction * wake * WarpDirection * Strength * 0.023 * focus
         + tangent * twist * WarpDirection * Strength * 0.0055
         + tangent * sweep * 0.0045
+        + direction * lens * 0.040 * (0.35 + 0.65 * min(Strength, 1.0))
+        + vec2(glitch, 0.0)
         + direction * idleRipple;
     vec2 warped = clamp(baseUv + displacement * world, UV_LO, UV_HI);
 
@@ -187,17 +215,69 @@ void main() {
     float motionEdge = clamp(fwidth(motion) * 3.5, 0.0, 1.0);
     colour += energy * motionEdge * RimGain * world;
 
+    // Bloom: helle Bildteile strahlen in zwei Ringen aus je acht Abtastungen aus. Die Schwelle
+    // laesst Himmel, Feuer und Magie leuchten, ohne das ganze Bild zu verwaschen.
+    vec3 bloom = vec3(0.0);
+    for (int i = 0; i < 8; i++) {
+        float a = float(i) * (TAU / 8.0);
+        vec2 dir = vec2(cos(a) / aspect, sin(a));
+        bloom += max(texture(InSampler, clamp(warped + dir * 0.008, UV_LO, UV_HI)).rgb - 0.58, 0.0);
+        bloom += max(texture(InSampler, clamp(warped + dir * 0.021, UV_LO, UV_HI)).rgb - 0.58, 0.0) * 0.7;
+    }
+    colour += bloom * energy * (0.22 + 0.38 * Pulse) * Atmosphere * world;
+
     // Daueratmosphaere: kalte Entsaettigung, Randflimmern und ein schwacher Sekundentakt.
+    // Bewegtes behaelt seine Farbe und hebt sich so aus der grauen, erstarrten Welt ab.
     float luminance = dot(colour, vec3(0.2126, 0.7152, 0.0722));
-    vec3 coldGrade = mix(vec3(luminance), colour, 0.72) * vec3(0.91, 0.98, 1.08);
-    colour = mix(colour, coldGrade, Atmosphere * (1.0 - Warmth) * 0.32);
+    vec3 coldGrade = mix(vec3(luminance), colour, mix(0.46, 1.0, motion)) * vec3(0.88, 0.98, 1.12);
+    colour = mix(colour, coldGrade, Atmosphere * (1.0 - Warmth) * 0.62);
+    // Leichte S-Kurve: tiefere Schatten, hellere Lichter.
+    vec3 clamped = clamp(colour, 0.0, 1.0);
+    colour = mix(colour, clamped * clamped * (3.0 - 2.0 * clamped), Atmosphere * 0.28);
     float edge = smoothstep(0.24, 0.76, length(texCoord - vec2(0.5)));
     // Feste Zyklenzahl ueber die Bildhoehe statt einer Kopplung an die Pixelzahl: sonst liegt das
     // Muster nahe der Nyquist-Grenze und wird bei 4K zu Moire, bei 720p zu grobem Banding.
     float edgeFlicker = 0.5 + 0.5 * sin((texCoord.y + Elapsed * 0.19) * 220.0);
-    colour *= 1.0 - edge * Atmosphere * (0.055 + edgeFlicker * 0.025);
+    colour *= 1.0 - edge * Atmosphere * (0.11 + edgeFlicker * 0.03);
     colour += vec3(0.08, 0.42, 0.72) * shockRing * (0.16 + Strength * 0.16);
     colour += energy * sweep * 0.055;
+
+    // Lichtstrahlen aus dem Zeitbruch: Rauschen ueber die Richtung (nicht den Winkel), damit an
+    // der Naht bei +-PI nichts reisst. Auf dem Sekundenschlag und im Ausbruch gleissend hell.
+    float rayField = vnoise(metricDirection * 5.0 + vec2(Elapsed * 0.5, -Elapsed * 0.3)) * 0.6
+        + vnoise(metricDirection * 14.0 + vec2(-Elapsed * 0.9, Elapsed * 0.7)) * 0.4;
+    float rays = smoothstep(0.50, 0.92, rayField)
+        * (1.0 - smoothstep(0.05, 0.80, radius)) * smoothstep(0.03, 0.22, radius);
+    colour += energy * rays * Atmosphere * world * (0.05 + 0.13 * Pulse + 0.16 * min(Strength, 1.3));
+
+    // Zifferblatt: ein geisterhafter Ring aus 60 Strichen um die Bildmitte, die Fuenfer kraeftiger.
+    // Der Zeiger leuchtet die Striche beim Vorbeilaufen auf. Er liegt auf der Bildmitte und nicht
+    // auf dem Ursprung, damit der Ring nach dem Ausbruch ruhig stehen bleibt.
+    vec2 centred = (texCoord - vec2(0.5)) * vec2(aspect, 1.0);
+    float clockRadius = length(centred);
+    float clockAngle = atan(centred.y, centred.x);
+    float tickCoord = clockAngle / TAU * 60.0;
+    float tickIndex = floor(tickCoord + 0.5);
+    float major = 1.0 - step(0.5, mod(tickIndex + 30.0, 5.0));
+    float tickLength = mix(0.013, 0.032, major);
+    float tickMask = (1.0 - smoothstep(0.035, 0.075, abs(tickCoord - tickIndex)))
+        * smoothstep(0.405 - tickLength - 0.002, 0.405 - tickLength, clockRadius)
+        * (1.0 - smoothstep(0.405, 0.407, clockRadius));
+    float clockDelta = mod(clockAngle - SweepAngle + PI, TAU) - PI;
+    float handGlow = exp(-abs(clockDelta) * mix(2.5, 22.0, step(0.0, clockDelta)));
+    float clockRing = gaussian(clockRadius - 0.407, 0.0014) * (0.35 + 0.65 * handGlow);
+    colour += energy * (tickMask * (0.20 + 0.85 * handGlow) + clockRing * 0.55)
+        * SweepEnergy * world * (1.0 - Restoring);
+
+    // Zeitrisse: hinter der Front der Druckwelle bricht das Bild an gluehenden Bruchlinien auf.
+    // Zwei Rauschlagen ergeben verzweigte Linien; Staerke und Ringenergie legen fest, wie lange.
+    vec2 crackSpace = texCoord * vec2(aspect, 1.0);
+    float crackA = abs(vnoise(crackSpace * 6.5 + Origin * 3.0) - 0.5);
+    float crackB = abs(vnoise(crackSpace * 14.0 - Origin * 5.0 + 11.0) - 0.5) * 1.9;
+    float crackLine = 1.0 - smoothstep(0.0, 0.020, min(crackA, crackB));
+    float crackInside = 1.0 - smoothstep(RingRadius.x - 0.12, RingRadius.x, radius);
+    float crackEnergy = smoothstep(0.30, 1.0, Strength) * RingEnergy.x * crackInside;
+    colour += mix(energy, vec3(1.0), 0.55) * crackLine * crackEnergy * 1.1 * world;
     // Beim Ende wird die kalte Welt in einer warmen Welle zurueck in die Gegenwart gezogen.
     vec3 warmGrade = colour * vec3(1.09, 1.015, 0.91) + warmEnergy * shockRing * 0.20;
     colour = mix(colour, warmGrade, Warmth * (0.18 + Restoring * 0.20));

@@ -26,10 +26,10 @@ import net.minecraft.util.Util;
  * Alles hängt an zwei Uhren: der Zeit bis zum Einschlag und dem Herzschlag aus
  * {@link HeartbeatClock}, der mit der Tonspur {@code nuke_countdown_bed.ogg} läuft. Die rote Vignette atmet
  * im Sirenentakt (eine Sekunde, wie die Ansage) und schlägt zusätzlich auf jedem Herzschlag aus. Links
- * unten läuft ein Radar mit Ground Zero, der eigenen Position und dem anfliegenden Bomber, rechts unten
- * entschlüsselt sich die Telemetrie, oben steht die Uhr mit Hundertstelsekunden. In den letzten fünf
- * Sekunden schlägt jede Ziffer riesig in die Bildmitte, und kurz vor Null zieht ein weißer Schleier auf, der
- * nahtlos in den Blitz des Einschlags übergeht.
+ * unten läuft ein Radar mit Ground Zero, der eigenen Position und dem anfliegenden Bomber, oben steht die
+ * Uhr mit Hundertstelsekunden. Es gibt immer nur einen Countdown: In den letzten fünf Sekunden ersetzt eine
+ * riesige Ziffer in der Bildmitte die Uhr, und kurz vor Null zieht ein weißer Schleier auf, der nahtlos in
+ * den Blitz des Einschlags übergeht.
  */
 @SuppressWarnings("DuplicatedCode")
 public final class NukeCountdownLayer implements HudElement {
@@ -38,7 +38,6 @@ public final class NukeCountdownLayer implements HudElement {
    private static final int GREEN = 0x40FF70;
    /** Wie viele Blöcke der Radarradius abbildet. */
    private static final float RADAR_RANGE = 70.0F;
-   private static final float COUNTDOWN_SECONDS = NukePhase.DETONATION.from() / 20.0F;
 
    @Override
    public void extractRenderState(GuiGraphicsExtractor graphics, DeltaTracker deltaTracker) {
@@ -67,12 +66,12 @@ public final class NukeCountdownLayer implements HudElement {
 
       graphics.pose().pushMatrix();
       graphics.pose().scale(ui, ui);
-      drawScanlines(graphics, vw, vh, time, progress);
       drawBars(graphics, font, vw, vh, time, strobe);
       drawRadar(graphics, font, client, state, partial, time, vw, vh);
-      drawTelemetry(graphics, font, state, partial, toImpact, time, vw, vh);
-      drawTimer(graphics, font, vw, toImpact, beat);
-      if (toImpact <= 5.0F && toImpact > 0.0F) {
+      // Immer nur ein Countdown: die Uhr oben, in den letzten fünf Sekunden die große Ziffer.
+      if (toImpact > 5.0F) {
+         drawTimer(graphics, font, vw, toImpact, beat);
+      } else if (toImpact > 0.0F) {
          drawFinalSlam(graphics, font, vw, vh, toImpact);
       }
       graphics.pose().popMatrix();
@@ -101,15 +100,6 @@ public final class NukeCountdownLayer implements HudElement {
          (0.18F + 0.45F * progress) * (0.50F + 0.50F * strobe) + 0.30F * beat * progress);
    }
 
-   private static void drawScanlines(GuiGraphicsExtractor graphics, int vw, int vh, float time, float progress) {
-      int scan = argb(RED, 0.03F + 0.03F * progress);
-      for (int y = 0; y < vh; y += 3) {
-         graphics.fill(0, y, vw, y + 1, scan);
-      }
-      int sweep = Math.floorMod((int) (time * 90.0F), vh);
-      graphics.fill(0, sweep, vw, sweep + 2, argb(RED, 0.10F + 0.14F * progress));
-   }
-
    // ------------------------------------------------------------------
    // Balken oben und unten
    // ------------------------------------------------------------------
@@ -126,15 +116,8 @@ public final class NukeCountdownLayer implements HudElement {
       HudFx.hazardStripes(graphics, vw, vh - BAR + 1, vh - BAR + 6, -scroll, RED, 0.55F);
 
       boolean flash = ((int) (time * 4.0F) & 1) == 0;
-      HudFx.smallText(graphics, font, "☢ DEFCON 1  //  TACTICAL NUKE INBOUND ☢", vw / 2.0F, 8,
+      HudFx.smallText(graphics, font, "☢ TACTICAL NUKE INBOUND ☢", vw / 2.0F, 8,
          1.0F, flash ? OsokWidgets.COLOR_GOLD : OsokWidgets.COLOR_CRIMSON);
-      HudFx.leftText(graphics, font, "OSOK // STRATCOM", 10, 8, 1.0F, 0xFFCBD5E1);
-      HudFx.rightText(graphics, font, "AUTHORISIERUNG: BESTAETIGT", vw - 10, 8, 1.0F, 0xFFCBD5E1);
-
-      HudFx.smallText(graphics, font, "[ NOTFALL-PROTOKOLL AKTIV · EVAKUIERUNG UNMOEGLICH ]", vw / 2.0F, vh - BAR + 9,
-         1.0F, 0xFFE2E8F0);
-      HudFx.leftText(graphics, font, "SIRENE: AKTIV", 10, vh - BAR + 9, 1.0F, argb(RED, 0.6F + 0.4F * strobe));
-      HudFx.rightText(graphics, font, "SPERRE: WAFFEN / ITEMS / BAU", vw - 10, vh - BAR + 9, 1.0F, 0xFF94A3B8);
    }
 
    // ------------------------------------------------------------------
@@ -209,47 +192,6 @@ public final class NukeCountdownLayer implements HudElement {
    }
 
    // ------------------------------------------------------------------
-   // Telemetrie
-   // ------------------------------------------------------------------
-
-   private static void drawTelemetry(GuiGraphicsExtractor graphics, Font font, NukeState state, float partial,
-                                     float toImpact, float time, int vw, int vh) {
-      float tick = state.currentTick() + partial;
-      boolean released = tick >= NukeSequenceManager.BOMB_RELEASE_TICK;
-      boolean inbound = tick >= NukeSequenceManager.BOMBER_ENTER_TICK;
-      float fall = Mth.clamp((tick - NukeSequenceManager.BOMB_RELEASE_TICK)
-         / (float) (NukePhase.DETONATION.from() - NukeSequenceManager.BOMB_RELEASE_TICK), 0.0F, 1.0F);
-
-      String carrier = released ? "ABWURF" : inbound ? "ANFLUG" : "STANDBY";
-      String altitude = !inbound ? "--" : released ? Math.round(30.0F * (1.0F - fall * fall)) + " M" : "30 M";
-      String[][] lines = {
-         {"SPRENGKOPF", "SCHARF"},
-         {"SPRENGKRAFT", "20.0 MT"},
-         {"TRAEGER", carrier},
-         {"HOEHE", altitude},
-         {"DETONATION", String.format(java.util.Locale.ROOT, "T-%05.2f", toImpact)},
-         {"SCHUTZRAUM", "KEINER"},
-      };
-
-      int panelW = 132;
-      int lineH = 11;
-      int px = vw - 14 - panelW;
-      int py = vh - BAR - lines.length * lineH - 22;
-      graphics.fill(px - 6, py - 14, px + panelW + 6, py + lines.length * lineH + 6, argb(0x040806, 0.80F));
-      graphics.outline(px - 6, py - 14, panelW + 12, lines.length * lineH + 20, argb(RED, 0.75F));
-      HudFx.leftText(graphics, font, "TELEMETRIE", px, py - 10, 0.9F, argb(RED, 0.95F));
-
-      for (int i = 0; i < lines.length; i++) {
-         float resolved = Mth.clamp((time - 0.3F - i * 0.35F) / 0.5F, 0.0F, 1.0F);
-         int y = py + i * lineH;
-         HudFx.leftText(graphics, font, lines[i][0], px, y, 0.9F, 0xFF94A3B8);
-         int colour = i == 5 && ((int) (time * 3.0F) & 1) == 0 ? OsokWidgets.COLOR_CRIMSON : 0xFFF1F5F9;
-         HudFx.rightText(graphics, font, HudFx.scramble(lines[i][1], resolved, (int) (time * 24.0F) + i * 31),
-            px + panelW, y, 0.9F, resolved >= 1.0F ? colour : argb(GREEN, 0.85F));
-      }
-   }
-
-   // ------------------------------------------------------------------
    // Uhr
    // ------------------------------------------------------------------
 
@@ -270,18 +212,6 @@ public final class NukeCountdownLayer implements HudElement {
       HudFx.bigText(graphics, font, text, cx - split, y, scale, argb(0x00F0FF, 0.7F * flicker), false);
       HudFx.bigText(graphics, font, text, cx + split, y, scale, argb(0xFF2233, 0.7F * flicker), false);
       HudFx.bigText(graphics, font, text, cx, y, scale, argb(colour, flicker), true);
-
-      // Segmentierter Restzeit-Balken
-      int blocks = 40;
-      int filled = (int) Math.ceil(blocks * toImpact / COUNTDOWN_SECONDS);
-      int barW = 5;
-      int gap = 2;
-      int left = cx - (blocks * (barW + gap)) / 2;
-      int barY = (int) (y + 4.5F * scale) + 6;
-      for (int i = 0; i < blocks; i++) {
-         int x = left + i * (barW + gap);
-         graphics.fill(x, barY, x + barW, barY + 4, i < filled ? argb(colour, 0.95F) : argb(0x334155, 0.55F));
-      }
    }
 
    // ------------------------------------------------------------------
