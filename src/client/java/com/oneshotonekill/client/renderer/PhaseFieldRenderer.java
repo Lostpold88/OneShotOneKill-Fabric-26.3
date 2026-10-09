@@ -56,7 +56,7 @@ public final class PhaseFieldRenderer {
    private static final float RIBBON_HALF_WIDTH = 0.028F;
    private static final double MAX_DISTANCE_SQR = 96.0 * 96.0;
    /** Gesamtdeckkraft der Kugel; kleiner heißt durchsichtiger. */
-   private static final float OPACITY = 0.6F;
+   private static final float OPACITY = 0.5F;
 
    /** Aufbau in zehn Takten, Zusammensturz in zwölf. */
    private static final float GROW_PER_TICK = 0.1F;

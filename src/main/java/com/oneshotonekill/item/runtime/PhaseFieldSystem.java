@@ -3,6 +3,7 @@ package com.oneshotonekill.item.runtime;
 import com.oneshotonekill.OneShotOneKill;
 import com.oneshotonekill.arena.ArenaWorlds;
 import com.oneshotonekill.registry.ModItems;
+import com.oneshotonekill.shared.DeviceLights;
 import com.oneshotonekill.shared.Feedback;
 import com.oneshotonekill.shared.Hologram;
 import com.oneshotonekill.shared.PhaseFields;
@@ -106,7 +107,12 @@ public final class PhaseFieldSystem {
    public boolean throwGrenade(ServerLevel level, ServerPlayer thrower) {
       Vec3 origin = thrower.getEyePosition().add(thrower.getLookAngle().scale(0.4));
       Vec3 velocity = thrower.getLookAngle().scale(THROW_SPEED).add(0.0, 0.12, 0.0);
-      Display.ItemDisplay display = Hologram.spawnEffect(level, origin, new ItemStack(ModItems.PHASE_GRENADE), VIEW_RANGE);
+      // Die Dioden leuchten von Anfang an und werden im Flug nicht mehr umgefärbt: jede Farbänderung
+      // schickt den Gegenstand neu, der Client baut dann das Modell mit seinen 200 Teilen neu auf, und
+      // die Bahn ruckelt. Alle anderen Wurfgeräte tragen im Flug einen unveränderlichen Gegenstand.
+      ItemStack flying = new ItemStack(ModItems.PHASE_GRENADE);
+      DeviceLights.set(flying, LED_LIT);
+      Display.ItemDisplay display = Hologram.spawnEffect(level, origin, flying, VIEW_RANGE);
       if (display != null) {
          Hologram.setPose(display, new Vector3f(), new Quaternionf(), uniform(SCALE), 1);
       }
@@ -155,8 +161,6 @@ public final class PhaseFieldSystem {
             Hologram.moveLeading(shot.display, shot.position, shot.velocity);
             Hologram.setPose(shot.display, new Vector3f(),
                new Quaternionf().rotateY(shot.ticks * 0.5F).rotateZ(shot.ticks * 0.21F), uniform(SCALE), 1);
-            shot.led = Hologram.tint(shot.display, ModItems.PHASE_GRENADE, shot.led,
-               shot.ticks % 4 < 2 ? LED_LIT : LED_COLD);
          }
 
          if (impact || shot.ticks >= MAX_FLIGHT_TICKS) {
@@ -221,7 +225,7 @@ public final class PhaseFieldSystem {
             float pulse = SCALE * (1.0F + 0.09F * (float) Math.sin(age * (warning ? 0.9 : 0.3)));
             Hologram.setPose(field.display, new Vector3f(),
                new Quaternionf().rotateY(age * (warning ? 0.35F : 0.12F)), uniform(pulse), 1);
-            int period = warning ? 3 : 10;
+            int period = warning ? 8 : 20;
             field.led = Hologram.tint(field.display, ModItems.PHASE_GRENADE, field.led,
                age % period < Math.max(1, period / 2) ? (warning ? LED_WARN : LED_LIT) : LED_COLD);
          }
@@ -335,7 +339,6 @@ public final class PhaseFieldSystem {
       private Vec3 position;
       private Vec3 velocity;
       private int ticks;
-      private int led = -1;
       private final Display.ItemDisplay display;
 
       private Flight(UUID owner, Vec3 position, Vec3 velocity, Display.ItemDisplay display) {
