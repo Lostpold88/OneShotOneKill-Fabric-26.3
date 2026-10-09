@@ -52,9 +52,9 @@ public final class ClientInputEvents {
     /**
      * Ab diesem Tempo weitet der Gleitflug das Sichtfeld, und wie stark.
      */
-    private static final double GLIDE_FOV_FLOOR = 0.70;
-    private static final double GLIDE_FOV_PER_SPEED = 0.42;
-    private static final double GLIDE_FOV_MAX = 0.34;
+    private static final double GLIDE_FOV_FLOOR = 1.10;
+    private static final double GLIDE_FOV_PER_SPEED = 0.30;
+    private static final double GLIDE_FOV_MAX = 0.42;
     // --- Chat Filtering (System Presence) ---
     private static final Set<String> SUPPRESSED_KEYS = Set.of(
             "multiplayer.player.joined",

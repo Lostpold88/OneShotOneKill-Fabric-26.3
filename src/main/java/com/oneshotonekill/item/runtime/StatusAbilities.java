@@ -103,19 +103,19 @@ public final class StatusAbilities {
    /** Wie stark das Tempo diese Wendigkeit bremst. */
    private static final double GLIDE_TURN_DAMPING = 0.9;
    /** Reisegeschwindigkeit im waagerechten Flug, in Bloecken je Tick. */
-   private static final double GLIDE_CRUISE = 0.86;
+   private static final double GLIDE_CRUISE = 1.45;
    /** Aufschlag im senkrechten Sturzflug. */
-   private static final double GLIDE_DIVE_BONUS = 0.42;
+   private static final double GLIDE_DIVE_BONUS = 0.80;
    /** Abschlag im senkrechten Steigflug – steigen geht, kostet aber Strecke. */
-   private static final double GLIDE_CLIMB_TAX = 0.20;
+   private static final double GLIDE_CLIMB_TAX = 0.35;
    /** Wie schnell das Tempo seinem Zielwert folgt. */
-   private static final double GLIDE_ACCEL = 0.05;
-   private static final double GLIDE_MAX_SPEED = 1.75;
-   private static final double GLIDE_MIN_SPEED = 0.30;
+   private static final double GLIDE_ACCEL = 0.10;
+   private static final double GLIDE_MAX_SPEED = 2.60;
+   private static final double GLIDE_MIN_SPEED = 0.50;
    /** Sinkanteil, auf den die Nase unter der Decke der Arena gedrueckt wird. */
    private static final double GLIDE_CEILING_SINK = -0.05;
    /** Tempo unmittelbar nach einem Absprung. */
-   private static final double GLIDE_LAUNCH_SPEED = 0.95;
+   private static final double GLIDE_LAUNCH_SPEED = 1.40;
    /** Mindestanteil nach oben beim Absprung, damit auch ein Start im Sturz zunaechst steigt. */
    private static final double GLIDE_LAUNCH_RISE = 0.45;
 
@@ -484,6 +484,11 @@ public final class StatusAbilities {
 
    public boolean isGliding(ServerPlayer player) {
       return gliding.containsKey(player.getUUID());
+   }
+
+   /** Fliegt der Spieler gerade waagerecht im Geschirr? Am Boden gilt die normale Haltung. */
+   public boolean isGlideFlying(ServerPlayer player) {
+      return gliding.containsKey(player.getUUID()) && !player.onGround();
    }
 
    public int remainingVanishTicks(ServerPlayer player) {

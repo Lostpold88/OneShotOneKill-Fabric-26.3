@@ -61,8 +61,13 @@ public final class GliderWingRenderer {
    private static final RenderStateDataKey<List<WingFrame>> FRAMES =
       RenderStateDataKey.create(() -> OneShotOneKill.MOD_ID + ":glider_wings");
 
-   /** Höhe der Aufhängung über den Füßen des Spielers, in Blöcken. */
-   private static final float SHOULDER = 1.32F;
+   /**
+    * Lage der Aufhängung im Körperrahmen: so weit entlang der Körperachse (Füße -> Schultern) und
+    * so hoch über dem Rücken. Der Rahmen des Geschirrs ist der des Waagerechtflugs - +Z nach vorn,
+    * +Y über dem Rücken -, im Stand wird er um 90 Grad aufgerichtet.
+    */
+   private static final float RIG_ALONG = 1.32F;
+   private static final float RIG_UP = 0.42F;
 
    // --- Grundriss eines Flügels, alles in Blöcken ---
    /** Spannweite ab der Wurzel. */
@@ -87,21 +92,21 @@ public final class GliderWingRenderer {
    /** Der Randbogen an der Spitze, nach oben gestellt. */
    private static final float WINGLET_RISE = 0.30F;
 
-   // --- Rückeneinheit ---
-   private static final float PACK_HALF_WIDTH = 0.20F;
-   private static final float PACK_TOP = 0.30F;
-   private static final float PACK_BOTTOM = -0.26F;
-   private static final float PACK_FRONT = -0.14F;
-   private static final float PACK_BACK = -0.38F;
+   // --- Rückeneinheit: eine flache Platte, die auf dem Rücken liegt (Schultern -> Hüfte) ---
+   private static final float PACK_HALF_WIDTH = 0.19F;
+   private static final float PACK_TOP = -0.06F;
+   private static final float PACK_BOTTOM = -0.30F;
+   private static final float PACK_FRONT = -0.04F;
+   private static final float PACK_BACK = -0.80F;
 
-   // --- Triebwerke an der Flügelwurzel ---
-   private static final float NOZZLE_OUT = 0.40F;
-   private static final float NOZZLE_RADIUS = 0.105F;
-   private static final float NOZZLE_FRONT = -0.16F;
-   private static final float NOZZLE_BACK = -0.44F;
-   private static final float FLAME_MIN = 0.30F;
-   private static final float FLAME_PER_SPEED = 1.30F;
-   private static final int FLAME_STEPS = 6;
+   // --- Triebwerke: zwei Rohre längs des Rückens, die Düsen zeigen zu den Füßen ---
+   private static final float NOZZLE_OUT = 0.30F;
+   private static final float NOZZLE_RADIUS = 0.125F;
+   private static final float NOZZLE_FRONT = -0.02F;
+   private static final float NOZZLE_BACK = -0.95F;
+   private static final float FLAME_MIN = 0.55F;
+   private static final float FLAME_PER_SPEED = 2.10F;
+   private static final int FLAME_STEPS = 8;
 
    // --- Farben ---
    private static final float[] HULL = {0.13F, 0.16F, 0.21F};
@@ -114,16 +119,25 @@ public final class GliderWingRenderer {
    private static final float[] FLAME_CORE = {0.86F, 0.98F, 1.00F};
    private static final float[] FLAME_TAIL = {0.10F, 0.42F, 1.00F};
 
-   /** Schräglage in der Kurve: Grad je Grad Gierdrehung, und wie viel höchstens. */
-   private static final float BANK_PER_TURN = 2.6F;
-   private static final float BANK_LIMIT = 38.0F;
-   /** Wie schnell die Schräglage der Kurve folgt – klein genug, dass sie nicht zappelt. */
-   private static final float BANK_EASE = 0.22F;
+   /** Tempo, bei dem die Schwingen ganz zurückgepfeilt und die Flammen voll lang sind. */
+   private static final float FULL_SPEED = 2.4F;
+   /**
+    * Liegegrad-Änderung je Tick beim Abheben (5 Ticks) und beim Landen (8 Ticks, gemächlicher).
+    * Linear statt exponentiell: Ein exponentielles Auslaufen hängt über dreißig Ticks im Rest
+    * und hält den Körper so lange an den Blick gekoppelt, obwohl die Figur längst steht.
+    */
+   private static final float LIE_STEP_UP = 0.20F;
+   private static final float LIE_STEP_DOWN = 0.125F;
+
+   /** Der Liegegrad einer Figur in diesem Bild; Körper, Gliedmaßen und Geschirr lesen alle denselben Wert. */
+   public static final RenderStateDataKey<Float> LIE =
+      RenderStateDataKey.create(() -> OneShotOneKill.MOD_ID + ":glide_lie");
 
    private static final Map<UUID, Float> intensities = new HashMap<>();
    private static final Map<UUID, Float> previousIntensities = new HashMap<>();
-   private static final Map<UUID, Float> banks = new HashMap<>();
-   private static final Map<UUID, Float> previousBanks = new HashMap<>();
+   /** 0 = aufrecht am Boden, 1 = waagerecht im Flug. */
+   private static final Map<UUID, Float> lies = new HashMap<>();
+   private static final Map<UUID, Float> previousLies = new HashMap<>();
    private static float animationTicks;
 
    private GliderWingRenderer() {
@@ -155,49 +169,58 @@ public final class GliderWingRenderer {
          if (current <= 0.0F && !active.contains(uuid)) {
             intensities.remove(uuid);
             previousIntensities.remove(uuid);
-            banks.remove(uuid);
-            previousBanks.remove(uuid);
          } else {
             intensities.put(uuid, current);
          }
       }
-      tickBanking();
+      tickLying(active);
       animationTicks += 1.0F;
    }
 
    /**
-    * Die Schräglage folgt der Kurve – wie bei allem, was fliegt.
+    * Der Liegegrad: 1 in der Luft im Geschirr, 0 am Boden oder ohne Geschirr, dazwischen weich.
     * <p>
-    * Gemessen wird die Gierdrehung des Körpers seit dem letzten Tick; daraus wird ein Zielwinkel
-    * und der wird nachgezogen, statt ihn direkt zu setzen. Ohne dieses Nachziehen zappelten die
-    * Flügel bei jeder Mausbewegung. Der Zustand liegt hier und nicht im Zeichenschritt, weil
-    * eine Ableitung nach der Zeit einen Takt braucht und der Zeichenschritt beliebig oft je Tick
-    * läuft.
+    * Er gehört allein dieser Klasse, damit Körper ({@code AvatarGlideMixin}), Gliedmaßen
+    * ({@code HumanoidModelMixin}) und Geschirr denselben Wert lesen - vorher richtete sich der
+    * Körper beim Landen sofort auf, das Geschirr aber verzögert. Er läuft auch nach dem Ende des
+    * Fluges noch aus, bis die Figur wieder steht.
     */
-   private static void tickBanking() {
+   private static void tickLying(Set<UUID> active) {
       var level = Minecraft.getInstance().level;
       if (level == null) {
          return;
       }
       for (AbstractClientPlayer player : level.players()) {
          UUID uuid = player.getUUID();
-         if (!intensities.containsKey(uuid)) {
+         if (!active.contains(uuid) && !lies.containsKey(uuid)) {
             continue;
          }
-         float previous = banks.getOrDefault(uuid, 0.0F);
-         previousBanks.put(uuid, previous);
-         float turn = Mth.degreesDifference(player.yBodyRotO, player.yBodyRot);
-         // Rechtskurve heißt Gierwinkel aufwärts; die rechte Fläche muss dabei nach unten.
-         float target = Math.clamp(-turn * BANK_PER_TURN, -BANK_LIMIT, BANK_LIMIT);
-         banks.put(uuid, previous + (target - previous) * BANK_EASE);
+         float previous = lies.getOrDefault(uuid, 0.0F);
+         previousLies.put(uuid, previous);
+         float target = active.contains(uuid) && !player.onGround() ? 1.0F : 0.0F;
+         float current = target > previous
+            ? Math.min(target, previous + LIE_STEP_UP)
+            : Math.max(target, previous - LIE_STEP_DOWN);
+         if (target == 0.0F && current <= 0.0F) {
+            lies.remove(uuid);
+            previousLies.remove(uuid);
+         } else {
+            lies.put(uuid, current);
+         }
       }
+   }
+
+   /** Der geglättete Liegegrad zwischen zwei Ticks; null heißt aufrecht, eins waagerecht. */
+   public static float lie(UUID uuid, float partialTick) {
+      float raw = Mth.lerp(partialTick, previousLies.getOrDefault(uuid, 0.0F), lies.getOrDefault(uuid, 0.0F));
+      return raw * raw * (3.0F - 2.0F * raw);
    }
 
    public static void clear() {
       intensities.clear();
       previousIntensities.clear();
-      banks.clear();
-      previousBanks.clear();
+      lies.clear();
+      previousLies.clear();
       animationTicks = 0.0F;
    }
 
@@ -213,6 +236,12 @@ public final class GliderWingRenderer {
          if (visible <= 0.001F || player.isInvisible()) {
             continue;
          }
+         // Der eigene Körper sitzt in der Ich-Ansicht hinter der Kamera, das Geschirr läge ihr
+         // dagegen direkt vor der Nase und verdeckte die Sicht.
+         if (player == Minecraft.getInstance().player
+            && Minecraft.getInstance().options.getCameraType().isFirstPerson()) {
+            continue;
+         }
 
          double x = Mth.lerp(partialTick, player.xo, player.getX());
          double y = Mth.lerp(partialTick, player.yo, player.getY());
@@ -220,7 +249,7 @@ public final class GliderWingRenderer {
 
          // Für Gegner/andere Spieler: Nicht durch Wände rendern, wenn keine Sichtlinie besteht
          if (player != Minecraft.getInstance().player) {
-            Vec3 wingAnchor = new Vec3(x, y + SHOULDER, z);
+            Vec3 wingAnchor = new Vec3(x, y + 0.7, z);
             Vec3 eyePos = new Vec3(x, y + player.getEyeHeight(), z);
             BlockHitResult hitAnchor = context.level().clip(new ClipContext(camera, wingAnchor, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, player));
             BlockHitResult hitEye = context.level().clip(new ClipContext(camera, eyePos, ClipContext.Block.VISUAL, ClipContext.Fluid.NONE, player));
@@ -229,17 +258,16 @@ public final class GliderWingRenderer {
             }
          }
 
-         // Der Körperwinkel, nicht der Kopfwinkel: sonst drehen sich die Flügel beim Umsehen mit.
+         // Am Boden folgt das Geschirr dem Körper, im Flug dem Blick: Die Elytra-Haltung dreht den
+         // Körper in Blickrichtung (AvatarRenderer.setupRotations), also tut es das Geschirr auch.
+         // Dieselbe Mischung rechnet AvatarGlideMixin auf den Körperwinkel.
          float bodyRot = Mth.rotLerp(partialTick, player.yBodyRotO, player.yBodyRot);
-         float speed = (float) Math.min(1.0, player.getDeltaMovement().length() / 1.4);
-         // Die Nase kippt mit dem Steigen und Sinken – zaghaft, sonst steht der Spieler schief
-         // in seinem eigenen Geschirr.
-         float pitch = (float) Math.clamp(player.getDeltaMovement().y * 22.0, -22.0, 22.0);
-         float bank = Mth.lerp(partialTick,
-            previousBanks.getOrDefault(player.getUUID(), 0.0F),
-            banks.getOrDefault(player.getUUID(), 0.0F));
+         float headRot = Mth.rotLerp(partialTick, player.yHeadRotO, player.yHeadRot);
+         float pitch = Mth.lerp(partialTick, player.xRotO, player.getXRot());
+         float lie = lie(player.getUUID(), partialTick);
+         float speed = (float) Math.min(1.0, player.getDeltaMovement().length() / FULL_SPEED);
          frames.add(new WingFrame((float) (x - camera.x), (float) (y - camera.y), (float) (z - camera.z),
-            bodyRot, pitch, bank, visible, speed, animationTicks + partialTick));
+            Mth.rotLerp(lie, bodyRot, headRot), pitch, lie, visible, speed, animationTicks + partialTick));
       }
       context.levelState().setData(FRAMES, frames.isEmpty() ? null : List.copyOf(frames));
    }
@@ -254,12 +282,16 @@ public final class GliderWingRenderer {
       PoseStack poseStack = context.poseStack();
       for (WingFrame frame : frames) {
          poseStack.pushPose();
-         poseStack.translate(frame.x, frame.y + SHOULDER, frame.z);
+         // Drehpunkt sind die Füße, genau wie in AvatarRenderer.setupRotations.
+         poseStack.translate(frame.x, frame.y, frame.z);
          // Minecraft misst den Körperwinkel im Uhrzeigersinn von Süden; im Renderraum ist das
          // eine Drehung um die Hochachse mit umgekehrtem Vorzeichen.
          poseStack.rotate(new Quaternionf().rotationY((float) Math.toRadians(-frame.bodyRot)));
-         poseStack.rotate(new Quaternionf().rotationX((float) Math.toRadians(-frame.pitch)));
-         poseStack.rotate(new Quaternionf().rotationZ((float) Math.toRadians(frame.bank)));
+         // Waagerecht: Rahmen folgt dem Blickwinkel (Blick nach unten = Nase nach unten).
+         // Aufrecht: -90 Grad, dann zeigt "vorn" des Rahmens nach oben und "über dem Rücken" nach hinten.
+         poseStack.rotate(new Quaternionf().rotationX(
+            (float) Math.toRadians(Mth.lerp(frame.lie, -90.0F, frame.pitch))));
+         poseStack.translate(0.0F, RIG_UP, RIG_ALONG);
 
          context.submitNodeCollector().submitCustomGeometry(poseStack, RenderTypes.debugQuads(),
             (pose, buffer) -> {
@@ -282,21 +314,29 @@ public final class GliderWingRenderer {
 
    // -- Fester Körper --------------------------------------------------------
 
-   /** Die Rückeneinheit zwischen den Schultern, mit einem hellen Streifen auf der Rückseite. */
+   /** Die Rückeneinheit: eine Platte auf dem Rücken von den Schultern bis zur Hüfte, mit Kühlrippen und Zierstreifen. */
    private static void pack(Matrix4fc pose, VertexConsumer buffer, WingFrame frame) {
       float grow = frame.intensity;
       float half = PACK_HALF_WIDTH * grow;
       float top = PACK_TOP * grow;
       float bottom = PACK_BOTTOM * grow;
-      box(pose, buffer, -half, bottom, PACK_BACK, half, top, PACK_FRONT, HULL, HULL_LIT, 1.0F);
+      float front = PACK_FRONT * grow;
+      float back = PACK_BACK * grow;
+      box(pose, buffer, -half, bottom, back, half, top, front, HULL, HULL_LIT, 1.0F);
 
-      // Kühlrippen als schmale Bänder auf dem Rücken der Einheit.
-      for (int rib = 0; rib < 3; rib++) {
-         float y = bottom + (top - bottom) * (0.28F + rib * 0.22F);
+      // Kühlrippen als schmale Querbänder auf der Oberseite.
+      for (int rib = 0; rib < 5; rib++) {
+         float z = back + (front - back) * (0.14F + rib * 0.17F);
          quadBoth(pose, buffer,
-            -half * 0.8F, y, PACK_BACK - 0.012F, half * 0.8F, y, PACK_BACK - 0.012F,
-            half * 0.8F, y + 0.035F * grow, PACK_BACK - 0.012F, -half * 0.8F, y + 0.035F * grow, PACK_BACK - 0.012F,
+            -half * 0.85F, top + 0.006F, z, half * 0.85F, top + 0.006F, z,
+            half * 0.85F, top + 0.006F, z + 0.045F * grow, -half * 0.85F, top + 0.006F, z + 0.045F * grow,
             TRIM, 1.0F);
+      }
+      // Gurte: zwei schmale Bänder, die um den Körper laufen.
+      for (int strap = 0; strap < 2; strap++) {
+         float z = back + (front - back) * (0.25F + strap * 0.5F);
+         box(pose, buffer, -half - 0.015F, bottom - 0.07F * grow, z, half + 0.015F, bottom + 0.02F, z + 0.07F * grow,
+            HULL, SPAR, 1.0F);
       }
    }
 
@@ -562,7 +602,7 @@ public final class GliderWingRenderer {
    }
 
    /** Ein paar unveränderliche Zahlen je Spieler – alles, was in den Renderthread wandert. */
-   private record WingFrame(float x, float y, float z, float bodyRot, float pitch, float bank,
+   private record WingFrame(float x, float y, float z, float bodyRot, float pitch, float lie,
                             float intensity, float speed, float time) {
    }
 }

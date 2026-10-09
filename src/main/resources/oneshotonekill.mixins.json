@@ -16,7 +16,8 @@
 		"movement.ServerPlayerMantleMixin",
 		"movement.BoogieSprintMixin",
 		"movement.LivingEntityClimbingMixin",
-		"movement.EntityArenaBorderMixin"
+		"movement.EntityArenaBorderMixin",
+		"movement.PlayerGlidePoseMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
