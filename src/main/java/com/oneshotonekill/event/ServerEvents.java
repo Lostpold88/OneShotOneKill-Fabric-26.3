@@ -104,6 +104,7 @@ public final class ServerEvents {
       StatusAbilities.INSTANCE.tick(server);
       ThrownDevices.INSTANCE.tick(server);
       com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.tick(server);
+      com.oneshotonekill.item.runtime.PhaseFieldSystem.INSTANCE.tick(server);
       GrapplingHookSystem.INSTANCE.tick(server);
       Deployables.INSTANCE.tick(server);
       BlastEffect.INSTANCE.tick();

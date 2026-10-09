@@ -1,4 +1,10 @@
 {
+  "item.oneshotonekill.phase_grenade": "Phase Grenade",
+  "tooltip.oneshotonekill.phase_grenade": "Right-click: Throw a phase grenade. For 15 seconds you walk and shoot through blocks nearby.",
+  "tooltip.oneshotonekill.phase_grenade_warning": "Everyone sees through the walls, only you pass. At the end you return from the rock.",
+  "desc.oneshotonekill.phase_grenade": "Blocks nearby turn see-through. The thrower walks and shoots through them.",
+  "actionbar.oneshotonekill.phase_active": "§b◈ PHASE §7· %s s left",
+  "actionbar.oneshotonekill.phase_ending": "§c◈ PHASE ENDING §7· get out of the rock! %s s",
   "item.oneshotonekill.boogie_bomb": "Boogie-Bomb",
   "item.oneshotonekill.boogie_disco_ball": "Disco Ball",
   "item.oneshotonekill.boogie_beam": "Disco Light",

@@ -30,6 +30,11 @@ import com.oneshotonekill.network.OsokPayloads.BomberTargetsPayload;
 import com.oneshotonekill.network.OsokPayloads.DeployableMarkersPayload;
 import com.oneshotonekill.network.OsokPayloads.ExplosionShakePayload;
 import com.oneshotonekill.network.OsokPayloads.GlidingPlayersPayload;
+import com.oneshotonekill.item.runtime.PhaseFieldSystem;
+import com.oneshotonekill.shared.PhaseFields;
+import net.minecraft.core.SectionPos;
+import net.minecraft.util.Mth;
+import net.minecraft.world.phys.Vec3;
 import com.oneshotonekill.network.OsokPayloads.GrapplePullPayload;
 import com.oneshotonekill.network.OsokPayloads.GunGameStatusPayload;
 import com.oneshotonekill.network.OsokPayloads.MagnetFieldsPayload;
@@ -95,6 +100,27 @@ public final class OsokClientHandlers {
       ClientPlayNetworking.registerGlobalReceiver(ExplosionShakePayload.TYPE,
          (payload, context) -> CameraShakeState.INSTANCE.trigger(payload.getX(), payload.getY(), payload.getZ(),
             payload.getMaxDistance(), payload.getIntensity(), payload.getDurationTicks()));
+      ClientPlayNetworking.registerGlobalReceiver(PhaseFieldSystem.Sync.TYPE,
+         (payload, context) -> {
+            if (payload.radius() > 0.0F) {
+               PhaseFields.CLIENT.put(new PhaseFields.Zone(payload.owner(),
+                  new Vec3(payload.x(), payload.y(), payload.z()), payload.radius(),
+                  (context.client().level == null ? 0L : context.client().level.getGameTime()) + payload.ticks()));
+            } else {
+               PhaseFields.CLIENT.remove(payload.owner());
+            }
+            // Die Blöcke der Kugel müssen neu gebaut werden: halbtransparent hinein, opak wieder heraus.
+            if (context.client().level != null) {
+               int reach = 7;
+               int bx = Mth.floor(payload.x());
+               int by = Mth.floor(payload.y());
+               int bz = Mth.floor(payload.z());
+               context.client().level.setSectionRangeDirty(
+                  SectionPos.blockToSectionCoord(bx - reach), SectionPos.blockToSectionCoord(by - reach),
+                  SectionPos.blockToSectionCoord(bz - reach), SectionPos.blockToSectionCoord(bx + reach),
+                  SectionPos.blockToSectionCoord(by + reach), SectionPos.blockToSectionCoord(bz + reach));
+            }
+         });
       ClientPlayNetworking.registerGlobalReceiver(MatchNotificationPayload.TYPE,
          (payload, context) -> MatchBannerState.INSTANCE.handle(payload));
       ClientPlayNetworking.registerGlobalReceiver(GunGameStatusPayload.TYPE,

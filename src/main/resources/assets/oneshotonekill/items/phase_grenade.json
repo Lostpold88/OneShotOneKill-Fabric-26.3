@@ -1,0 +1,12 @@
+{
+  "model": {
+    "type": "minecraft:model",
+    "model": "oneshotonekill:item/phase_grenade",
+    "tints": [
+      {
+        "type": "minecraft:dye",
+        "default": -16037288
+      }
+    ]
+  }
+}

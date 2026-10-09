@@ -86,6 +86,11 @@ public final class ClientInputEvents {
             lines.add(Component.translatable("tooltip.oneshotonekill.boogie_bomb_warning").withStyle(ChatFormatting.GRAY));
             return;
         }
+        if (stack.is(ModItems.PHASE_GRENADE)) {
+            lines.add(Component.translatable("tooltip.oneshotonekill.phase_grenade").withStyle(ChatFormatting.AQUA));
+            lines.add(Component.translatable("tooltip.oneshotonekill.phase_grenade_warning").withStyle(ChatFormatting.GRAY));
+            return;
+        }
         if (stack.is(ModItems.GRAPPLING_HOOK)) {
             int charges = Math.max(0, stack.getMaxDamage() - stack.getDamageValue());
             lines.add(Component.translatable("tooltip.oneshotonekill.grappling_hook_charges",

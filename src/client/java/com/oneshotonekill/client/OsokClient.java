@@ -272,6 +272,7 @@ public final class OsokClient implements ClientModInitializer {
      */
     private static void onDisconnect() {
         ClientClimbing.INSTANCE.clear();
+        com.oneshotonekill.shared.PhaseFields.CLIENT.clear();
         MatchStartState.INSTANCE.clear();
         MinigunHudState.INSTANCE.clear();
         MinigunSpinState.INSTANCE.clear();
@@ -342,6 +343,7 @@ public final class OsokClient implements ClientModInitializer {
 
         OsokClientHandlers.register();
         com.oneshotonekill.client.effect.BoogieBombClient.register();
+        com.oneshotonekill.client.hud.PhaseHudLayer.register();
         ClientInputEvents.register();
         InteractionGates.registerClientPullGate(player ->
                 GrapplePullState.INSTANCE.isPulling(player.getUUID())

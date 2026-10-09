@@ -17,7 +17,10 @@
 		"movement.BoogieSprintMixin",
 		"movement.LivingEntityClimbingMixin",
 		"movement.EntityArenaBorderMixin",
-		"movement.PlayerGlidePoseMixin"
+		"movement.PlayerGlidePoseMixin",
+		"movement.PhaseCollisionMixin",
+		"movement.PhaseInWallMixin",
+		"movement.PhaseArrowMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1

@@ -99,6 +99,7 @@ public final class OneShotOneKill implements ModInitializer {
       StatusAbilities.INSTANCE.reset(targetServer);
       ThrownDevices.INSTANCE.reset();
       com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.reset(targetServer);
+      com.oneshotonekill.item.runtime.PhaseFieldSystem.INSTANCE.reset(targetServer);
       Deployables.INSTANCE.reset();
       GrapplingHookSystem.INSTANCE.reset();
       BlastEffect.INSTANCE.reset();

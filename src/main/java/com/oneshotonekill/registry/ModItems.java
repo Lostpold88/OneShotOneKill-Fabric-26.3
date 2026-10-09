@@ -135,4 +135,5 @@ public final class ModItems {
     public static final Item BOOGIE_BOMB = special("boogie_bomb", BoogieBombItem::new);
     public static final Item BOOGIE_DISCO_BALL = special("boogie_disco_ball", Item::new);
     public static final Item BOOGIE_BEAM = special("boogie_beam", Item::new);
+    public static final Item PHASE_GRENADE = special("phase_grenade", PhaseGrenadeItem::new);
 }

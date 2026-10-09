@@ -1,6 +1,7 @@
 package com.oneshotonekill.item.types;
 
 import com.oneshotonekill.item.runtime.Deployables;
+import com.oneshotonekill.item.runtime.PhaseFieldSystem;
 import com.oneshotonekill.item.runtime.StealthBomberSystem;
 import com.oneshotonekill.item.runtime.ThrownDevices;
 import com.oneshotonekill.shared.DeviceLights;
@@ -120,6 +121,41 @@ public final class DeployableItems {
       @Override
       protected boolean activate(ServerLevel level, ServerPlayer player, ItemStack stack) {
          return ThrownDevices.INSTANCE.throwDevice(level, player, ThrownDevices.DeviceType.SMOKE);
+      }
+   }
+
+   // --- PhaseGrenadeItem.java ---
+   /**
+    * Wirft eine Phasen-Granate: um den Einschlag werden Blöcke für den Werfer durchlässig.
+    * <p>
+    * Er geht und schießt hindurch, alle sehen durch die Wände – Gegner kommen aber nicht
+    * hindurch. Die Wirkung steckt in {@link PhaseFieldSystem}.
+    */
+   public static final class PhaseGrenadeItem extends AbilityItems.SpecialAbilityItem {
+      /** Bereitschaftscyan der Leuchtdioden und das dunkle Feld dazwischen. */
+      private static final int LED_READY = 0x3CF0FF;
+      private static final int LED_DIM = 0x0B4A58;
+
+      public PhaseGrenadeItem(Properties properties) {
+         super(properties);
+      }
+
+      /** Lässt die Dioden blinken, solange das Gerät in der Haupthand liegt. */
+      @Override
+      public void inventoryTick(ItemStack stack, ServerLevel level, Entity owner, EquipmentSlot slot) {
+         if (slot == EquipmentSlot.MAINHAND) {
+            DeviceLights.beacon(stack, level.getGameTime(), LED_READY, LED_DIM);
+         }
+      }
+
+      @Override
+      public boolean allowComponentsUpdateAnimation(Player player, InteractionHand hand, ItemStack oldStack, ItemStack newStack) {
+         return DeviceLights.allowsReequipAnimation();
+      }
+
+      @Override
+      protected boolean activate(ServerLevel level, ServerPlayer player, ItemStack stack) {
+         return PhaseFieldSystem.INSTANCE.throwGrenade(level, player);
       }
    }
 

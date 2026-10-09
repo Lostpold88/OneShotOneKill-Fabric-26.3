@@ -93,6 +93,7 @@ public final class PlayerEvents {
          }
          SlowMotionSystem.INSTANCE.syncJoiningPlayer(player);
          com.oneshotonekill.item.runtime.BoogieBombSystem.INSTANCE.syncJoiningPlayer(player);
+         com.oneshotonekill.item.runtime.PhaseFieldSystem.INSTANCE.syncJoiningPlayer(player);
          MatchManager.INSTANCE.sendState(player, false);
       }
    

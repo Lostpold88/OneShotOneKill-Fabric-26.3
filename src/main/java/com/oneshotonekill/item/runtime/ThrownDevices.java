@@ -208,8 +208,9 @@ public final class ThrownDevices {
          Projectile shot = iterator.next();
          Vec3 next = shot.position.add(shot.velocity);
 
-         BlockHitResult hit = level.clip(new ClipContext(
-            shot.position, next, ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty()));
+         // Durch die Kugel einer Phasen-Granate des Werfers fliegt das Gerät hindurch.
+         BlockHitResult hit = com.oneshotonekill.shared.PhaseFields.clipThrown(
+            level, shot.owner, shot.position, next, ClipContext.Fluid.NONE);
          boolean impact = hit.getType() != HitResult.Type.MISS;
          shot.position = impact ? hit.getLocation() : next;
          shot.velocity = shot.velocity.scale(DRAG).subtract(0.0, GRAVITY, 0.0);

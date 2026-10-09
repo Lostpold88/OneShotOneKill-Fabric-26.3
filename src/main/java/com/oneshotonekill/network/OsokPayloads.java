@@ -67,6 +67,7 @@ public final class OsokPayloads {
       registry.register(NukeStatePayload.TYPE, NukeStatePayload.STREAM_CODEC);
       registry.register(NukeVictoryPayload.TYPE, NukeVictoryPayload.STREAM_CODEC);
       registry.register(ExplosionShakePayload.TYPE, ExplosionShakePayload.STREAM_CODEC);
+      registry.register(com.oneshotonekill.item.runtime.PhaseFieldSystem.Sync.TYPE, com.oneshotonekill.item.runtime.PhaseFieldSystem.Sync.STREAM_CODEC);
       registry.register(MatchNotificationPayload.TYPE, MatchNotificationPayload.STREAM_CODEC);
       registry.register(GunGameStatusPayload.TYPE, GunGameStatusPayload.STREAM_CODEC);
       registry.register(MatchScoreboardPayload.TYPE, MatchScoreboardPayload.STREAM_CODEC);

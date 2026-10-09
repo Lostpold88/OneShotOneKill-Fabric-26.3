@@ -264,8 +264,11 @@ public final class ArmedShots {
          }
       }
 
+      // Mit dem Schützen als Kontext – so fliegt der Schuss durch die Kugel einer Phasen-Granate.
+      ServerPlayer owner = server.getPlayerList().getPlayer(shot.shooter);
       BlockHitResult wall = level.clip(new ClipContext(from, to,
-         ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE, CollisionContext.empty()));
+         ClipContext.Block.COLLIDER, ClipContext.Fluid.NONE,
+         owner == null ? CollisionContext.empty() : CollisionContext.of(owner)));
       boolean hitsWall = wall.getType() != HitResult.Type.MISS;
       // Wer zuerst auf der Strecke liegt, gilt: eine Wand vor dem Gegner blockt den Schuss.
       if (hitsWall && struck != null && wall.getLocation().distanceToSqr(from) < nearest) {

@@ -1,4 +1,10 @@
 {
+  "item.oneshotonekill.phase_grenade": "Phasen-Granate",
+  "tooltip.oneshotonekill.phase_grenade": "Rechtsklick: Wirf eine Phasen-Granate. 15 Sekunden gehst und schießt du im Umkreis durch Blöcke.",
+  "tooltip.oneshotonekill.phase_grenade_warning": "Alle sehen durch die Wände, nur du kommst hindurch. Am Ende kehrst du aus dem Gestein zurück.",
+  "desc.oneshotonekill.phase_grenade": "Blöcke im Umkreis werden durchsichtig. Der Werfer geht und schießt hindurch.",
+  "actionbar.oneshotonekill.phase_active": "§b◈ PHASE §7· noch %s s",
+  "actionbar.oneshotonekill.phase_ending": "§c◈ PHASE ENDET §7· raus aus dem Gestein! %s s",
   "item.oneshotonekill.boogie_bomb": "Boogie-Bomb",
   "item.oneshotonekill.boogie_disco_ball": "Discokugel",
   "item.oneshotonekill.boogie_beam": "Discolicht",

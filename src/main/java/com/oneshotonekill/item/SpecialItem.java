@@ -35,7 +35,8 @@ public enum SpecialItem {
    SENTRY_TURRET("sentry_turret", "Geschützturm", ModItems.SENTRY_TURRET),
    SLOW_MOTION("slow_motion", "Zeitverzerrer", ModItems.SLOW_MOTION),
    GRAPPLING_HOOK("grappling_hook", "Grappling Hook", ModItems.GRAPPLING_HOOK),
-   BOOGIE_BOMB("boogie_bomb", "Boogie-Bomb", ModItems.BOOGIE_BOMB);
+   BOOGIE_BOMB("boogie_bomb", "Boogie-Bomb", ModItems.BOOGIE_BOMB),
+   PHASE_GRENADE("phase_grenade", "Phasen-Granate", ModItems.PHASE_GRENADE);
 
    private static final Map<String, SpecialItem> BY_ID = Arrays.stream(values())
       .collect(Collectors.toUnmodifiableMap(SpecialItem::getId, Function.identity()));

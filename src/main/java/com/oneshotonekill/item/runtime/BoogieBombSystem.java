@@ -98,8 +98,8 @@ public final class BoogieBombSystem {
                 continue;
             }
             Vec3 next = shot.position.add(shot.velocity);
-            BlockHitResult block = shot.level.clip(new ClipContext(shot.position, next,
-                    ClipContext.Block.COLLIDER, ClipContext.Fluid.ANY, CollisionContext.empty()));
+            BlockHitResult block = com.oneshotonekill.shared.PhaseFields.clipThrown(
+                    shot.level, shot.owner, shot.position, next, ClipContext.Fluid.ANY);
             Vec3 impact = block.getType() == HitResult.Type.MISS ? next : block.getLocation();
             boolean collided = block.getType() != HitResult.Type.MISS;
             double nearest = shot.position.distanceToSqr(impact);
